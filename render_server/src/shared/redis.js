@@ -39,6 +39,10 @@ export async function redisPipeline(commands) {
   const url   = process.env.UPSTASH_REDIS_URL;
   const token = process.env.UPSTASH_REDIS_TOKEN;
 
+  if (!url || !token) {
+    throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN)');
+  }
+
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',
     headers: {

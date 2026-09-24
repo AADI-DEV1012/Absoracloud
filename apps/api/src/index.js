@@ -18,9 +18,12 @@ import { errorHandler }    from './middleware/error_handler.js';
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust reverse proxy (Render, Cloudflare) for rate limiting & secure cookies
+app.set('trust proxy', 1);
+
 // ── Global Middleware ──
 app.use(cors({
-  origin: ['https://absoracloud.qzz.io', 'http://localhost:5173'],
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
 }));
 app.use(express.json());

@@ -7,7 +7,7 @@ const D1_API = (accountId, dbId) =>
 export async function queryD1(sql, params = []) {
   const token     = process.env.CLOUDFLARE_API_TOKEN;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const dbId      = process.env.D1_DB_ID;
+  const dbId      = process.env.D1_DB_ID || process.env.D1_DB_1_ID;
 
   if (!token || !accountId || !dbId) {
     throw new Error('Missing Cloudflare D1 credentials (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, D1_DB_ID)');
@@ -34,7 +34,11 @@ export async function queryD1(sql, params = []) {
 export async function executeD1(sql, params = []) {
   const token     = process.env.CLOUDFLARE_API_TOKEN;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const dbId      = process.env.D1_DB_ID;
+  const dbId      = process.env.D1_DB_ID || process.env.D1_DB_1_ID;
+
+  if (!token || !accountId || !dbId) {
+    throw new Error('Missing Cloudflare D1 credentials (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, D1_DB_ID)');
+  }
 
   const res = await fetch(D1_API(accountId, dbId), {
     method: 'POST',

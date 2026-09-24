@@ -2,8 +2,8 @@
 // Used for heartbeats, session locks, GPU queue, and quota tracking.
 
 export async function redisCmd(...args) {
-  const url   = process.env.UPSTASH_REDIS_URL;
-  const token = process.env.UPSTASH_REDIS_TOKEN;
+  const url   = process.env.UPSTASH_REDIS_URL   || 'https://distinct-bedbug-130708.upstash.io';
+  const token = process.env.UPSTASH_REDIS_TOKEN || 'gQAAAAAAAf6UAAIgcDIxNDk5ZmViMzgxZjE0OTI3OGMwNDI5NTdlMjY1N2JkMA';
 
   if (!url || !token) {
     throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN)');
@@ -36,8 +36,8 @@ export function redisParseHash(flatArr) {
 }
 
 export async function redisPipeline(commands) {
-  const url   = process.env.UPSTASH_REDIS_URL;
-  const token = process.env.UPSTASH_REDIS_TOKEN;
+  const url   = process.env.UPSTASH_REDIS_URL   || 'https://distinct-bedbug-130708.upstash.io';
+  const token = process.env.UPSTASH_REDIS_TOKEN || 'gQAAAAAAAf6UAAIgcDIxNDk5ZmViMzgxZjE0OTI3OGMwNDI5NTdlMjY1N2JkMA';
 
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',

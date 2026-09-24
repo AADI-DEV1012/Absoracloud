@@ -34,8 +34,8 @@ authRouter.post('/register', authLimiter, async (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
     await executeD1(
-      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-      [username, email, hash]
+      'INSERT INTO users (username, email, password, password_hash) VALUES (?, ?, ?, ?)',
+      [username, email, hash, hash]
     );
 
     const user = await d1QueryOne('SELECT * FROM users WHERE username = ?', [username]);
@@ -62,7 +62,9 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     const user = await d1QueryOne(
       'SELECT * FROM users WHERE username = ? OR email = ?', [login, login]
     );
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    const hashMatches = user.password_hash && bcrypt.compareSync(password, user.password_hash);
+    const legacyMatches = user.password && (user.password === password || bcrypt.compareSync(password, user.password));
+    if (!user || (!hashMatches && !legacyMatches)) {
       return res.status(401).json({ status: 'error', msg: 'Invalid credentials' });
     }
 
