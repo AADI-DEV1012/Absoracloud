@@ -1,9 +1,12 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "outputDirectory": "apps/web",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://absoracloud.onrender.com/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "apps/web/index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "https://absoracloud.onrender.com/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
