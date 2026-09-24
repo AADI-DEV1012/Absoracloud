@@ -5,6 +5,10 @@ on:
       session_key:
         required: true
         description: "Session key for this VPS instance"
+      plan:
+        required: false
+        default: "free"
+        description: "User plan tier"
 
 permissions:
   contents: read
@@ -19,6 +23,8 @@ jobs:
       WORKER_SECRET:       ${{ secrets.WORKER_SECRET }}
       API_URL:             ${{ secrets.API_URL }}
       RUNNER_ID:           "vps-${{ github.run_id }}"
+      INITIAL_SESSION_KEY: ${{ github.event.inputs.session_key }}
+      PLAN:                ${{ github.event.inputs.plan || 'free' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -31,25 +37,34 @@ jobs:
           echo "  Capacity  : 4 vCPU, 16 GB RAM"
           echo "═══════════════════════════════════════════"
 
-          pip install websockets psutil --quiet
+          pip install requests websockets psutil --quiet
 
           # Install cloudflared
           curl -sL --output cloudflared.deb \
             https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-          # Build base Docker image
+          # Build base Docker image with mirror resilience
           cat > /tmp/Dockerfile <<'DOCKERFILE'
           FROM ubuntu:22.04
           ENV DEBIAN_FRONTEND=noninteractive
-          RUN apt-get update && apt-get install -y --no-install-recommends \
-              bash curl wget git nano vim \
-              python3 python3-pip \
-              nodejs npm \
-              gcc g++ make \
-              net-tools iputils-ping dnsutils \
-              ca-certificates \
-              && rm -rf /var/lib/apt/lists/*
+          RUN rm -rf /var/lib/apt/lists/* && \
+              apt-get update --fix-missing && \
+              (apt-get install -y --fix-missing --no-install-recommends \
+                bash curl wget git nano vim \
+                python3 python3-pip \
+                gcc g++ make \
+                net-tools iputils-ping dnsutils \
+                ca-certificates || \
+              (apt-get update --fix-missing && apt-get install -y --fix-missing --no-install-recommends \
+                bash curl wget git nano vim \
+                python3 python3-pip \
+                gcc g++ make \
+                net-tools iputils-ping dnsutils \
+                ca-certificates)) && \
+              (curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y --no-install-recommends nodejs || true) && \
+              (curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd || true) && \
+              rm -rf /var/lib/apt/lists/*
           RUN mkdir -p /root/files
           WORKDIR /root
           CMD ["sleep", "infinity"]
@@ -59,22 +74,5 @@ jobs:
       - name: Start VPS Server
         run: |
           cd runners/vps-server
-          python3 shared_server.py &
-          SERVER_PID=$!
+          python3 shared_server.py
 
-          # Start cloudflared tunnel
-          cloudflared tunnel --url http://localhost:8080 --no-autoupdate 2>&1 | tee /tmp/tunnel.log &
-          sleep 10
-
-          # Extract tunnel URL
-          TUNNEL_URL=$(grep -oP 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
-          echo "Tunnel URL: $TUNNEL_URL"
-
-          # Register with API
-          curl -s -X POST "$API_URL/worker/register" \
-            -H "Content-Type: application/json" \
-            -H "x-worker-secret: $WORKER_SECRET" \
-            -d "{\"runner_id\":\"$RUNNER_ID\",\"type\":\"github\",\"service\":\"vps\",\"capacity\":4,\"tunnel_url\":\"$TUNNEL_URL\"}"
-
-          # Wait for server to finish
-          wait $SERVER_PID

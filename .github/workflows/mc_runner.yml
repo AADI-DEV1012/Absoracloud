@@ -29,6 +29,11 @@ jobs:
       WORKER_SECRET:       ${{ secrets.WORKER_SECRET }}
       API_URL:             ${{ secrets.API_URL }}
       RUNNER_ID:           "mc-${{ github.run_id }}"
+      INITIAL_SESSION_KEY: ${{ github.event.inputs.session_key }}
+      PLAN:                ${{ github.event.inputs.plan || 'free' }}
+      SERVER_TYPE:         ${{ github.event.inputs.server_type || 'paper' }}
+      VERSION:             ${{ github.event.inputs.version || '1.20.4' }}
+      RAM_MB:              ${{ github.event.inputs.ram_mb || '1024' }}
 
     steps:
       - uses: actions/checkout@v4

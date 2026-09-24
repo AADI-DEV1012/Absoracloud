@@ -255,6 +255,16 @@ if __name__ == "__main__":
     except Exception as e:
         log.error(f"Failed to register runner: {e}")
 
+    # Start initial container if triggered with INITIAL_SESSION_KEY
+    initial_key = os.environ.get("INITIAL_SESSION_KEY")
+    if initial_key:
+        plan = os.environ.get("PLAN", "free")
+        log.info(f"Starting initial VPS container for session '{initial_key}' (Plan: {plan})...")
+        try:
+            start_vps_container(initial_key, plan, 14400)
+        except Exception as e:
+            log.error(f"Failed to start initial VPS container: {e}")
+
     # Start background threads
     threading.Thread(target=local_watchdog, daemon=True).start()
     threading.Thread(target=heartbeat_loop, daemon=True).start()

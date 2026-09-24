@@ -235,6 +235,18 @@ if __name__ == "__main__":
     except Exception as e:
         log.error(f"Failed to register MC runner: {e}")
 
+    # Start initial MC server if triggered with INITIAL_SESSION_KEY
+    initial_key = os.environ.get("INITIAL_SESSION_KEY")
+    if initial_key:
+        log.info(f"Starting initial MC server for session '{initial_key}'...")
+        try:
+            ram = int(os.environ.get("RAM_MB", "1024"))
+            stype = os.environ.get("SERVER_TYPE", "paper")
+            ver = os.environ.get("VERSION", "1.20.4")
+            start_mc_server(initial_key, stype, ver, ram, 21600)
+        except Exception as e:
+            log.error(f"Failed to start initial MC server: {e}")
+
     threading.Thread(target=local_watchdog, daemon=True).start()
     threading.Thread(target=heartbeat_loop, daemon=True).start()
     threading.Thread(target=task_listener, daemon=True).start()
