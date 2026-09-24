@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbsoraCloud | Multi-Service Cloud Platform</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary": "#ffffff",
+              "on-primary": "#ffffff",
+              "secondary": "#5f5e5b",
+              "surface": "#fdf8f8",
+              "surface-container": "#f7f3f2",
+              "surface-container-high": "#f1edec",
+              "surface-container-highest": "#ebe7e6",
+              "surface-container-low": "#fdf8f8",
+              "surface-container-lowest": "#ffffff",
+              "outline": "#7c7774",
+              "outline-variant": "#ccabaf",
+              "primary": "#1A1A1A",
+              "primary-container": "#2c2a29"
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #fdf8f8;
+        --s1: #ffffff;
+        --s2: #f1edec;
+        --border: #E5E1DA;
+        --primary: #1A1A1A;
+        --text: #1A1A1A;
+        --dim: #8C8984;
+        --green: #16a34a;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+      }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+      }
+      .nav-tab.active {
+        background-color: #1A1A1A;
+        color: #ffffff;
+      }
+      .nav-tab.active i {
+        color: #ffffff;
+      }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Topbar -->
+    <header class="glass-card sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between border-b">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-lg font-heading shadow-sm">
+                ☁️
+            </div>
+            <div>
+                <span class="font-heading font-bold text-lg text-primary tracking-tight">AbsoraCloud</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium ml-2">V2 Engine</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="hidden sm:flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                API & Runners Online
+            </div>
+
+            <!-- Auth Status Area -->
+            <div id="auth-area" class="flex items-center gap-2">
+                <button onclick="openAuthModal('login')" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-300 hover:bg-neutral-100 transition">
+                    Sign In
+                </button>
+                <button onclick="openAuthModal('register')" class="px-4 py-2 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-neutral-800 transition">
+                    Get Started
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-neutral-200 p-4 flex flex-col gap-1.5 shrink-0 bg-white">
+            <div class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase px-3 mb-2">Cloud Compute</div>
+            
+            <button onclick="switchTab('vps')" class="nav-tab active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-server text-sm w-4"></i>
+                <span>VPS Hosting</span>
+                <span class="ml-auto text-[10px] bg-neutral-200 text-neutral-800 px-1.5 py-0.5 rounded">Sliced</span>
+            </button>
+
+            <button onclick="switchTab('mc')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-cube text-sm w-4"></i>
+                <span>Minecraft Hosting</span>
+            </button>
+
+            <button onclick="switchTab('devbox')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-microchip text-sm w-4"></i>
+                <span>DevBox (T4 GPU)</span>
+                <span class="ml-auto text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">2×T4</span>
+            </button>
+
+            <button onclick="switchTab('webhost')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-globe text-sm w-4"></i>
+                <span>Web Hosting</span>
+                <span class="ml-auto text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">Gradio</span>
+            </button>
+
+            <div class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase px-3 mt-6 mb-2">Account & Quotas</div>
+
+            <button onclick="switchTab('plans')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-credit-card text-sm w-4"></i>
+                <span>Plans & Limits</span>
+            </button>
+
+            <!-- User Plan Widget in Sidebar -->
+            <div class="mt-auto p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200">
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                    <span class="font-medium text-neutral-500">Active Tier:</span>
+                    <span id="user-plan-badge" class="font-bold text-primary uppercase">Free Plan</span>
+                </div>
+                <div class="w-full bg-neutral-200 h-1.5 rounded-full overflow-hidden mb-2">
+                    <div id="quota-progress-bar" class="bg-primary h-full w-1/4"></div>
+                </div>
+                <div class="text-[11px] text-neutral-500 flex justify-between">
+                    <span>Weekly Quota</span>
+                    <span id="quota-text" class="font-semibold text-neutral-700">4h / 6h</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto p-8">
+            <!-- VPS Tab -->
+            <section id="panel-vps" class="tab-panel space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">VPS Cloud Hosting</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant runner sliced by plan: dedicated CPU & RAM limits with web terminal.</p>
+                    </div>
+                    <button onclick="launchVPS()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-play"></i> Launch VPS
+                    </button>
+                </div>
+
+                <!-- VPS Instance Table -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active VPS Sessions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Session Key</th>
+                                    <th class="pb-3">Resources (CPUs / RAM)</th>
+                                    <th class="pb-3">Terminal Tunnel</th>
+                                    <th class="pb-3">Time Remaining</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vps-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Minecraft Tab -->
+            <section id="panel-mc" class="tab-panel hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Minecraft Server Hosting</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Instant Paper/Fabric multi-tenant game servers with RAM allocated by plan.</p>
+                    </div>
+                    <button onclick="launchMC()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-play"></i> Launch Server
+                    </button>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Your Minecraft Instances</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Server Key</th>
+                                    <th class="pb-3">Engine & RAM</th>
+                                    <th class="pb-3">Connection Address</th>
+                                    <th class="pb-3">Auto-Timeout</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mc-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DevBox Tab -->
+            <section id="panel-devbox" class="tab-panel hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">DevBox GPU Pool (ZeroGPU)</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Kaggle Dual Nvidia T4 GPU pool shared across users with plan priority queue.</p>
+                    </div>
+                    <button onclick="launchDevBox()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-bolt"></i> Request GPU Session
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Hardware Architecture</div>
+                        <div class="font-heading font-bold text-lg text-primary mt-1">2× Nvidia Tesla T4</div>
+                        <div class="text-xs text-neutral-500 mt-1">32 GB VRAM Pool</div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Pool Capacity</div>
+                        <div class="font-heading font-bold text-lg text-primary mt-1">4 Concurrent Slots</div>
+                        <div class="text-xs text-emerald-600 mt-1">Dynamic ZeroGPU allocation</div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Plan Session Cap</div>
+                        <div id="devbox-plan-cap" class="font-heading font-bold text-lg text-primary mt-1">30 Min (Free)</div>
+                        <div class="text-xs text-neutral-500 mt-1">Up to 480m on Enterprise</div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active GPU Sessions</h2>
+                    <div id="devbox-list" class="text-xs text-neutral-400 py-4 text-center">
+                        No active DevBox sessions. Click "Request GPU Session" to start.
+                    </div>
+                </div>
+            </section>
+
+            <!-- WebHost Tab -->
+            <section id="panel-webhost" class="tab-panel hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Web Hosting Cluster</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Hugging Face Spaces Gradio cluster hosting 20+ websites with automated Cloudflare Tunnels.</p>
+                    </div>
+                    <button onclick="openDeploySiteModal()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Deploy Website
+                    </button>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Deployed Websites</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Site Name</th>
+                                    <th class="pb-3">Repository</th>
+                                    <th class="pb-3">Public Cloudflare URL</th>
+                                    <th class="pb-3">Auto-Timeout</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="webhost-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No websites deployed. Click "Deploy Website" to link a GitHub repo.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Plans Tab -->
+            <section id="panel-plans" class="tab-panel hidden space-y-6">
+                <div class="text-center max-w-xl mx-auto mb-8">
+                    <h1 class="font-heading font-bold text-3xl text-primary">Predictable, Sliced Cloud Compute</h1>
+                    <p class="text-sm text-neutral-500 mt-2">Every plan enforces automated resource limits, multi-tenant container slicing, and guaranteed runtimes.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Free -->
+                    <div class="glass-card rounded-2xl p-6 flex flex-col justify-between border-2 border-neutral-200">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Starter</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Free</h3>
+                            <div class="text-3xl font-bold font-heading text-primary my-4">$0 <span class="text-xs text-neutral-400 font-normal">/ forever</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 4h/week VPS (0.5 CPU, 2GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 6h/week MC (1GB RAM)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 30m GPU DevBox / week</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1 Hosted Website (CF Tunnel)</li>
+                            </ul>
+                        </div>
+                        <button class="w-full py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 bg-neutral-100" disabled>Current Plan</button>
+                    </div>
+
+                    <!-- Basic -->
+                    <div class="glass-card rounded-2xl p-6 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Basic</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Basic</h3>
+                            <div class="text-3xl font-bold font-heading text-primary my-4">₹99 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10h/week VPS (1 CPU, 4GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 12h/week MC (2GB RAM)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 120m GPU DevBox (Priority 1)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 3 Hosted Websites</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('basic')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Basic</button>
+                    </div>
+
+                    <!-- Pro -->
+                    <div class="glass-card rounded-2xl p-6 flex flex-col justify-between border-2 border-primary relative shadow-md">
+                        <div class="absolute -top-3 right-6 bg-primary text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Power</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Pro</h3>
+                            <div class="text-3xl font-bold font-heading text-primary my-4">₹299 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 20h/week VPS (2 CPU, 8GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 24h/week MC (4GB RAM)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 240m GPU DevBox (Priority 2)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 Hosted Websites</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> Cloud File Manager</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('pro')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Pro</button>
+                    </div>
+
+                    <!-- Enterprise -->
+                    <div class="glass-card rounded-2xl p-6 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Extreme</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Enterprise</h3>
+                            <div class="text-3xl font-bold font-heading text-primary my-4">₹799 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 40h/week VPS (4 CPU, 16GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 48h/week MC (8GB RAM)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 480m GPU DevBox (VIP Priority)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10 Hosted Websites</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('enterprise')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Enterprise</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl p-8 max-w-sm w-full space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 id="auth-modal-title" class="font-heading font-bold text-xl text-primary">Sign In</h3>
+                <button onclick="closeAuthModal()" class="text-neutral-400 hover:text-neutral-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">Username / Email</label>
+                    <input id="auth-email" type="text" required class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.com">
+                </div>
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">Password</label>
+                    <input id="auth-password" type="password" required class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-neutral-800 transition">
+                    Continue
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deploy Site Modal -->
+    <div id="deploy-modal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl p-8 max-w-md w-full space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="font-heading font-bold text-xl text-primary">Deploy to Gradio Cluster</h3>
+                <button onclick="closeDeployModal()" class="text-neutral-400 hover:text-neutral-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleDeploySubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">Site Subdomain / Name</label>
+                    <input id="deploy-site-name" type="text" required pattern="[a-z0-9-]{3,30}" class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-awesome-site">
+                    <span class="text-[10px] text-neutral-400">Lowercase letters, numbers, and hyphens only</span>
+                </div>
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">GitHub Repository URL (Public)</label>
+                    <input id="deploy-repo-url" type="url" required class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="https://github.com/user/my-repo">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-neutral-800 transition">
+                    Deploy with Cloudflare Tunnel
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client-side Controller -->
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud-api.onrender.com';
+        let authToken = localStorage.getItem('absora_token');
+        let currentUser = null;
+        let authMode = 'login';
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+            
+            const target = document.getElementById(`panel-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            event?.currentTarget?.classList?.add('active');
+            if (authToken) refreshActiveTab(tabId);
+        }
+
+        function openAuthModal(mode) {
+            authMode = mode;
+            document.getElementById('auth-modal-title').innerText = mode === 'login' ? 'Sign In' : 'Create Account';
+            document.getElementById('auth-modal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function openDeployModal() {
+            if (!authToken) return openAuthModal('login');
+            document.getElementById('deploy-modal').classList.remove('hidden');
+        }
+
+        function closeDeployModal() {
+            document.getElementById('deploy-modal').classList.add('hidden');
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email: username, password })
+                });
+                const data = await res.json();
+                if (data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('absora_token', authToken);
+                    currentUser = data.user;
+                    closeAuthModal();
+                    updateAuthUI();
+                } else {
+                    alert(data.msg || 'Authentication failed');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        function updateAuthUI() {
+            const area = document.getElementById('auth-area');
+            if (authToken) {
+                area.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-neutral-700">${currentUser?.username || 'User'}</span>
+                        <button onclick="logout()" class="text-xs text-neutral-400 hover:text-red-500 ml-2">Sign Out</button>
+                    </div>
+                `;
+            } else {
+                area.innerHTML = `
+                    <button onclick="openAuthModal('login')" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-300 hover:bg-neutral-100 transition">Sign In</button>
+                    <button onclick="openAuthModal('register')" class="px-4 py-2 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-neutral-800 transition">Get Started</button>
+                `;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('absora_token');
+            authToken = null;
+            currentUser = null;
+            updateAuthUI();
+        }
+
+        async function launchVPS() {
+            if (!authToken) return openAuthModal('login');
+            try {
+                const res = await fetch(`${API_BASE}/vps/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                alert(data.msg || 'VPS launching...');
+                refreshActiveTab('vps');
+            } catch(e) { alert('Failed to launch'); }
+        }
+
+        async function launchMC() {
+            if (!authToken) return openAuthModal('login');
+            try {
+                const res = await fetch(`${API_BASE}/mc/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ server_type: 'paper', version: '1.20.4' })
+                });
+                const data = await res.json();
+                alert(data.msg || 'MC server launching...');
+                refreshActiveTab('mc');
+            } catch(e) { alert('Failed to launch'); }
+        }
+
+        async function launchDevBox() {
+            if (!authToken) return openAuthModal('login');
+            try {
+                const res = await fetch(`${API_BASE}/devbox/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                alert(data.msg || 'DevBox request sent');
+                refreshActiveTab('devbox');
+            } catch(e) { alert('Failed to launch'); }
+        }
+
+        async function handleDeploySubmit(e) {
+            e.preventDefault();
+            const site_name = document.getElementById('deploy-site-name').value;
+            const repo_url = document.getElementById('deploy-repo-url').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/webhost/deploy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ site_name, repo_url })
+                });
+                const data = await res.json();
+                alert(data.msg || 'Site dispatched to Gradio Cluster!');
+                closeDeployModal();
+                refreshActiveTab('webhost');
+            } catch(e) { alert('Deployment failed'); }
+        }
+
+        async function refreshActiveTab(tabId) {
+            if (!authToken) return;
+            try {
+                if (tabId === 'vps') {
+                    const r = await fetch(`${API_BASE}/vps/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    if (d.instances?.length) {
+                        document.getElementById('vps-list').innerHTML = d.instances.map(inst => `
+                            <tr>
+                                <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                                <td class="py-3 text-neutral-500">Sliced Container</td>
+                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 hover:underline">Terminal Link ↗</a>` : '<span class="text-neutral-400">Tunnel building...</span>'}</td>
+                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '3h 50m'}</td>
+                                <td class="py-3"><span class="px-2 py-0.5 rounded-full ${inst.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'}">${inst.status}</span></td>
+                                <td class="py-3 text-right"><button onclick="stopInstance('vps', '${inst.session_key}')" class="text-red-500 hover:underline">Stop</button></td>
+                            </tr>
+                        `).join('');
+                    }
+                } else if (tabId === 'webhost') {
+                    const r = await fetch(`${API_BASE}/webhost/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    if (d.sites?.length) {
+                        document.getElementById('webhost-list').innerHTML = d.sites.map(s => `
+                            <tr>
+                                <td class="py-3 font-semibold text-primary">${JSON.parse(s.config || '{}').site_name || s.session_key}</td>
+                                <td class="py-3 text-neutral-400 font-mono">${JSON.parse(s.config || '{}').repo_url || '-'}</td>
+                                <td class="py-3">${s.public_url ? `<a href="${s.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">${s.public_url} ↗</a>` : '<span class="text-neutral-400 animate-pulse">Building Cloudflare Tunnel...</span>'}</td>
+                                <td class="py-3 font-mono text-neutral-500">${s.expires_at ? s.expires_at.slice(0, 10) : '24h limit'}</td>
+                                <td class="py-3"><span class="px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'}">${s.status}</span></td>
+                                <td class="py-3 text-right"><button onclick="stopInstance('webhost', '${s.session_key}')" class="text-red-500 hover:underline">Remove</button></td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function stopInstance(service, session_key) {
+            if (!confirm('Are you sure you want to stop this instance?')) return;
+            try {
+                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/stop'}`, {
+                    method: service === 'webhost' ? 'DELETE' : 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                refreshActiveTab(service);
+            } catch(e) { alert('Stop failed'); }
+        }
+
+        // Initialize
+        updateAuthUI();
+    </script>
+</body>
+</html>

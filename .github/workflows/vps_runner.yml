@@ -1,0 +1,80 @@
+name: AbsoraCloud VPS Runner
+on:
+  workflow_dispatch:
+    inputs:
+      session_key:
+        required: true
+        description: "Session key for this VPS instance"
+
+permissions:
+  contents: read
+
+jobs:
+  vps-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      UPSTASH_REDIS_URL:   ${{ secrets.UPSTASH_REDIS_URL }}
+      UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN }}
+      WORKER_SECRET:       ${{ secrets.WORKER_SECRET }}
+      API_URL:             ${{ secrets.API_URL }}
+      RUNNER_ID:           "vps-${{ github.run_id }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Environment
+        run: |
+          echo "═══════════════════════════════════════════"
+          echo "  AbsoraCloud VPS Runner"
+          echo "  Runner ID : $RUNNER_ID"
+          echo "  Capacity  : 4 vCPU, 16 GB RAM"
+          echo "═══════════════════════════════════════════"
+
+          pip install websockets psutil --quiet
+
+          # Install cloudflared
+          curl -sL --output cloudflared.deb \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+          # Build base Docker image
+          cat > /tmp/Dockerfile <<'DOCKERFILE'
+          FROM ubuntu:22.04
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              bash curl wget git nano vim \
+              python3 python3-pip \
+              nodejs npm \
+              gcc g++ make \
+              net-tools iputils-ping dnsutils \
+              ca-certificates \
+              && rm -rf /var/lib/apt/lists/*
+          RUN mkdir -p /root/files
+          WORKDIR /root
+          CMD ["sleep", "infinity"]
+          DOCKERFILE
+          docker build -t absoracloud-base -f /tmp/Dockerfile /tmp
+
+      - name: Start VPS Server
+        run: |
+          cd runners/vps-server
+          python3 shared_server.py &
+          SERVER_PID=$!
+
+          # Start cloudflared tunnel
+          cloudflared tunnel --url http://localhost:8080 --no-autoupdate 2>&1 | tee /tmp/tunnel.log &
+          sleep 10
+
+          # Extract tunnel URL
+          TUNNEL_URL=$(grep -oP 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+          echo "Tunnel URL: $TUNNEL_URL"
+
+          # Register with API
+          curl -s -X POST "$API_URL/worker/register" \
+            -H "Content-Type: application/json" \
+            -H "x-worker-secret: $WORKER_SECRET" \
+            -d "{\"runner_id\":\"$RUNNER_ID\",\"type\":\"github\",\"service\":\"vps\",\"capacity\":4,\"tunnel_url\":\"$TUNNEL_URL\"}"
+
+          # Wait for server to finish
+          wait $SERVER_PID

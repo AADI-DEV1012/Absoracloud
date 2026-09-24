@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: absoracloud-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: D1_DB_ID
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: UPSTASH_REDIS_TOKEN
+        sync: false
+      - key: GITHUB_PAT
+        sync: false
+      - key: GITHUB_OWNER
+        value: AADI-playz23
+      - key: GITHUB_REPO
+        value: Absoracloud
+      - key: WORKER_SECRET
+        sync: false

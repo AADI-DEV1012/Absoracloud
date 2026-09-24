@@ -1,0 +1,14 @@
+{
+  "name": "@absoracloud/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    "./d1": "./d1.js",
+    "./redis": "./redis.js",
+    "./jwt": "./jwt.js",
+    "./plans": "./plans.js",
+    "./constants": "./constants.js",
+    "./logger": "./logger.js"
+  }
+}

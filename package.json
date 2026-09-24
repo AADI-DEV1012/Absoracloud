@@ -1,0 +1,12 @@
+{
+  "name": "absoracloud-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AbsoraCloud — Multi-service cloud platform (MC Hosting, VPS, DevBox, Web Hosting)",
+  "author": "AADI-playz23",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

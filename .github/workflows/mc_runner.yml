@@ -1,0 +1,54 @@
+name: AbsoraCloud MC Runner
+on:
+  workflow_dispatch:
+    inputs:
+      session_key:
+        required: true
+        description: "Initial session key for this MC instance"
+      user_id:
+        required: false
+      plan:
+        required: false
+      server_type:
+        required: false
+      version:
+        required: false
+      ram_mb:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  mc-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      UPSTASH_REDIS_URL:   ${{ secrets.UPSTASH_REDIS_URL }}
+      UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN }}
+      WORKER_SECRET:       ${{ secrets.WORKER_SECRET }}
+      API_URL:             ${{ secrets.API_URL }}
+      RUNNER_ID:           "mc-${{ github.run_id }}"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java & Python
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Environment
+        run: |
+          echo "═══════════════════════════════════════════"
+          echo "  AbsoraCloud Minecraft Runner"
+          echo "  Runner ID : $RUNNER_ID"
+          echo "  Capacity  : 2 Multi-Tenant Servers"
+          echo "═══════════════════════════════════════════"
+          pip install requests psutil --quiet
+
+      - name: Start Multi-Tenant MC Daemon
+        run: |
+          cd runners/mc-daemon
+          python3 shared_mc.py
