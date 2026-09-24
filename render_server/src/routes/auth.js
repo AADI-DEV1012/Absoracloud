@@ -3,8 +3,8 @@
 
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { queryD1, executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { signToken }                      from '../../../packages/shared/jwt.js';
+import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
+import { signToken }                      from '../shared/jwt.js';
 import { requireAuth }                    from '../middleware/auth.js';
 import { authLimiter }                    from '../middleware/abuse_guard.js';
 
@@ -53,7 +53,8 @@ authRouter.post('/register', authLimiter, async (req, res) => {
 // ── Login ──
 authRouter.post('/login', authLimiter, async (req, res) => {
   try {
-    const { login, password } = req.body;
+    const login = req.body.login || req.body.username || req.body.email;
+    const password = req.body.password;
     if (!login || !password) {
       return res.status(400).json({ status: 'error', msg: 'Username/email and password required' });
     }

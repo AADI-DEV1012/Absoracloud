@@ -2,7 +2,7 @@
 // Extracts and verifies JWT from Authorization header.
 // Attaches req.user = { sub, username, plan, role }
 
-import { verifyToken } from '../../../packages/shared/jwt.js';
+import { verifyToken } from '../shared/jwt.js';
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';

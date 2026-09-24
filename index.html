@@ -474,7 +474,7 @@
                 const res = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email: username, password })
+                    body: JSON.stringify({ login: username, username, email: username, password })
                 });
                 const data = await res.json();
                 if (data.token) {

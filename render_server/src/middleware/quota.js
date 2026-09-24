@@ -1,6 +1,6 @@
 // ── Quota Enforcement Middleware ──
-import { checkQuota }       from '../../../packages/shared/plans.js';
-import { redisCmd }         from '../../../packages/shared/redis.js';
+import { checkQuota }       from '../shared/plans.js';
+import { redisCmd }         from '../shared/redis.js';
 
 // Factory: returns middleware that checks quota for a specific service.
 export function requireQuota(service) {

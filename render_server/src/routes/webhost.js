@@ -3,9 +3,9 @@
 
 import { Router } from 'express';
 import { requireAuth }  from '../middleware/auth.js';
-import { queryD1, executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { redisCmd, redisParseHash }       from '../../../packages/shared/redis.js';
-import { getPlan }                        from '../../../packages/shared/plans.js';
+import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
+import { redisCmd, redisParseHash }       from '../shared/redis.js';
+import { getPlan }                        from '../shared/plans.js';
 import { deploySiteToGradioHost, stopSiteOnGradioHost } from '../services/huggingface.js';
 import crypto from 'crypto';
 

@@ -2,8 +2,8 @@
 // Periodically checks all active instances across MC, VPS, DevBox, and WebHost.
 // Enforces plan limits, timeouts, and runner health automatically.
 
-import { queryD1, executeD1 } from '../../../packages/shared/d1.js';
-import { redisCmd }           from '../../../packages/shared/redis.js';
+import { queryD1, executeD1 } from '../shared/d1.js';
+import { redisCmd }           from '../shared/redis.js';
 
 let watchdogInterval = null;
 
