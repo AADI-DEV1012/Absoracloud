@@ -2,7 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://absoracloud-api.onrender.com/$1" },
+    { "source": "/api/(.*)", "destination": "https://absoracloud.onrender.com/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

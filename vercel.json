@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "outputDirectory": "apps/web",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://absoracloud.onrender.com/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
