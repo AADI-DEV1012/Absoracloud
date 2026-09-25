@@ -11,10 +11,16 @@ on:
         required: false
       server_type:
         required: false
+        default: 'paper'
       version:
         required: false
+        default: '1.20.4'
+      java_version:
+        required: false
+        default: 'auto'
       ram_mb:
         required: false
+        default: '1024'
 
 permissions:
   contents: read
@@ -33,23 +39,32 @@ jobs:
       PLAN:                ${{ github.event.inputs.plan || 'free' }}
       SERVER_TYPE:         ${{ github.event.inputs.server_type || 'paper' }}
       VERSION:             ${{ github.event.inputs.version || '1.20.4' }}
+      JAVA_VERSION:        ${{ github.event.inputs.java_version || 'auto' }}
       RAM_MB:              ${{ github.event.inputs.ram_mb || '1024' }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java & Python
+      - name: Setup Primary Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Environment
+      - name: Setup Additional Java Versions (17, 11, 8)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openjdk-17-jre-headless openjdk-11-jre-headless openjdk-8-jre-headless || true
+
+      - name: Setup Python Environment
         run: |
           echo "═══════════════════════════════════════════"
           echo "  AbsoraCloud Minecraft Runner"
-          echo "  Runner ID : $RUNNER_ID"
-          echo "  Capacity  : 2 Multi-Tenant Servers"
+          echo "  Runner ID    : $RUNNER_ID"
+          echo "  Capacity     : 2 Multi-Tenant Servers"
+          echo "  Server Type  : $SERVER_TYPE"
+          echo "  MC Version   : $VERSION"
+          echo "  Java Version : $JAVA_VERSION"
           echo "═══════════════════════════════════════════"
           pip install requests psutil --quiet
 

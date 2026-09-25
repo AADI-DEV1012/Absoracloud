@@ -38,7 +38,7 @@ mcRouter.post('/launch', requireAuth, launchLimiter, requireQuota('mc'), async (
   try {
     const userId   = req.user.sub;
     const plan     = getPlan(req.user.plan);
-    const { server_type = 'paper', version = '1.20.4', force, relaunch } = req.body;
+    const { server_type = 'paper', version = '1.20.4', java_version = 'auto', force, relaunch } = req.body;
     const sessionKey = `mc-${userId}-${crypto.randomUUID().slice(0, 8)}`;
 
     // Sync stale or disconnected instances
@@ -75,7 +75,7 @@ mcRouter.post('/launch', requireAuth, launchLimiter, requireQuota('mc'), async (
       "SELECT * FROM runners WHERE service = 'mc' AND status = 'ready' AND active_count < capacity ORDER BY active_count ASC LIMIT 1"
     );
 
-    const config = JSON.stringify({ server_type, version, ram_mb: plan.mc_ram_mb });
+    const config = JSON.stringify({ server_type, version, java_version, ram_mb: plan.mc_ram_mb });
     const expiresAt = new Date(Date.now() + (plan.mc_hours_week / 7) * 3600 * 1000).toISOString();
 
     await executeD1(
@@ -96,6 +96,7 @@ mcRouter.post('/launch', requireAuth, launchLimiter, requireQuota('mc'), async (
         session_key: sessionKey,
         server_type,
         version,
+        java_version,
         ram_mb: plan.mc_ram_mb,
         expires_at: expiresAt,
       }));
@@ -115,6 +116,7 @@ mcRouter.post('/launch', requireAuth, launchLimiter, requireQuota('mc'), async (
         plan: req.user.plan,
         server_type,
         version,
+        java_version: String(java_version || 'auto'),
         ram_mb: String(plan.mc_ram_mb),
       });
 
@@ -135,7 +137,7 @@ mcRouter.post('/launch', requireAuth, launchLimiter, requireQuota('mc'), async (
 mcRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
   try {
     const userId = req.user.sub;
-    const { session_key, server_type = 'paper', version = '1.20.4' } = req.body;
+    const { session_key, server_type = 'paper', version = '1.20.4', java_version = 'auto' } = req.body;
 
     if (session_key) {
       await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?", [session_key, userId]);
@@ -145,10 +147,11 @@ mcRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     req.body.force = true;
     req.body.server_type = server_type;
     req.body.version = version;
+    req.body.java_version = java_version;
 
     const plan = getPlan(req.user.plan);
     const newSessionKey = `mc-${userId}-${crypto.randomUUID().slice(0, 8)}`;
-    const config = JSON.stringify({ server_type, version, ram_mb: plan.mc_ram_mb });
+    const config = JSON.stringify({ server_type, version, java_version, ram_mb: plan.mc_ram_mb });
     const expiresAt = new Date(Date.now() + (plan.mc_hours_week / 7) * 3600 * 1000).toISOString();
 
     await executeD1(
@@ -170,6 +173,7 @@ mcRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
         session_key: newSessionKey,
         server_type,
         version,
+        java_version,
         ram_mb: plan.mc_ram_mb,
         expires_at: expiresAt,
       }));
@@ -182,6 +186,7 @@ mcRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       plan: req.user.plan,
       server_type,
       version,
+      java_version: String(java_version || 'auto'),
       ram_mb: String(plan.mc_ram_mb),
     });
     res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching fresh MC runner...' });
@@ -253,6 +258,20 @@ mcRouter.get('/status', requireAuth, async (req, res) => {
       "SELECT * FROM instances WHERE user_id = ? AND service = 'mc' AND status != 'dismissed' ORDER BY created_at DESC LIMIT 10",
       [req.user.sub]
     );
+
+    // Live Redis enrichment
+    for (const inst of instances) {
+      if (!inst.public_url || inst.status === 'pending') {
+        const raw = await redisCmd('HGETALL', `session:${inst.session_key}`);
+        const data = redisParseHash(raw);
+        if (data) {
+          if (data.tunnel_url) inst.public_url = data.tunnel_url;
+          if (data.status && data.status !== 'pending') inst.status = data.status;
+          if (data.expires_at) inst.expires_at = data.expires_at;
+        }
+      }
+    }
+
     res.json({ status: 'success', instances });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch status' });

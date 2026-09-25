@@ -738,14 +738,185 @@
 
             <!-- Minecraft Tab -->
             <section id="panel-mc" class="tab-panel hidden space-y-6">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">Minecraft Server Hosting</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Instant Paper/Fabric multi-tenant game servers with RAM allocated by plan.</p>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Minecraft Game Server Hosting</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant game servers with intelligent JVM auto-detection & 10+ server engine options.</p>
                     </div>
-                    <button onclick="launchMC()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-play"></i> Launch Server
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <span id="mc-plan-ram-badge" class="px-3 py-1.5 rounded-xl bg-neutral-100 text-neutral-700 text-xs font-bold border border-neutral-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-memory text-primary"></i> <span id="mc-ram-display">Plan RAM: 1024 MB</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Server Deployment Card -->
+                <div class="glass-card rounded-2xl p-6 border border-neutral-200/80 shadow-sm space-y-6">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500">
+                                1. Select Server Software Engine
+                            </label>
+                            <span class="text-[11px] text-neutral-400 font-medium">Plugins, Mods & Hybrid Engines</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3" id="mc-engine-grid">
+                            <!-- Paper -->
+                            <button type="button" onclick="selectMCEngine('paper')" class="mc-engine-btn p-3 rounded-xl border text-left transition flex flex-col justify-between bg-primary text-white border-primary shadow-sm" data-engine="paper">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-white">Paper</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/20 text-white">Recommended</span>
+                                    </div>
+                                    <p class="text-[11px] text-white/80 mt-1 leading-snug">Spigot/Bukkit plugins, high TPS optimization.</p>
+                                </div>
+                            </button>
+                            <!-- Purpur -->
+                            <button type="button" onclick="selectMCEngine('purpur')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="purpur">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Purpur</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700">Fork</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Paper fork with extreme gameplay customization.</p>
+                                </div>
+                            </button>
+                            <!-- Folia -->
+                            <button type="button" onclick="selectMCEngine('folia')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="folia">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Folia</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">Multi-Thread</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Multi-threaded region ticking by PaperMC (1.20+).</p>
+                                </div>
+                            </button>
+                            <!-- Pufferfish -->
+                            <button type="button" onclick="selectMCEngine('pufferfish')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="pufferfish">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Pufferfish</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700">Enterprise</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">High performance async optimizations.</p>
+                                </div>
+                            </button>
+                            <!-- Fabric -->
+                            <button type="button" onclick="selectMCEngine('fabric')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="fabric">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Fabric</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">Modular</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Lightweight, modern modding toolchain.</p>
+                                </div>
+                            </button>
+                            <!-- Quilt -->
+                            <button type="button" onclick="selectMCEngine('quilt')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="quilt">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Quilt</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">Next-Gen</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Fabric-compatible modular mod engine.</p>
+                                </div>
+                            </button>
+                            <!-- Forge -->
+                            <button type="button" onclick="selectMCEngine('forge')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="forge">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Forge</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-50 text-orange-700">Classic</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Standard loader for massive modpacks.</p>
+                                </div>
+                            </button>
+                            <!-- NeoForge -->
+                            <button type="button" onclick="selectMCEngine('neoforge')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="neoforge">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">NeoForge</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700">Modern</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Modern continuation of Forge for 1.20.2+.</p>
+                                </div>
+                            </button>
+                            <!-- Arclight -->
+                            <button type="button" onclick="selectMCEngine('arclight')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="arclight">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Arclight</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Hybrid</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Run Bukkit plugins + Forge mods together.</p>
+                                </div>
+                            </button>
+                            <!-- Mohist -->
+                            <button type="button" onclick="selectMCEngine('mohist')" class="mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white" data-engine="mohist">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-neutral-800">Mohist</span>
+                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700">Hybrid</span>
+                                    </div>
+                                    <p class="text-[11px] text-neutral-500 mt-1 leading-snug">Forge + Paper plugins (1.12.2, 1.16.5, 1.20.1).</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <!-- Version Selector -->
+                        <div>
+                            <label for="mc-version-select" class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                                2. Minecraft Version
+                            </label>
+                            <select id="mc-version-select" onchange="onMCVersionChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800 focus:outline-none focus:border-primary transition">
+                                <option value="1.21.4" selected>1.21.4 (Latest Release)</option>
+                                <option value="1.21.1">1.21.1</option>
+                                <option value="1.21">1.21</option>
+                                <option value="1.20.6">1.20.6</option>
+                                <option value="1.20.4">1.20.4 (Recommended Stable)</option>
+                                <option value="1.20.2">1.20.2</option>
+                                <option value="1.20.1">1.20.1 (Popular Modpack Base)</option>
+                                <option value="1.19.4">1.19.4</option>
+                                <option value="1.19.2">1.19.2</option>
+                                <option value="1.18.2">1.18.2</option>
+                                <option value="1.17.1">1.17.1</option>
+                                <option value="1.16.5">1.16.5 (Classic Modding Era)</option>
+                                <option value="1.12.2">1.12.2 (Legacy Modpack Base)</option>
+                                <option value="1.8.8">1.8.8 (Competitive PvP)</option>
+                            </select>
+                        </div>
+
+                        <!-- Java Version Selector -->
+                        <div>
+                            <label for="mc-java-select" class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                                3. Java Runtime (JVM)
+                            </label>
+                            <select id="mc-java-select" onchange="onMCJavaChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800 focus:outline-none focus:border-primary transition">
+                                <option value="auto" selected>⚡ Auto-Adjust (Smart Match for MC Version)</option>
+                                <option value="21">☕ Java 21 (LTS — Minecraft 1.20.5+ & 1.21+)</option>
+                                <option value="17">☕ Java 17 (LTS — Minecraft 1.18 to 1.20.4)</option>
+                                <option value="11">☕ Java 11 (LTS — Minecraft 1.16.5 & Legacy)</option>
+                                <option value="8">☕ Java 8 (Legacy — Minecraft 1.12.2, 1.8.8 & Forge)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic JVM Auto-Adjust Indicator Banner -->
+                    <div id="mc-jvm-indicator" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                        <div class="flex items-center gap-2 text-emerald-800 font-medium">
+                            <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i>
+                            <span id="mc-jvm-indicator-text">Auto-JVM: Java 21 automatically selected for Minecraft 1.21.4.</span>
+                        </div>
+                        <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Smart Mode Active</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-neutral-100">
+                        <p class="text-xs text-neutral-400">Servers auto-accept EULA and spin up with live Playit TCP tunnels for instant public join.</p>
+                        <button onclick="launchMCConfigured()" class="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-rocket"></i> Deploy Minecraft Server
+                        </button>
+                    </div>
                 </div>
 
                 <div class="glass-card rounded-2xl p-6">
@@ -755,7 +926,7 @@
                             <thead>
                                 <tr class="border-b text-neutral-400 font-medium">
                                     <th class="pb-3">Server Key</th>
-                                    <th class="pb-3">Engine & RAM</th>
+                                    <th class="pb-3">Engine & Runtime</th>
                                     <th class="pb-3">Connection Address</th>
                                     <th class="pb-3">Auto-Timeout</th>
                                     <th class="pb-3">Status</th>
@@ -764,7 +935,7 @@
                             </thead>
                             <tbody id="mc-list" class="divide-y divide-neutral-100">
                                 <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers.</td>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers. Configure above and click "Deploy Minecraft Server".</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1196,12 +1367,112 @@
         }
 
         // ── Action Buttons per status ──
+        function copyToClipboard(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Copied ${text} to clipboard! Paste in Minecraft Direct Connect.`, 'success');
+            }).catch(() => {
+                prompt('Minecraft Server Address:', text);
+            });
+        }
+
+        // ── Minecraft Engine & JVM Management ──
+        let selectedMCEngine = 'paper';
+
+        function selectMCEngine(engine) {
+            selectedMCEngine = engine;
+            document.querySelectorAll('.mc-engine-btn').forEach(btn => {
+                const isSelected = btn.getAttribute('data-engine') === engine;
+                if (isSelected) {
+                    btn.className = 'mc-engine-btn p-3 rounded-xl border text-left transition flex flex-col justify-between bg-primary text-white border-primary shadow-sm';
+                    const title = btn.querySelector('.font-bold');
+                    if (title) title.className = 'font-bold text-sm text-white';
+                    const desc = btn.querySelector('p');
+                    if (desc) desc.className = 'text-[11px] text-white/80 mt-1 leading-snug';
+                } else {
+                    btn.className = 'mc-engine-btn p-3 rounded-xl border border-neutral-200 text-left transition flex flex-col justify-between hover:border-neutral-400 bg-white';
+                    const title = btn.querySelector('.font-bold');
+                    if (title) title.className = 'font-bold text-sm text-neutral-800';
+                    const desc = btn.querySelector('p');
+                    if (desc) desc.className = 'text-[11px] text-neutral-500 mt-1 leading-snug';
+                }
+            });
+        }
+
+        function getRecommendedJava(mcVer) {
+            const clean = (mcVer || '').replace(/[^0-9.]/g, '');
+            const parts = clean.split('.').map(p => parseInt(p, 10));
+            const minor = parts.length > 1 ? parts[1] : 20;
+            const patch = parts.length > 2 ? parts[2] : 0;
+            if ((minor === 20 && patch >= 5) || minor >= 21) return 21;
+            if (minor >= 18) return 17;
+            if (minor === 17) return 17;
+            if (minor === 16) return 11;
+            return 8;
+        }
+
+        function onMCVersionChange() {
+            const ver = document.getElementById('mc-version-select')?.value || '1.20.4';
+            const javaSelect = document.getElementById('mc-java-select');
+            const indicatorText = document.getElementById('mc-jvm-indicator-text');
+            const recommended = getRecommendedJava(ver);
+
+            if (!indicatorText) return;
+
+            if (!javaSelect || javaSelect.value === 'auto') {
+                indicatorText.textContent = `Auto-JVM: Java ${recommended} automatically selected for Minecraft ${ver}.`;
+            } else {
+                indicatorText.textContent = `Manual Override: Java ${javaSelect.value} selected (Standard recommended: Java ${recommended} for ${ver}).`;
+            }
+        }
+
+        function onMCJavaChange() {
+            onMCVersionChange();
+        }
+
+        async function launchMCConfigured() {
+            const ver = document.getElementById('mc-version-select')?.value || '1.20.4';
+            const java = document.getElementById('mc-java-select')?.value || 'auto';
+            showToast(`Deploying ${selectedMCEngine.toUpperCase()} ${ver} (Java: ${java})...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/mc/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ server_type: selectedMCEngine, version: ver, java_version: java })
+                });
+                const data = await res.json();
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing server?`)) {
+                        return relaunchInstance('mc', data.session_key, { server_type: selectedMCEngine, version: ver, java_version: java });
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to deploy Minecraft server', 'error');
+                    return;
+                }
+                showToast(data.msg || 'Minecraft server deployment initiated!', 'success');
+                refreshActiveTab('mc');
+                if (data.session_key) startPolling('mc', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
+        }
+
         function renderActions(service, inst) {
             const key = inst.session_key;
             if (inst.status === 'active') {
+                let actionBtn = '';
+                if (service === 'devbox' && inst.public_url) {
+                    actionBtn = `<a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Open DevBox ↗</a>`;
+                } else if (service === 'mc' && inst.public_url) {
+                    actionBtn = `<button onclick="copyToClipboard('${inst.public_url}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition inline-flex items-center gap-1" title="Copy Minecraft Server Address"><i class="fa-solid fa-copy"></i> Copy IP</button>`;
+                } else if (inst.public_url) {
+                    actionBtn = `<a href="${inst.public_url}" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Connect ↗</a>`;
+                }
                 return `
                     <div class="flex items-center justify-end gap-2">
-                        ${inst.public_url ? `<a href="${service === 'devbox' ? `${inst.public_url}/lab/tree/welcome.ipynb` : inst.public_url}" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">${service === 'devbox' ? 'Open DevBox ↗' : 'Connect ↗'}</a>` : ''}
+                        ${actionBtn}
                         <button onclick="relaunchInstance('${service}', '${key}')" class="px-2 py-1 text-xs text-neutral-500 hover:text-primary transition" title="Restart / Reconnect">↻</button>
                         <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition">Stop</button>
                     </div>
@@ -1266,30 +1537,7 @@
         }
 
         async function launchMC() {
-            showToast('Requesting Minecraft server...', 'info');
-            try {
-                const res = await fetch(`${API_BASE}/mc/launch`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ server_type: 'paper', version: '1.20.4' })
-                });
-                const data = await res.json();
-                if (res.status === 409 && data.can_relaunch) {
-                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing server?`)) {
-                        return relaunchInstance('mc', data.session_key);
-                    }
-                    return;
-                }
-                if (!res.ok) {
-                    showToast(data.msg || 'Failed to launch MC server', 'error');
-                    return;
-                }
-                showToast(data.msg || 'Minecraft server launching...', 'success');
-                refreshActiveTab('mc');
-                if (data.session_key) startPolling('mc', data.session_key);
-            } catch(e) {
-                showToast('Unable to reach AbsoraCloud API', 'error');
-            }
+            return launchMCConfigured();
         }
 
         let selectedDevboxRuntime = 'gpu';
@@ -1472,11 +1720,30 @@
                     if (d.instances && d.instances.length > 0) {
                         list.innerHTML = d.instances.map(inst => {
                             const cfg = JSON.parse(inst.config || '{}');
+                            const jVer = cfg.java_version && cfg.java_version !== 'auto' ? cfg.java_version : getRecommendedJava(cfg.version || '1.20.4');
                             return `
                                 <tr>
                                     <td class="py-3 font-mono font-medium">${inst.session_key}</td>
-                                    <td class="py-3 text-neutral-500">${cfg.server_type || 'Paper'} ${cfg.version || '1.20.4'} (${cfg.ram_mb || 1024}MB)</td>
-                                    <td class="py-3 font-mono font-semibold text-neutral-800">${inst.public_url || (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Startup failed</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Server offline</span>' : '<span class="text-neutral-400 animate-pulse">Assigning IP:port...</span>'))}</td>
+                                    <td class="py-3">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="font-bold text-neutral-800 capitalize">${cfg.server_type || 'Paper'}</span>
+                                            <span class="text-neutral-600 text-xs">${cfg.version || '1.20.4'}</span>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                Java ${jVer}
+                                            </span>
+                                            <span class="text-[11px] text-neutral-400">· ${cfg.ram_mb || 1024}MB</span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3">
+                                        ${inst.public_url ? `
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs select-all">${inst.public_url}</span>
+                                                <button onclick="copyToClipboard('${inst.public_url}')" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition" title="Copy address to clipboard">
+                                                    <i class="fa-regular fa-copy"></i>
+                                                </button>
+                                            </div>
+                                        ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Startup failed</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Server offline</span>' : '<span class="text-neutral-400 animate-pulse">Assigning IP:port...</span>'))}
+                                    </td>
                                     <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '6h limit'}</td>
                                     <td class="py-3">${renderStatusBadge(inst.status)}</td>
                                     <td class="py-3 text-right">${renderActions('mc', inst)}</td>
@@ -1484,7 +1751,7 @@
                             `;
                         }).join('');
                     } else {
-                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers. Click "Launch Server" to start one.</td></tr>`;
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers. Configure above and click "Deploy Minecraft Server".</td></tr>`;
                     }
                 } else if (tabId === 'devbox') {
                     const r = await fetch(`${API_BASE}/devbox/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
