@@ -902,6 +902,21 @@
                         </div>
                     </div>
 
+                    <!-- Custom Domain Input (Bore TCP + Cloudflare SRV) -->
+                    <div class="pt-2">
+                        <label for="mc-servername-input" class="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                            4. Custom Server Domain (<span class="text-primary font-mono lowercase">servername.astrocore.qzz.io</span>)
+                        </label>
+                        <div class="flex items-center rounded-xl border border-neutral-200 bg-white overflow-hidden focus-within:border-primary transition shadow-sm">
+                            <span class="pl-3.5 pr-2 text-neutral-400 text-xs"><i class="fa-solid fa-gamepad text-primary"></i></span>
+                            <input type="text" id="mc-servername-input" placeholder="e.g. survival, play, myworld" class="w-full py-2.5 px-2 text-xs font-mono font-bold text-neutral-800 bg-transparent focus:outline-none" maxlength="32">
+                            <span class="pr-3.5 pl-2 text-xs font-mono font-bold text-neutral-500 bg-neutral-50 py-2.5 border-l border-neutral-100 select-none">.astrocore.qzz.io</span>
+                        </div>
+                        <p class="text-[11px] text-neutral-400 mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-bolt text-amber-500"></i> Powered by Bore TCP tunneling + Cloudflare SRV DNS record for port-free multiplayer join.
+                        </p>
+                    </div>
+
                     <!-- Dynamic JVM Auto-Adjust Indicator Banner -->
                     <div id="mc-jvm-indicator" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
                         <div class="flex items-center gap-2 text-emerald-800 font-medium">
@@ -912,7 +927,7 @@
                     </div>
 
                     <div class="flex items-center justify-between pt-2 border-t border-neutral-100">
-                        <p class="text-xs text-neutral-400">Servers auto-accept EULA and spin up with live Playit TCP tunnels for instant public join.</p>
+                        <p class="text-xs text-neutral-400">Servers auto-accept EULA, open Bore TCP tunnels, and register live SRV records on <strong>astrocore.qzz.io</strong>.</p>
                         <button onclick="launchMCConfigured()" class="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
                             <i class="fa-solid fa-rocket"></i> Deploy Minecraft Server
                         </button>
@@ -1433,17 +1448,20 @@
         async function launchMCConfigured() {
             const ver = document.getElementById('mc-version-select')?.value || '1.20.4';
             const java = document.getElementById('mc-java-select')?.value || 'auto';
-            showToast(`Deploying ${selectedMCEngine.toUpperCase()} ${ver} (Java: ${java})...`, 'info');
+            const srvInput = document.getElementById('mc-servername-input');
+            const servername = srvInput ? srvInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+            const domainPreview = servername ? `${servername}.astrocore.qzz.io` : 'astrocore.qzz.io';
+            showToast(`Deploying ${selectedMCEngine.toUpperCase()} ${ver} (${domainPreview})...`, 'info');
             try {
                 const res = await fetch(`${API_BASE}/mc/launch`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ server_type: selectedMCEngine, version: ver, java_version: java })
+                    body: JSON.stringify({ server_type: selectedMCEngine, version: ver, java_version: java, servername: servername })
                 });
                 const data = await res.json();
                 if (res.status === 409 && data.can_relaunch) {
                     if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing server?`)) {
-                        return relaunchInstance('mc', data.session_key, { server_type: selectedMCEngine, version: ver, java_version: java });
+                        return relaunchInstance('mc', data.session_key, { server_type: selectedMCEngine, version: ver, java_version: java, servername: servername });
                     }
                     return;
                 }
@@ -1587,13 +1605,14 @@
             }
         }
 
-        async function relaunchInstance(service, session_key, runtime = selectedDevboxRuntime) {
+        async function relaunchInstance(service, session_key, extra = selectedDevboxRuntime) {
             showToast(`Re-launching ${service.toUpperCase()}...`, 'info');
             try {
+                const body = typeof extra === 'object' ? { session_key, ...extra } : { session_key, runtime: extra };
                 const res = await fetch(`${API_BASE}/${service}/relaunch`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_key, runtime })
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -1736,13 +1755,21 @@
                                     </td>
                                     <td class="py-3">
                                         ${inst.public_url ? `
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs select-all">${inst.public_url}</span>
-                                                <button onclick="copyToClipboard('${inst.public_url}')" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition" title="Copy address to clipboard">
-                                                    <i class="fa-regular fa-copy"></i>
-                                                </button>
+                                            <div class="flex flex-col gap-1">
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs select-all">${inst.public_url}</span>
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200" title="Cloudflare SRV Record Active">SRV</span>
+                                                    <button onclick="copyToClipboard('${inst.public_url}')" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition" title="Copy server address">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                                ${inst.direct_address && inst.direct_address !== inst.public_url ? `
+                                                    <div class="text-[10px] font-mono text-neutral-400">
+                                                        Direct Port: <span class="select-all hover:text-neutral-600 cursor-pointer" onclick="copyToClipboard('${inst.direct_address}')" title="Click to copy direct address">${inst.direct_address}</span>
+                                                    </div>
+                                                ` : ''}
                                             </div>
-                                        ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Startup failed</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Server offline</span>' : '<span class="text-neutral-400 animate-pulse">Assigning IP:port...</span>'))}
+                                        ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Startup failed</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Server offline</span>' : '<span class="text-neutral-400 animate-pulse">Setting up Bore tunnel & SRV...</span>'))}
                                     </td>
                                     <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '6h limit'}</td>
                                     <td class="py-3">${renderStatusBadge(inst.status)}</td>

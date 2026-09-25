@@ -298,13 +298,118 @@ def download_server_jar(server_type: str, version: str, dest_dir: str) -> str:
         _download_file(paper_url, jar_path)
         return "server.jar"
 
-# ── 3. Networking & Playit Tunneling ──
+# ── 3. Networking, Bore TCP Tunneling & Cloudflare SRV Records ──
+
+CF_API_TOKEN        = os.environ.get("CLOUDFLARE_API_TOKEN", os.environ.get("CF_API_TOKEN", ""))
+CF_ZONE_ID          = os.environ.get("CLOUDFLARE_ZONE_ID", os.environ.get("CF_ZONE_ID", ""))
+CF_DOMAIN           = os.environ.get("CLOUDFLARE_DOMAIN", os.environ.get("CF_DOMAIN", "astrocore.qzz.io"))
+BORE_SERVER         = os.environ.get("BORE_SERVER", "bore.pub")
+
+def ensure_bore_binary() -> str:
+    """Finds or installs the bore binary."""
+    which_bore = shutil.which("bore")
+    if which_bore:
+        return which_bore
+
+    candidates = ["/usr/local/bin/bore", "/usr/bin/bore", "/tmp/bore", "./bore"]
+    for c in candidates:
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+
+    target = "/tmp/bore"
+    try:
+        log.info("Downloading bore TCP tunnel binary...")
+        url = "https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz"
+        tar_path = "/tmp/bore.tar.gz"
+        r = requests.get(url, stream=True, timeout=30)
+        with open(tar_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        subprocess.run(["tar", "-xzf", tar_path, "-C", "/tmp"], check=True)
+        if os.path.isfile(target):
+            os.chmod(target, 0o755)
+            log.info("Bore binary downloaded and ready at /tmp/bore.")
+            return target
+    except Exception as e:
+        log.warning(f"Could not auto-download bore: {e}")
+
+    return "bore"
+
+def update_cloudflare_srv(servername: str, remote_port: int, target_host: str = "bore.pub") -> bool:
+    """
+    Creates or updates Cloudflare SRV DNS record:
+    _minecraft._tcp.<servername>.astrocore.qzz.io -> target_host:remote_port
+    """
+    if not (CF_API_TOKEN and CF_ZONE_ID and remote_port):
+        log.info("Cloudflare API credentials not set; skipping SRV DNS registration.")
+        return False
+
+    dns_servername = re.sub(r'[^a-zA-Z0-9-]', '', servername.lower().replace(' ', '-'))
+    record_name = f"_minecraft._tcp.{dns_servername}"
+    headers = {
+        "Authorization": f"Bearer {CF_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        search_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records?type=SRV&name={record_name}.{CF_DOMAIN}"
+        search_res = requests.get(search_url, headers=headers, timeout=10).json()
+
+        record_data = {
+            "type": "SRV",
+            "name": f"{record_name}.{CF_DOMAIN}",
+            "data": {
+                "service": "_minecraft",
+                "proto": "_tcp",
+                "name": f"{dns_servername}.{CF_DOMAIN}",
+                "priority": 0,
+                "weight": 5,
+                "port": int(remote_port),
+                "target": target_host
+            },
+            "ttl": 60
+        }
+
+        if search_res.get("success") and len(search_res.get("result", [])) > 0:
+            record_id = search_res["result"][0]["id"]
+            update_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records/{record_id}"
+            res = requests.put(update_url, headers=headers, json=record_data, timeout=10).json()
+            if res.get("success"):
+                log.info(f"✅ Updated Cloudflare SRV: {dns_servername}.{CF_DOMAIN} -> {target_host}:{remote_port}")
+                return True
+        else:
+            create_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records"
+            res = requests.post(create_url, headers=headers, json=record_data, timeout=10).json()
+            if res.get("success"):
+                log.info(f"✅ Created Cloudflare SRV: {dns_servername}.{CF_DOMAIN} -> {target_host}:{remote_port}")
+                return True
+    except Exception as e:
+        log.warning(f"Failed to update Cloudflare SRV record: {e}")
+
+    return False
+
+def cleanup_cloudflare_srv(servername: str):
+    """Removes SRV record when server stops."""
+    if not (CF_API_TOKEN and CF_ZONE_ID and servername):
+        return
+    dns_servername = re.sub(r'[^a-zA-Z0-9-]', '', servername.lower().replace(' ', '-'))
+    record_name = f"_minecraft._tcp.{dns_servername}"
+    headers = {
+        "Authorization": f"Bearer {CF_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    try:
+        search_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records?type=SRV&name={record_name}.{CF_DOMAIN}"
+        search_res = requests.get(search_url, headers=headers, timeout=5).json()
+        if search_res.get("success"):
+            for rec in search_res.get("result", []):
+                requests.delete(f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records/{rec['id']}", headers=headers, timeout=5)
+                log.info(f"Cleaned up Cloudflare SRV record for {dns_servername}.{CF_DOMAIN}")
+    except Exception as e:
+        log.warning(f"Error during SRV cleanup: {e}")
 
 def ensure_playit_tunnel(port: int) -> tuple:
-    """
-    Starts Playit.gg agent for raw TCP Minecraft tunneling.
-    Returns (tunnel_proc, tunnel_address).
-    """
+    """Fallback Playit.gg agent for raw TCP Minecraft tunneling."""
     playit_bin = "/tmp/playit"
     if not (os.path.exists(playit_bin) and os.access(playit_bin, os.X_OK)):
         try:
@@ -315,7 +420,6 @@ def ensure_playit_tunnel(port: int) -> tuple:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
             os.chmod(playit_bin, 0o755)
-            log.info("Playit agent binary ready.")
         except Exception as e:
             log.warning(f"Could not download playit: {e}")
 
@@ -337,14 +441,7 @@ def ensure_playit_tunnel(port: int) -> tuple:
                     m = re.search(r"([a-zA-Z0-9-]+\.(?:joinmc\.link|auto\.playit\.gg|gl\.joinmc\.link)(?::\d+)?)", line)
                     if m:
                         tunnel_address = m.group(1)
-                        log.info(f"Discovered Playit address: {tunnel_address}")
                         break
-                    if "claim" in line and "playit.gg/claim" in line:
-                        m_claim = re.search(r"https://playit\.gg/claim/[a-zA-Z0-9]+", line)
-                        if m_claim:
-                            tunnel_address = f"Claim tunnel: {m_claim.group(0)}"
-                            log.info(f"Playit Claim Link: {tunnel_address}")
-                            break
 
             t = threading.Thread(target=find_address, daemon=True)
             t.start()
@@ -355,16 +452,64 @@ def ensure_playit_tunnel(port: int) -> tuple:
         except Exception as e:
             log.warning(f"Playit execution note: {e}")
 
-    # Fallback to direct hostname:port
     try:
         pub_ip = requests.get("https://api.ipify.org", timeout=5).text.strip()
         return None, f"{pub_ip}:{port}"
     except Exception:
         return None, f"{socket.gethostname()}:{port}"
 
+def start_network_tunnel(port: int, servername: str) -> tuple:
+    """
+    Primary: Starts Bore TCP tunnel to public bore.pub and registers Cloudflare SRV record.
+    Fallback: Uses Playit agent if Bore does not acquire a port.
+    Returns: (proc, display_url, direct_address, bore_port)
+    """
+    dns_servername = re.sub(r'[^a-zA-Z0-9-]', '', servername.lower().replace(' ', '-'))
+    if not dns_servername:
+        dns_servername = f"mc-{int(time.time())}"
+    fqdn_domain = f"{dns_servername}.{CF_DOMAIN}"
+
+    bore_bin = ensure_bore_binary()
+    try:
+        log.info(f"Starting Bore TCP tunnel for port {port} to {BORE_SERVER}...")
+        proc = subprocess.Popen(
+            [bore_bin, "local", str(port), "--to", BORE_SERVER],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        remote_port = None
+        def read_bore_output():
+            nonlocal remote_port
+            for line in iter(proc.stdout.readline, ''):
+                if not line:
+                    break
+                m = re.search(r'listening at [a-zA-Z0-9.-]+:(\d+)', line)
+                if m:
+                    remote_port = int(m.group(1))
+                    log.info(f"Bore tunnel active: {BORE_SERVER}:{remote_port}")
+                    break
+
+        t = threading.Thread(target=read_bore_output, daemon=True)
+        t.start()
+        t.join(timeout=12)
+
+        if remote_port:
+            direct_address = f"{BORE_SERVER}:{remote_port}"
+            update_cloudflare_srv(dns_servername, remote_port, BORE_SERVER)
+            return proc, fqdn_domain, direct_address, remote_port
+    except Exception as e:
+        log.warning(f"Bore tunnel start exception: {e}")
+
+    # Fallback to Playit or direct IP
+    log.info("Falling back to Playit.gg tunnel...")
+    playit_proc, playit_addr = ensure_playit_tunnel(port)
+    return playit_proc, playit_addr, playit_addr, port
+
 # ── 4. Server Lifecycle Execution ──
 
-def start_mc_server(session_key: str, server_type: str = "paper", version: str = "1.20.4", java_version: str = "auto", ram_mb: int = 1024, timeout_seconds: int = 21600):
+def start_mc_server(session_key: str, server_type: str = "paper", version: str = "1.20.4", java_version: str = "auto", servername: str = "play", ram_mb: int = 1024, timeout_seconds: int = 21600):
     if len(ACTIVE_MC) >= CAPACITY:
         raise Exception(f"MC runner capacity reached ({len(ACTIVE_MC)}/{CAPACITY})")
 
@@ -384,11 +529,12 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
         f.write("eula=true\n")
 
     # 2. Configure server.properties
+    clean_srvname = re.sub(r'[^a-zA-Z0-9-]', '', servername.lower().replace(' ', '-')) or "play"
     with open(os.path.join(inst_dir, "server.properties"), "w") as f:
         f.write(
             f"server-port={port}\n"
             f"query.port={port}\n"
-            f"motd=§b§lAbsoraCloud §7- §f{server_type.capitalize()} {version}\n"
+            f"motd=§b§lAbsoraCloud §7- §f{clean_srvname}.{CF_DOMAIN}\n"
             f"online-mode=false\n"
             f"difficulty=easy\n"
             f"max-players=20\n"
@@ -399,7 +545,7 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
     java_bin = resolve_java_binary(java_version, version)
     exec_target = download_server_jar(server_type, version, inst_dir)
 
-    log.info(f"Starting MC Server {session_key} on port {port} with {ram_mb}MB RAM using {java_bin}...")
+    log.info(f"Starting MC Server {session_key} ({clean_srvname}) on port {port} with {ram_mb}MB RAM using {java_bin}...")
 
     # 4. Launch Command
     if exec_target == "run.sh" and os.path.exists(os.path.join(inst_dir, "run.sh")):
@@ -426,8 +572,8 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
         text=True
     )
 
-    # 5. Connect Tunnel
-    tunnel_proc, tunnel_url = ensure_playit_tunnel(port)
+    # 5. Connect Bore Tunnel + Cloudflare SRV
+    tunnel_proc, fqdn_domain, direct_address, remote_port = start_network_tunnel(port, clean_srvname)
     expires_at = time.time() + timeout_seconds
 
     ACTIVE_MC[session_key] = {
@@ -437,13 +583,17 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
         "server_type": server_type,
         "version": version,
         "java_version": java_version,
+        "servername": clean_srvname,
+        "domain": fqdn_domain,
+        "direct_address": direct_address,
+        "bore_port": remote_port,
         "ram_mb": ram_mb,
         "expires_at": expires_at,
         "last_active": time.time(),
-        "tunnel_url": tunnel_url,
+        "tunnel_url": fqdn_domain,
     }
 
-    log.info(f"✅ MC Server '{session_key}' online at {tunnel_url}")
+    log.info(f"✅ MC Server '{session_key}' online! Primary Domain: {fqdn_domain} (Direct: {direct_address})")
 
     # 6. Direct Upstash Redis REST POST
     if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
@@ -455,7 +605,11 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
                     "HSET",
                     f"session:{session_key}",
                     "status", "active",
-                    "tunnel_url", tunnel_url,
+                    "tunnel_url", fqdn_domain,
+                    "domain", fqdn_domain,
+                    "direct_address", direct_address,
+                    "bore_port", str(remote_port),
+                    "servername", clean_srvname,
                     "server_type", server_type,
                     "version", version,
                     "expires_at", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(expires_at))
@@ -474,7 +628,11 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
             json={
                 "session_key": session_key,
                 "status": "active",
-                "tunnel_url": tunnel_url,
+                "tunnel_url": fqdn_domain,
+                "domain": fqdn_domain,
+                "direct_address": direct_address,
+                "bore_port": remote_port,
+                "servername": clean_srvname,
                 "expires_at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(expires_at)),
             },
             timeout=5,
@@ -488,6 +646,11 @@ def stop_mc_server(session_key: str):
         return
     info = ACTIVE_MC.pop(session_key)
     log.info(f"🛑 Stopping MC server {session_key}...")
+
+    # Cleanup Cloudflare SRV
+    srvname = info.get("servername")
+    if srvname:
+        cleanup_cloudflare_srv(srvname)
 
     # Graceful stop command
     proc = info.get("proc")
@@ -613,6 +776,7 @@ def task_listener():
                             task.get("server_type", "paper"),
                             task.get("version", "1.20.4"),
                             task.get("java_version", "auto"),
+                            task.get("servername", "play"),
                             int(task.get("ram_mb", 1024)),
                             int(task.get("timeout_seconds", 21600))
                         ),
@@ -651,9 +815,10 @@ if __name__ == "__main__":
             stype = os.environ.get("SERVER_TYPE", "paper")
             ver = os.environ.get("VERSION", "1.20.4")
             jver = os.environ.get("JAVA_VERSION", "auto")
+            sname = os.environ.get("SERVERNAME", "play")
             threading.Thread(
                 target=start_mc_server,
-                args=(initial_key, stype, ver, jver, ram, 21600),
+                args=(initial_key, stype, ver, jver, sname, ram, 21600),
                 daemon=True
             ).start()
         except Exception as e:
@@ -666,3 +831,4 @@ if __name__ == "__main__":
     log.info("AbsoraCloud Minecraft Engine is active and waiting for server deployments.")
     while True:
         time.sleep(60)
+

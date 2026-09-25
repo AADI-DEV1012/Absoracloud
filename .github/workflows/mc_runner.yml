@@ -18,6 +18,10 @@ on:
       java_version:
         required: false
         default: 'auto'
+      servername:
+        required: false
+        default: 'play'
+        description: "Custom domain prefix for <servername>.astrocore.qzz.io"
       ram_mb:
         required: false
         default: '1024'
@@ -40,6 +44,10 @@ jobs:
       SERVER_TYPE:         ${{ github.event.inputs.server_type || 'paper' }}
       VERSION:             ${{ github.event.inputs.version || '1.20.4' }}
       JAVA_VERSION:        ${{ github.event.inputs.java_version || 'auto' }}
+      SERVERNAME:          ${{ github.event.inputs.servername || 'play' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID:   ${{ secrets.CF_ZONE_ID }}
+      CF_DOMAIN:            ${{ secrets.CF_DOMAIN || 'astrocore.qzz.io' }}
       RAM_MB:              ${{ github.event.inputs.ram_mb || '1024' }}
 
     steps:
@@ -56,6 +64,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq openjdk-17-jre-headless openjdk-11-jre-headless openjdk-8-jre-headless || true
 
+      - name: Install Bore TCP Tunnel
+        run: |
+          wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
+          sudo mv bore /usr/local/bin/ || true
+          bore --version || echo "Bore binary ready"
+
       - name: Setup Python Environment
         run: |
           echo "═══════════════════════════════════════════"
@@ -65,6 +80,7 @@ jobs:
           echo "  Server Type  : $SERVER_TYPE"
           echo "  MC Version   : $VERSION"
           echo "  Java Version : $JAVA_VERSION"
+          echo "  Domain Host  : $SERVERNAME.astrocore.qzz.io"
           echo "═══════════════════════════════════════════"
           pip install requests psutil --quiet
 
@@ -72,3 +88,4 @@ jobs:
         run: |
           cd runners/mc-daemon
           python3 shared_mc.py
+
