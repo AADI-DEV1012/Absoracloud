@@ -87,7 +87,20 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       [userId, sessionKey, JSON.stringify({ gpu: true }), expiresAt]
     );
 
-    await triggerKaggleKernel(sessionKey, userId, req.user.plan);
+    // Push task to devbox:tasks for the Kaggle GPU runner
+    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
+      action: 'launch',
+      session_key: sessionKey,
+      user_id: userId,
+      plan: req.user.plan,
+      timeout_seconds: plan.devbox_gpu_min * 60,
+    }));
+
+    try {
+      await triggerKaggleKernel(sessionKey, userId, req.user.plan);
+    } catch (kErr) {
+      console.warn('Kaggle kernel trigger notice:', kErr.message);
+    }
 
     res.json({ status: 'queued', session_key: sessionKey, expires: expiresAt, msg: 'DevBox GPU session launching...' });
   } catch (e) {
@@ -119,7 +132,20 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       [userId, newSessionKey, JSON.stringify({ gpu: true }), expiresAt]
     );
 
-    await triggerKaggleKernel(newSessionKey, userId, req.user.plan);
+    // Push task to devbox:tasks for the Kaggle GPU runner
+    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
+      action: 'launch',
+      session_key: newSessionKey,
+      user_id: userId,
+      plan: req.user.plan,
+      timeout_seconds: plan.devbox_gpu_min * 60,
+    }));
+
+    try {
+      await triggerKaggleKernel(newSessionKey, userId, req.user.plan);
+    } catch (kErr) {
+      console.warn('Kaggle kernel trigger notice:', kErr.message);
+    }
     res.json({ status: 'queued', session_key: newSessionKey, expires: expiresAt, msg: 'Re-launching fresh DevBox GPU session...' });
   } catch (e) {
     console.error('DevBox relaunch error:', e);
@@ -210,6 +236,11 @@ devboxRouter.post('/stop', requireAuth, async (req, res) => {
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
+    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
+      action: 'stop',
+      session_key,
+      user_id: req.user.sub,
+    }));
     res.json({ status: 'success', msg: 'DevBox session terminated' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to stop DevBox' });
@@ -226,6 +257,11 @@ devboxRouter.delete('/instance/:session_key', requireAuth, async (req, res) => {
     );
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
+      action: 'stop',
+      session_key,
+      user_id: req.user.sub,
+    }));
     res.json({ status: 'success', msg: 'Instance dismissed' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to dismiss instance' });
