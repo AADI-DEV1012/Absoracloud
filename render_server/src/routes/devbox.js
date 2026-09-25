@@ -1,5 +1,5 @@
 // ── DevBox Routes ──
-// POST /devbox/launch, GET /devbox/status, POST /devbox/stop, GET /devbox/gpu_status
+// POST /devbox/launch, GET /devbox/status, POST /devbox/stop, GET /devbox/gpu_status, GET /devbox/check_session, POST /devbox/relaunch, DELETE /devbox/instance/:session_key
 
 import { Router } from 'express';
 import { requireAuth }   from '../middleware/auth.js';
@@ -13,19 +13,52 @@ import crypto from 'crypto';
 
 export const devboxRouter = Router();
 
+async function syncUserDevBoxState(userId) {
+  // Mark pending instances older than 3 minutes as failed
+  await executeD1(
+    `UPDATE instances 
+     SET status = 'failed', stopped_at = datetime('now')
+     WHERE user_id = ? AND service = 'devbox' AND status = 'pending' 
+       AND datetime(created_at) <= datetime('now', '-3 minutes')`,
+    [userId]
+  );
+}
+
 // ── Launch DevBox ──
 devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'), async (req, res) => {
   try {
     const userId     = req.user.sub;
     const plan       = getPlan(req.user.plan);
+    const { force, relaunch } = req.body;
     const sessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
+
+    await syncUserDevBoxState(userId);
+
+    // If force or relaunch, stop previous active instance
+    if (force || relaunch) {
+      const running = await queryD1(
+        "SELECT session_key FROM instances WHERE user_id = ? AND service = 'devbox' AND status IN ('pending','active')",
+        [userId]
+      );
+      for (const r of running) {
+        await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ?", [r.session_key]);
+        await redisCmd('SREM', 'gpu:active', r.session_key);
+        await redisCmd('SET', `kill:${r.session_key}`, '1', 'EX', '300');
+        await redisCmd('HDEL', `session:${r.session_key}`, 'status');
+      }
+    }
 
     // Check existing active devbox session
     const existing = await d1QueryOne(
-      "SELECT id FROM instances WHERE user_id = ? AND service = 'devbox' AND status IN ('pending','active')", [userId]
+      "SELECT id, session_key FROM instances WHERE user_id = ? AND service = 'devbox' AND status IN ('pending','active')", [userId]
     );
     if (existing) {
-      return res.status(409).json({ status: 'error', msg: 'You already have an active DevBox session' });
+      return res.status(409).json({ 
+        status: 'error', 
+        msg: 'You already have an active DevBox session. You can re-launch to replace it.',
+        can_relaunch: true,
+        session_key: existing.session_key
+      });
     }
 
     // Check GPU pool availability via Redis
@@ -63,6 +96,83 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
   }
 });
 
+// ── Re-launch DevBox (One-click restart / replace) ──
+devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const { session_key } = req.body;
+
+    if (session_key) {
+      await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?", [session_key, userId]);
+      await redisCmd('SREM', 'gpu:active', session_key);
+      await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+    }
+
+    req.body.force = true;
+    const plan = getPlan(req.user.plan);
+    const newSessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
+    await redisCmd('SADD', 'gpu:active', newSessionKey);
+    const expiresAt = new Date(Date.now() + plan.devbox_gpu_min * 60 * 1000).toISOString();
+
+    await executeD1(
+      "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'devbox', ?, ?, ?)",
+      [userId, newSessionKey, JSON.stringify({ gpu: true }), expiresAt]
+    );
+
+    await triggerKaggleKernel(newSessionKey, userId, req.user.plan);
+    res.json({ status: 'queued', session_key: newSessionKey, expires: expiresAt, msg: 'Re-launching fresh DevBox GPU session...' });
+  } catch (e) {
+    console.error('DevBox relaunch error:', e);
+    res.status(500).json({ status: 'error', msg: 'Failed to re-launch DevBox' });
+  }
+});
+
+// ── Check Session (polling endpoint) ──
+devboxRouter.get('/check_session', requireAuth, async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    if (!session_id) return res.status(400).json({ status: 'error', msg: 'Missing session_id' });
+
+    // 1. Check Redis
+    const data = redisParseHash(await redisCmd('HGETALL', `session:${session_id}`));
+    if (data && data.status) {
+      return res.json({
+        status: data.status,
+        tunnel_url: data.tunnel_url || null,
+        expires_at: data.expires_at || null,
+        error: data.error || null,
+      });
+    }
+
+    // 2. Check D1
+    const inst = await d1QueryOne(
+      "SELECT status, public_url, created_at, expires_at FROM instances WHERE session_key = ? AND user_id = ?",
+      [session_id, req.user.sub]
+    );
+
+    if (!inst) {
+      return res.status(404).json({ status: 'not_found', msg: 'Instance not found' });
+    }
+
+    if (inst.status === 'pending') {
+      const createdTime = new Date(inst.created_at).getTime();
+      if (Date.now() - createdTime > 180000) {
+        await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
+        await redisCmd('SREM', 'gpu:active', session_id);
+        return res.json({ status: 'failed', msg: 'DevBox GPU allocation timed out or runner failed.' });
+      }
+    }
+
+    res.json({
+      status: inst.status,
+      tunnel_url: inst.public_url || null,
+      expires_at: inst.expires_at || null,
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to check DevBox session' });
+  }
+});
+
 // ── GPU Pool Status ──
 devboxRouter.get('/gpu_status', requireAuth, async (req, res) => {
   try {
@@ -77,8 +187,10 @@ devboxRouter.get('/gpu_status', requireAuth, async (req, res) => {
 // ── Status ──
 devboxRouter.get('/status', requireAuth, async (req, res) => {
   try {
+    await syncUserDevBoxState(req.user.sub);
+
     const instances = await queryD1(
-      "SELECT * FROM instances WHERE user_id = ? AND service = 'devbox' ORDER BY created_at DESC LIMIT 5",
+      "SELECT * FROM instances WHERE user_id = ? AND service = 'devbox' AND status != 'dismissed' ORDER BY created_at DESC LIMIT 10",
       [req.user.sub]
     );
     res.json({ status: 'success', instances });
@@ -97,8 +209,25 @@ devboxRouter.post('/stop', requireAuth, async (req, res) => {
     );
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+    await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
     res.json({ status: 'success', msg: 'DevBox session terminated' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to stop DevBox' });
+  }
+});
+
+// ── Dismiss Instance ──
+devboxRouter.delete('/instance/:session_key', requireAuth, async (req, res) => {
+  try {
+    const { session_key } = req.params;
+    await executeD1(
+      "UPDATE instances SET status = 'dismissed' WHERE session_key = ? AND user_id = ?",
+      [session_key, req.user.sub]
+    );
+    await redisCmd('SREM', 'gpu:active', session_key);
+    await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+    res.json({ status: 'success', msg: 'Instance dismissed' });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to dismiss instance' });
   }
 });

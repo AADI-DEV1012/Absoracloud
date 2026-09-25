@@ -513,6 +513,15 @@
 
         <!-- Main Workspace Area -->
         <main class="flex-1 overflow-y-auto p-8">
+            <!-- Dynamic Notification / Status Toast Banner -->
+            <div id="dashboard-toast" class="hidden mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border">
+                <div class="flex items-center gap-3">
+                    <span id="dashboard-toast-icon" class="text-base"></span>
+                    <span id="dashboard-toast-msg" class="font-medium"></span>
+                </div>
+                <button onclick="hideToast()" class="text-neutral-400 hover:text-neutral-700 ml-4 font-bold">✕</button>
+            </div>
+
             <!-- VPS Tab -->
             <section id="panel-vps" class="tab-panel space-y-6">
                 <div class="flex items-center justify-between">
@@ -617,8 +626,24 @@
 
                 <div class="glass-card rounded-2xl p-6">
                     <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active GPU Sessions</h2>
-                    <div id="devbox-list" class="text-xs text-neutral-400 py-4 text-center">
-                        No active DevBox sessions. Click "Request GPU Session" to start.
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Session Key</th>
+                                    <th class="pb-3">Hardware Spec</th>
+                                    <th class="pb-3">Access Endpoint</th>
+                                    <th class="pb-3">Session Timeout</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devbox-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Click "Request GPU Session" to start.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -930,19 +955,123 @@
             document.getElementById('deploy-modal').classList.add('hidden');
         }
 
+        // ── Toast Banner Utilities ──
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('dashboard-toast');
+            const msgEl = document.getElementById('dashboard-toast-msg');
+            const iconEl = document.getElementById('dashboard-toast-icon');
+            if (!toast) return;
+
+            msgEl.innerText = msg;
+            toast.className = 'mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border ';
+            if (type === 'error') {
+                toast.className += 'bg-red-50 text-red-800 border-red-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i>';
+            } else if (type === 'success') {
+                toast.className += 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+            } else {
+                toast.className += 'bg-blue-50 text-blue-800 border-blue-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-info text-blue-500"></i>';
+            }
+            toast.classList.remove('hidden');
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('dashboard-toast');
+            if (toast) toast.classList.add('hidden');
+        }
+
+        // ── Status Badges ──
+        function renderStatusBadge(status) {
+            if (status === 'active') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Active</span>`;
+            } else if (status === 'pending' || status === 'deploying') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin"></span>Starting...</span>`;
+            } else if (status === 'disconnected') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">⚠ Disconnected</span>`;
+            } else if (status === 'failed') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">✕ Failed</span>`;
+            } else if (status === 'stopped') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">■ Stopped</span>`;
+            } else if (status === 'expired') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">⏱ Expired</span>`;
+            }
+            return `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">${status || 'Unknown'}</span>`;
+        }
+
+        // ── Action Buttons per status ──
+        function renderActions(service, inst) {
+            const key = inst.session_key;
+            if (inst.status === 'active') {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        ${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Connect ↗</a>` : ''}
+                        <button onclick="relaunchInstance('${service}', '${key}')" class="px-2 py-1 text-xs text-neutral-500 hover:text-primary transition" title="Restart / Reconnect">↻</button>
+                        <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition">Stop</button>
+                    </div>
+                `;
+            } else if (inst.status === 'pending' || inst.status === 'deploying') {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        <span class="text-xs text-amber-600 font-medium animate-pulse">Launching...</span>
+                        <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-rose-600 rounded-lg transition">Cancel</button>
+                    </div>
+                `;
+            } else if (inst.status === 'failed' || inst.status === 'disconnected') {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick="relaunchInstance('${service}', '${key}')" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition shadow-sm inline-flex items-center gap-1">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Re-launch
+                        </button>
+                        <button onclick="dismissInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-neutral-700 rounded-lg transition" title="Dismiss">
+                            Dismiss
+                        </button>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick="relaunchInstance('${service}', '${key}')" class="px-3 py-1 rounded-lg bg-neutral-800 text-white text-xs font-semibold hover:bg-neutral-700 transition inline-flex items-center gap-1">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Re-launch
+                        </button>
+                        <button onclick="dismissInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-neutral-700 rounded-lg transition" title="Dismiss">
+                            Dismiss
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // ── Launch Functions ──
         async function launchVPS() {
+            showToast('Requesting VPS instance...', 'info');
             try {
                 const res = await fetch(`${API_BASE}/vps/launch`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
                 });
                 const data = await res.json();
-                alert(data.msg || 'VPS launching...');
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing instance?`)) {
+                        return relaunchInstance('vps', data.session_key);
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to launch VPS', 'error');
+                    return;
+                }
+                showToast(data.msg || 'VPS launching... setting up container', 'success');
                 refreshActiveTab('vps');
-            } catch(e) { alert('Failed to launch'); }
+                if (data.session_key) startPolling('vps', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
         }
 
         async function launchMC() {
+            showToast('Requesting Minecraft server...', 'info');
             try {
                 const res = await fetch(`${API_BASE}/mc/launch`, {
                     method: 'POST',
@@ -950,21 +1079,96 @@
                     body: JSON.stringify({ server_type: 'paper', version: '1.20.4' })
                 });
                 const data = await res.json();
-                alert(data.msg || 'MC server launching...');
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing server?`)) {
+                        return relaunchInstance('mc', data.session_key);
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to launch MC server', 'error');
+                    return;
+                }
+                showToast(data.msg || 'Minecraft server launching...', 'success');
                 refreshActiveTab('mc');
-            } catch(e) { alert('Failed to launch'); }
+                if (data.session_key) startPolling('mc', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
         }
 
         async function launchDevBox() {
+            showToast('Requesting GPU DevBox session...', 'info');
             try {
                 const res = await fetch(`${API_BASE}/devbox/launch`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
                 });
                 const data = await res.json();
-                alert(data.msg || 'DevBox request sent');
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing DevBox session?`)) {
+                        return relaunchInstance('devbox', data.session_key);
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to launch DevBox', 'error');
+                    return;
+                }
+                showToast(data.msg || 'DevBox GPU session requested', 'success');
                 refreshActiveTab('devbox');
-            } catch(e) { alert('Failed to launch'); }
+                if (data.session_key) startPolling('devbox', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
+        }
+
+        async function relaunchInstance(service, session_key) {
+            showToast(`Re-launching ${service.toUpperCase()}...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/${service}/relaunch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || `${service.toUpperCase()} re-launch triggered!`, 'success');
+                    if (data.session_key) startPolling(service, data.session_key);
+                } else {
+                    showToast(data.msg || 'Re-launch failed', 'error');
+                }
+                refreshActiveTab(service);
+            } catch(e) {
+                showToast('Failed to connect to API', 'error');
+            }
+        }
+
+        async function dismissInstance(service, session_key) {
+            try {
+                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/instance/' + session_key}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                showToast('Instance removed from list', 'info');
+                refreshActiveTab(service);
+            } catch(e) {
+                showToast('Failed to dismiss instance', 'error');
+            }
+        }
+
+        async function stopInstance(service, session_key) {
+            if (!confirm('Are you sure you want to stop this instance?')) return;
+            try {
+                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/stop'}`, {
+                    method: service === 'webhost' ? 'DELETE' : 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                showToast('Stop signal sent', 'info');
+                refreshActiveTab(service);
+            } catch(e) { showToast('Stop failed', 'error'); }
         }
 
         async function handleDeploySubmit(e) {
@@ -979,59 +1183,132 @@
                     body: JSON.stringify({ site_name, repo_url })
                 });
                 const data = await res.json();
-                alert(data.msg || 'Site dispatched to Gradio Cluster!');
-                closeDeployModal();
-                refreshActiveTab('webhost');
-            } catch(e) { alert('Deployment failed'); }
+                if (res.ok) {
+                    showToast(data.msg || 'Site dispatched to Gradio Cluster!', 'success');
+                    closeDeployModal();
+                    refreshActiveTab('webhost');
+                    if (data.session_key) startPolling('webhost', data.session_key);
+                } else {
+                    showToast(data.msg || 'Deployment failed', 'error');
+                }
+            } catch(e) { showToast('Deployment failed', 'error'); }
         }
 
+        // ── Active Polling Loop ──
+        let activePollTimer = null;
+        function startPolling(service, session_key) {
+            if (activePollTimer) clearInterval(activePollTimer);
+            let attempts = 0;
+            activePollTimer = setInterval(async () => {
+                attempts++;
+                if (attempts > 30) {
+                    clearInterval(activePollTimer);
+                    return;
+                }
+                try {
+                    const r = await fetch(`${API_BASE}/${service}/check_session?${service === 'webhost' ? 'session_key=' : 'session_id='}${session_key}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const d = await r.json();
+                    if (d.status === 'active') {
+                        clearInterval(activePollTimer);
+                        showToast(`🎉 ${service.toUpperCase()} instance is live! Connection ready.`, 'success');
+                        refreshActiveTab(service);
+                    } else if (d.status === 'failed' || d.status === 'disconnected') {
+                        clearInterval(activePollTimer);
+                        showToast(`⚠️ ${d.msg || `${service.toUpperCase()} instance failed or disconnected.`} Click Re-launch to retry.`, 'error');
+                        refreshActiveTab(service);
+                    } else {
+                        refreshActiveTab(service);
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        // ── Refresh Dashboard Tab Data ──
         async function refreshActiveTab(tabId) {
             if (!authToken) return;
             try {
                 if (tabId === 'vps') {
                     const r = await fetch(`${API_BASE}/vps/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
-                    if (d.instances?.length) {
-                        document.getElementById('vps-list').innerHTML = d.instances.map(inst => `
+                    const list = document.getElementById('vps-list');
+                    if (d.instances && d.instances.length > 0) {
+                        list.innerHTML = d.instances.map(inst => `
                             <tr>
                                 <td class="py-3 font-mono font-medium">${inst.session_key}</td>
                                 <td class="py-3 text-neutral-500">Sliced Container</td>
-                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 hover:underline">Terminal Link ↗</a>` : '<span class="text-neutral-400">Tunnel building...</span>'}</td>
-                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '3h 50m'}</td>
-                                <td class="py-3"><span class="px-2 py-0.5 rounded-full ${inst.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'}">${inst.status}</span></td>
-                                <td class="py-3 text-right"><button onclick="stopInstance('vps', '${inst.session_key}')" class="text-red-500 hover:underline">Stop</button></td>
+                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">${inst.public_url.replace('https://', '')} ↗</a>` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Tunnel offline</span>' : '<span class="text-neutral-400 animate-pulse">Tunnel building...</span>'))}</td>
+                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '4h limit'}</td>
+                                <td class="py-3">${renderStatusBadge(inst.status)}</td>
+                                <td class="py-3 text-right">${renderActions('vps', inst)}</td>
                             </tr>
                         `).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td></tr>`;
+                    }
+                } else if (tabId === 'mc') {
+                    const r = await fetch(`${API_BASE}/mc/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('mc-list');
+                    if (d.instances && d.instances.length > 0) {
+                        list.innerHTML = d.instances.map(inst => {
+                            const cfg = JSON.parse(inst.config || '{}');
+                            return `
+                                <tr>
+                                    <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                                    <td class="py-3 text-neutral-500">${cfg.server_type || 'Paper'} ${cfg.version || '1.20.4'} (${cfg.ram_mb || 1024}MB)</td>
+                                    <td class="py-3 font-mono font-semibold text-neutral-800">${inst.public_url || (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Startup failed</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Server offline</span>' : '<span class="text-neutral-400 animate-pulse">Assigning IP:port...</span>'))}</td>
+                                    <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '6h limit'}</td>
+                                    <td class="py-3">${renderStatusBadge(inst.status)}</td>
+                                    <td class="py-3 text-right">${renderActions('mc', inst)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers. Click "Launch Server" to start one.</td></tr>`;
+                    }
+                } else if (tabId === 'devbox') {
+                    const r = await fetch(`${API_BASE}/devbox/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('devbox-list');
+                    if (d.instances && d.instances.length > 0) {
+                        list.innerHTML = d.instances.map(inst => `
+                            <tr>
+                                <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                                <td class="py-3 text-neutral-500">2× Nvidia Tesla T4</td>
+                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">Jupyter / Terminal ↗</a>` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">GPU allocation failed</span>' : '<span class="text-neutral-400 animate-pulse">Allocating GPU slot...</span>')}</td>
+                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '30m cap'}</td>
+                                <td class="py-3">${renderStatusBadge(inst.status)}</td>
+                                <td class="py-3 text-right">${renderActions('devbox', inst)}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Click "Request GPU Session" to start.</td></tr>`;
                     }
                 } else if (tabId === 'webhost') {
                     const r = await fetch(`${API_BASE}/webhost/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
-                    if (d.sites?.length) {
-                        document.getElementById('webhost-list').innerHTML = d.sites.map(s => `
-                            <tr>
-                                <td class="py-3 font-semibold text-primary">${JSON.parse(s.config || '{}').site_name || s.session_key}</td>
-                                <td class="py-3 text-neutral-400 font-mono">${JSON.parse(s.config || '{}').repo_url || '-'}</td>
-                                <td class="py-3">${s.public_url ? `<a href="${s.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">${s.public_url} ↗</a>` : '<span class="text-neutral-400 animate-pulse">Building Cloudflare Tunnel...</span>'}</td>
-                                <td class="py-3 font-mono text-neutral-500">${s.expires_at ? s.expires_at.slice(0, 10) : '24h limit'}</td>
-                                <td class="py-3"><span class="px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'}">${s.status}</span></td>
-                                <td class="py-3 text-right"><button onclick="stopInstance('webhost', '${s.session_key}')" class="text-red-500 hover:underline">Remove</button></td>
-                            </tr>
-                        `).join('');
+                    const list = document.getElementById('webhost-list');
+                    if (d.sites && d.sites.length > 0) {
+                        list.innerHTML = d.sites.map(s => {
+                            const cfg = JSON.parse(s.config || '{}');
+                            return `
+                                <tr>
+                                    <td class="py-3 font-semibold text-primary">${cfg.site_name || s.session_key}</td>
+                                    <td class="py-3 text-neutral-400 font-mono">${cfg.repo_url || '-'}</td>
+                                    <td class="py-3">${s.public_url ? `<a href="${s.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">${s.public_url} ↗</a>` : (s.status === 'failed' ? '<span class="text-rose-500 font-medium">Build failed</span>' : '<span class="text-neutral-400 animate-pulse">Building Cloudflare Tunnel...</span>')}</td>
+                                    <td class="py-3 font-mono text-neutral-500">${s.expires_at ? s.expires_at.slice(0, 10) : '24h limit'}</td>
+                                    <td class="py-3">${renderStatusBadge(s.status)}</td>
+                                    <td class="py-3 text-right">${renderActions('webhost', s)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No deployed websites. Click "Deploy Website" to start one.</td></tr>`;
                     }
                 }
             } catch(e) {}
-        }
-
-        async function stopInstance(service, session_key) {
-            if (!confirm('Are you sure you want to stop this instance?')) return;
-            try {
-                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/stop'}`, {
-                    method: service === 'webhost' ? 'DELETE' : 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_key })
-                });
-                refreshActiveTab(service);
-            } catch(e) { alert('Stop failed'); }
         }
 
         // ── Auto-login verification on startup ──
