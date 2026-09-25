@@ -197,11 +197,19 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
     # Direct Redis fast-sync fallback (ensures immediate frontend discovery)
     if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
         try:
-            requests.get(
-                f"{UPSTASH_REDIS_URL}/hset/session:{session_key}/status/active/tunnel_url/{tunnel_url}/expires_at/{int(expires_at)}",
-                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+            requests.post(
+                UPSTASH_REDIS_URL,
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                json=[
+                    "HSET",
+                    f"session:{session_key}",
+                    "status", "active",
+                    "tunnel_url", tunnel_url,
+                    "expires_at", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(expires_at))
+                ],
                 timeout=5
             )
+            log.info(f"Pushed session {session_key} directly to Redis.")
         except Exception as e:
             log.warning(f"Redis direct sync notice: {e}")
 
@@ -238,9 +246,10 @@ def stop_devbox_session(session_key: str):
 
     if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
         try:
-            requests.get(
-                f"{UPSTASH_REDIS_URL}/hset/session:{session_key}/status/stopped",
-                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+            requests.post(
+                UPSTASH_REDIS_URL,
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                json=["HSET", f"session:{session_key}", "status", "stopped"],
                 timeout=5
             )
         except Exception:
@@ -254,9 +263,10 @@ def redis_queue_consumer():
     log.info("Started Redis queue consumer for devbox:tasks...")
     while True:
         try:
-            res = requests.get(
-                f"{UPSTASH_REDIS_URL}/lpop/devbox:tasks",
-                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+            res = requests.post(
+                UPSTASH_REDIS_URL,
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                json=["LPOP", "devbox:tasks"],
                 timeout=5
             ).json()
             task_raw = res.get("result")
@@ -291,9 +301,10 @@ def local_watchdog():
 
                 if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
                     try:
-                        r = requests.get(
-                            f"{UPSTASH_REDIS_URL}/get/kill:{k}",
-                            headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+                        r = requests.post(
+                            UPSTASH_REDIS_URL,
+                            headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                            json=["GET", f"kill:{k}"],
                             timeout=3
                         ).json()
                         if r.get("result") == "1":
