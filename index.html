@@ -1384,9 +1384,11 @@
                     return;
                 }
                 try {
-                    const r = await fetch(`${API_BASE}/${service}/check_session?${service === 'webhost' ? 'session_key=' : 'session_id='}${session_key}`, {
+                    const r = await fetch(`${API_BASE}/${service}/check_session?${service === 'webhost' ? 'session_key=' : 'session_id='}${session_key}&_t=${Date.now()}`, {
+                        cache: 'no-store',
                         headers: { 'Authorization': `Bearer ${authToken}` }
                     });
+                    if (r.status === 304) return;
                     const d = await r.json();
                     if (d.status === 'active') {
                         clearInterval(activePollTimer);
@@ -1408,7 +1410,7 @@
             if (!authToken) return;
             try {
                 if (tabId === 'vps') {
-                    const r = await fetch(`${API_BASE}/vps/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const r = await fetch(`${API_BASE}/vps/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
                     const list = document.getElementById('vps-list');
                     if (d.instances && d.instances.length > 0) {
@@ -1426,7 +1428,7 @@
                         list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td></tr>`;
                     }
                 } else if (tabId === 'mc') {
-                    const r = await fetch(`${API_BASE}/mc/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const r = await fetch(`${API_BASE}/mc/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
                     const list = document.getElementById('mc-list');
                     if (d.instances && d.instances.length > 0) {
@@ -1447,7 +1449,7 @@
                         list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active Minecraft servers. Click "Launch Server" to start one.</td></tr>`;
                     }
                 } else if (tabId === 'devbox') {
-                    const r = await fetch(`${API_BASE}/devbox/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const r = await fetch(`${API_BASE}/devbox/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
                     const list = document.getElementById('devbox-list');
                     if (d.instances && d.instances.length > 0) {
@@ -1465,7 +1467,7 @@
                         list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Click "Request GPU Session" to start.</td></tr>`;
                     }
                 } else if (tabId === 'webhost') {
-                    const r = await fetch(`${API_BASE}/webhost/status`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const r = await fetch(`${API_BASE}/webhost/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
                     const d = await r.json();
                     const list = document.getElementById('webhost-list');
                     if (d.sites && d.sites.length > 0) {

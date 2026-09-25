@@ -219,6 +219,19 @@ devboxRouter.get('/status', requireAuth, async (req, res) => {
       "SELECT * FROM instances WHERE user_id = ? AND service = 'devbox' AND status != 'dismissed' ORDER BY created_at DESC LIMIT 10",
       [req.user.sub]
     );
+
+    // Enrich instances with real-time Redis state if D1 hasn't updated yet
+    for (const inst of instances) {
+      if (!inst.public_url || inst.status === 'pending') {
+        const data = redisParseHash(await redisCmd('HGETALL', `session:${inst.session_key}`));
+        if (data && data.status) {
+          inst.status = data.status;
+          if (data.tunnel_url) inst.public_url = data.tunnel_url;
+          if (data.expires_at) inst.expires_at = data.expires_at;
+        }
+      }
+    }
+
     res.json({ status: 'success', instances });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch status' });

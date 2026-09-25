@@ -21,6 +21,9 @@ const PORT = process.env.PORT || 3000;
 // Trust reverse proxy (Render, Cloudflare) for rate limiting & secure cookies
 app.set('trust proxy', 1);
 
+// Disable ETag generation to prevent 304 Not Modified on dynamic polling/status endpoints
+app.disable('etag');
+
 // ── Global Middleware ──
 app.use(cors({
   origin: (origin, callback) => callback(null, true),
@@ -28,6 +31,14 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Force no-cache headers on all dynamic API endpoints
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 
 import { checkD1Health } from './shared/d1.js';
 import { checkRedisHealth } from './shared/redis.js';

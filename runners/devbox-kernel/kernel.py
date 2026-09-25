@@ -21,7 +21,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("AbsoraDevBox")
 
-API_URL             = os.environ.get("API_URL", "https://absoracloud-api.onrender.com")
+API_URL             = os.environ.get("API_URL", "https://absoracloud.onrender.com")
 WORKER_SECRET       = os.environ.get("WORKER_SECRET", "absoracloud_worker_secret_2026")
 RUNNER_ID           = os.environ.get("RUNNER_ID", f"devbox-runner-{int(time.time())}")
 UPSTASH_REDIS_URL   = os.environ.get("UPSTASH_REDIS_URL", "https://sharing-dodo-298502.upstash.io")
@@ -194,6 +194,17 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
     except Exception as e:
         log.error(f"Failed to report session: {e}")
 
+    # Direct Redis fast-sync fallback (ensures immediate frontend discovery)
+    if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
+        try:
+            requests.get(
+                f"{UPSTASH_REDIS_URL}/hset/session:{session_key}/status/active/tunnel_url/{tunnel_url}/expires_at/{int(expires_at)}",
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+                timeout=5
+            )
+        except Exception as e:
+            log.warning(f"Redis direct sync notice: {e}")
+
 def stop_devbox_session(session_key: str):
     if session_key not in ACTIVE_SESSIONS:
         return
@@ -224,6 +235,16 @@ def stop_devbox_session(session_key: str):
         )
     except Exception:
         pass
+
+    if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
+        try:
+            requests.get(
+                f"{UPSTASH_REDIS_URL}/hset/session:{session_key}/status/stopped",
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
+                timeout=5
+            )
+        except Exception:
+            pass
 
 # ── Redis Task Queue Consumer ──
 def redis_queue_consumer():
