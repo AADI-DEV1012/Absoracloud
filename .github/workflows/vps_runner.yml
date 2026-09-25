@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      UPSTASH_REDIS_URL:   ${{ secrets.UPSTASH_REDIS_URL }}
-      UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN }}
-      WORKER_SECRET:       ${{ secrets.WORKER_SECRET }}
-      API_URL:             ${{ secrets.API_URL }}
+      UPSTASH_REDIS_URL:   ${{ secrets.UPSTASH_REDIS_URL != '' && secrets.UPSTASH_REDIS_URL || 'https://sharing-dodo-298502.upstash.io' }}
+      UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN != '' && secrets.UPSTASH_REDIS_TOKEN || 'gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ' }}
+      WORKER_SECRET:       ${{ secrets.WORKER_SECRET != '' && secrets.WORKER_SECRET || 'absoracloud_worker_secret_2026' }}
+      API_URL:             ${{ secrets.API_URL != '' && secrets.API_URL || 'https://absoracloud.onrender.com' }}
       RUNNER_ID:           "vps-${{ github.run_id }}"
       INITIAL_SESSION_KEY: ${{ github.event.inputs.session_key }}
       PLAN:                ${{ github.event.inputs.plan || 'free' }}

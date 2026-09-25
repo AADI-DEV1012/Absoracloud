@@ -15,12 +15,12 @@ export const vpsRouter = Router();
 
 // Helper to sync stale pending or disconnected instances
 async function syncUserVPSState(userId) {
-  // Mark pending instances older than 3 minutes as failed
+  // Mark pending instances older than 90 seconds as failed so user is not blocked
   await executeD1(
     `UPDATE instances 
      SET status = 'failed', stopped_at = datetime('now')
      WHERE user_id = ? AND service = 'vps' AND status = 'pending' 
-       AND datetime(created_at) <= datetime('now', '-3 minutes')`,
+       AND datetime(created_at) <= datetime('now', '-90 seconds')`,
     [userId]
   );
   // Mark active instances whose runner is offline as disconnected
@@ -210,11 +210,12 @@ vpsRouter.get('/check_session', requireAuth, async (req, res) => {
       return res.status(404).json({ status: 'not_found', msg: 'Instance not found' });
     }
 
-    // Auto-mark timed out pending
+    // Auto-mark timed out pending (90s timeout)
     if (inst.status === 'pending') {
       const createdTime = new Date(inst.created_at).getTime();
-      if (Date.now() - createdTime > 180000) {
+      if (Date.now() - createdTime > 90000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
+        await redisCmd('HSET', `session:${session_id}`, 'status', 'failed', 'error', 'Runner startup timed out or failed to connect.');
         return res.json({ status: 'failed', msg: 'Runner startup timed out or failed to connect.' });
       }
     }
@@ -224,6 +225,7 @@ vpsRouter.get('/check_session', requireAuth, async (req, res) => {
       const r = await d1QueryOne("SELECT status FROM runners WHERE id = ?", [inst.runner_id]);
       if (r && r.status === 'offline') {
         await executeD1("UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
+        await redisCmd('HSET', `session:${session_id}`, 'status', 'disconnected', 'error', 'Runner went offline.');
         return res.json({ status: 'disconnected', msg: 'Runner went offline.' });
       }
     }

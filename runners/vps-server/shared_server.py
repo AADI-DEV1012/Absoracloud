@@ -20,11 +20,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("AbsoraVPS")
 
 # ── Environment ──
-API_URL             = os.environ.get("API_URL", "https://absoracloud-api.onrender.com")
-WORKER_SECRET       = os.environ.get("WORKER_SECRET", "absoracloud_worker_secret_2026")
-RUNNER_ID           = os.environ.get("RUNNER_ID", f"vps-runner-{int(time.time())}")
-UPSTASH_REDIS_URL   = os.environ.get("UPSTASH_REDIS_URL", "")
-UPSTASH_REDIS_TOKEN = os.environ.get("UPSTASH_REDIS_TOKEN", "")
+raw_api_url         = (os.environ.get("API_URL") or "https://absoracloud.onrender.com").strip().rstrip("/")
+if not raw_api_url.startswith("http://") and not raw_api_url.startswith("https://"):
+    raw_api_url     = f"https://{raw_api_url}"
+API_URL             = raw_api_url
+
+WORKER_SECRET       = (os.environ.get("WORKER_SECRET") or "absoracloud_worker_secret_2026").strip()
+RUNNER_ID           = os.environ.get("RUNNER_ID") or f"vps-runner-{int(time.time())}"
+UPSTASH_REDIS_URL   = (os.environ.get("UPSTASH_REDIS_URL") or "https://sharing-dodo-298502.upstash.io").strip()
+UPSTASH_REDIS_TOKEN = (os.environ.get("UPSTASH_REDIS_TOKEN") or "gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ").strip()
 
 CAPACITY   = int(os.environ.get("CAPACITY", "4"))
 PORT_START = 9001
