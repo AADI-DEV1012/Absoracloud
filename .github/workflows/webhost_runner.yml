@@ -53,7 +53,7 @@ jobs:
           echo "  Capacity  : 25 Sites"
           echo "═══════════════════════════════════════════"
 
-          pip install gradio fastapi uvicorn requests psutil --quiet
+          pip install "huggingface_hub<0.25.0" gradio fastapi uvicorn requests psutil --quiet
 
           # Install cloudflared
           curl -sL --output cloudflared.deb \

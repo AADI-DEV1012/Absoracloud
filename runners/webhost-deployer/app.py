@@ -16,6 +16,25 @@ import threading
 import subprocess
 import requests
 import psutil
+
+# Compatibility shim: huggingface_hub >= 0.25.0 removed HfFolder, which Gradio expects
+try:
+    import huggingface_hub
+    if not hasattr(huggingface_hub, "HfFolder"):
+        class HfFolder:
+            @staticmethod
+            def get_token():
+                return os.environ.get("HF_TOKEN") or None
+            @staticmethod
+            def save_token(token):
+                pass
+            @staticmethod
+            def delete_token():
+                pass
+        huggingface_hub.HfFolder = HfFolder
+except Exception:
+    pass
+
 import gradio as gr
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
