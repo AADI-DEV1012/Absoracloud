@@ -1,0 +1,66 @@
+name: AbsoraCloud WebHost Runner
+on:
+  workflow_dispatch:
+    inputs:
+      session_key:
+        required: false
+        description: "Initial session key for webhost instance"
+      site_name:
+        required: false
+        description: "Site name"
+      repo_url:
+        required: false
+        description: "Git repo URL"
+      plan:
+        required: false
+        default: "free"
+        description: "User plan tier"
+
+permissions:
+  contents: read
+
+jobs:
+  webhost-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      UPSTASH_REDIS_URL:   ${{ secrets.UPSTASH_REDIS_URL != '' && secrets.UPSTASH_REDIS_URL || 'https://sharing-dodo-298502.upstash.io' }}
+      UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN != '' && secrets.UPSTASH_REDIS_TOKEN || 'gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ' }}
+      WORKER_SECRET:       ${{ secrets.WORKER_SECRET != '' && secrets.WORKER_SECRET || 'absoracloud_worker_secret_2026' }}
+      API_URL:             ${{ secrets.API_URL != '' && secrets.API_URL || 'https://absoracloud.onrender.com' }}
+      RUNNER_ID:           "webhost-${{ github.run_id }}"
+      INITIAL_SESSION_KEY: ${{ github.event.inputs.session_key }}
+      PLAN:                ${{ github.event.inputs.plan || 'free' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node & Python
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Setup Environment
+        run: |
+          echo "═══════════════════════════════════════════"
+          echo "  AbsoraCloud WebHost Runner"
+          echo "  Runner ID : $RUNNER_ID"
+          echo "  Capacity  : 25 Sites"
+          echo "═══════════════════════════════════════════"
+
+          pip install gradio fastapi uvicorn requests psutil --quiet
+
+          # Install cloudflared
+          curl -sL --output cloudflared.deb \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+      - name: Start WebHost Daemon
+        run: |
+          cd runners/webhost-deployer
+          python3 app.py

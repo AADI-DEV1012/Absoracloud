@@ -25,10 +25,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("AbsoraWebHost")
 
 # ── Environment & Config ──
-API_URL = os.environ.get("API_URL", "https://absoracloud-api.onrender.com")
-WORKER_SECRET = os.environ.get("WORKER_SECRET", "absoracloud_worker_secret_2026")
-UPSTASH_REDIS_URL = os.environ.get("UPSTASH_REDIS_URL", "")
-UPSTASH_REDIS_TOKEN = os.environ.get("UPSTASH_REDIS_TOKEN", "")
+raw_api_url         = (os.environ.get("API_URL") or "https://absoracloud.onrender.com").strip().rstrip("/")
+if not raw_api_url.startswith("http://") and not raw_api_url.startswith("https://"):
+    raw_api_url     = f"https://{raw_api_url}"
+API_URL             = raw_api_url
+
+WORKER_SECRET       = (os.environ.get("WORKER_SECRET") or "absoracloud_worker_secret_2026").strip()
+RUNNER_ID           = os.environ.get("RUNNER_ID") or f"webhost-runner-{int(time.time())}"
+UPSTASH_REDIS_URL   = (os.environ.get("UPSTASH_REDIS_URL") or "https://sharing-dodo-298502.upstash.io").strip()
+UPSTASH_REDIS_TOKEN = (os.environ.get("UPSTASH_REDIS_TOKEN") or "gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ").strip()
 
 SITES_DIR = os.path.abspath("./sites_data")
 os.makedirs(SITES_DIR, exist_ok=True)
@@ -281,9 +286,42 @@ def redis_queue_consumer():
             pass
         time.sleep(3)
 
+# ── Runner Registration & Heartbeats ──
+def register_runner():
+    try:
+        requests.post(
+            f"{API_URL}/worker/register",
+            headers={"Content-Type": "application/json", "x-worker-secret": WORKER_SECRET},
+            json={
+                "runner_id": RUNNER_ID,
+                "type": "huggingface",
+                "service": "webhost",
+                "capacity": MAX_CAPACITY,
+            },
+            timeout=10,
+        )
+        add_log(f"Registered WebHost runner {RUNNER_ID} with API Gateway.")
+    except Exception as e:
+        add_log(f"Failed to register runner with API: {e}")
+
+def heartbeat_loop():
+    while True:
+        try:
+            requests.post(
+                f"{API_URL}/worker/heartbeat",
+                headers={"Content-Type": "application/json", "x-worker-secret": WORKER_SECRET},
+                json={"runner_id": RUNNER_ID, "active_count": len(ACTIVE_SITES)},
+                timeout=5,
+            )
+        except Exception:
+            pass
+        time.sleep(30)
+
 # Start background workers
+register_runner()
 threading.Thread(target=automated_watchdog, daemon=True).start()
 threading.Thread(target=redis_queue_consumer, daemon=True).start()
+threading.Thread(target=heartbeat_loop, daemon=True).start()
 
 # ── FastAPI Endpoints ──
 api_app = FastAPI()

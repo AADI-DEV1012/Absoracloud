@@ -7,6 +7,7 @@ import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
 import { redisCmd, redisParseHash }       from '../shared/redis.js';
 import { getPlan }                        from '../shared/plans.js';
 import { deploySiteToGradioHost, stopSiteOnGradioHost } from '../services/huggingface.js';
+import { triggerWorkflow } from '../services/github_actions.js';
 import crypto from 'crypto';
 
 export const webhostRouter = Router();
@@ -16,7 +17,7 @@ async function syncUserWebhostState(userId) {
     `UPDATE instances 
      SET status = 'failed', stopped_at = datetime('now')
      WHERE user_id = ? AND service = 'webhost' AND status = 'deploying' 
-       AND datetime(created_at) <= datetime('now', '-3 minutes')`,
+       AND datetime(created_at) <= datetime('now', '-90 seconds')`,
     [userId]
   );
 }
@@ -55,7 +56,12 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
       [userId, sessionKey, JSON.stringify({ repo_url, site_name, plan: req.user.plan }), expiresAt]
     );
 
-    // Dispatch to Gradio multi-site host
+    // Check if an active webhost runner is online
+    const runners = await queryD1(
+      "SELECT * FROM runners WHERE service = 'webhost' AND status = 'ready' AND active_count < capacity ORDER BY active_count ASC LIMIT 1"
+    );
+
+    // Dispatch task to Redis queue
     await deploySiteToGradioHost({
       siteName: site_name,
       repoUrl: repo_url,
@@ -64,6 +70,20 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
       userId,
       plan: req.user.plan,
     });
+
+    // If no runner is currently online, spin up one via GitHub Actions
+    if (!runners || runners.length === 0) {
+      try {
+        await triggerWorkflow('webhost_runner.yml', {
+          session_key: sessionKey,
+          site_name: site_name,
+          repo_url: repo_url,
+          plan: req.user.plan,
+        });
+      } catch (err) {
+        console.warn('Could not dispatch webhost_runner.yml workflow:', err.message);
+      }
+    }
 
     res.json({
       status: 'deploying',
@@ -99,6 +119,10 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
       [req.user.sub, newSessionKey, JSON.stringify(cfg), expiresAt]
     );
 
+    const runners = await queryD1(
+      "SELECT * FROM runners WHERE service = 'webhost' AND status = 'ready' AND active_count < capacity ORDER BY active_count ASC LIMIT 1"
+    );
+
     await deploySiteToGradioHost({
       siteName: cfg.site_name,
       repoUrl: cfg.repo_url,
@@ -107,6 +131,19 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
       userId: req.user.sub,
       plan: req.user.plan,
     });
+
+    if (!runners || runners.length === 0) {
+      try {
+        await triggerWorkflow('webhost_runner.yml', {
+          session_key: newSessionKey,
+          site_name: cfg.site_name,
+          repo_url: cfg.repo_url,
+          plan: req.user.plan,
+        });
+      } catch (err) {
+        console.warn('Could not dispatch webhost_runner.yml workflow:', err.message);
+      }
+    }
 
     res.json({
       status: 'deploying',
@@ -122,8 +159,8 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
 // ── Check Session / Tunnel URL polling ──
 webhostRouter.get('/check_session', requireAuth, async (req, res) => {
   try {
-    const { session_key } = req.query;
-    if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
+    const session_key = req.query.session_key || req.query.session_id;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key or session_id required' });
 
     const data = redisParseHash(await redisCmd('HGETALL', `session:${session_key}`));
     if (data && data.status) {
@@ -140,8 +177,9 @@ webhostRouter.get('/check_session', requireAuth, async (req, res) => {
 
     if (inst.status === 'deploying') {
       const createdTime = new Date(inst.created_at).getTime();
-      if (Date.now() - createdTime > 180000) {
+      if (Date.now() - createdTime > 90000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_key]);
+        await redisCmd('HSET', `session:${session_key}`, 'status', 'failed', 'error', 'Deployment timed out on Gradio host.');
         return res.json({ status: 'failed', msg: 'Deployment timed out on Gradio host.' });
       }
     }
@@ -171,10 +209,12 @@ webhostRouter.get('/status', requireAuth, async (req, res) => {
   }
 });
 
-// ── Remove ──
-webhostRouter.delete('/remove', requireAuth, async (req, res) => {
+// ── Remove / Dismiss Site ──
+async function handleRemoveSite(req, res) {
   try {
-    const { session_key } = req.body;
+    const session_key = req.body?.session_key || req.query?.session_key || req.params?.session_key;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
+
     const instance = await d1QueryOne(
       "SELECT * FROM instances WHERE session_key = ? AND user_id = ?", [session_key, req.user.sub]
     );
@@ -187,4 +227,7 @@ webhostRouter.delete('/remove', requireAuth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to remove site' });
   }
-});
+}
+
+webhostRouter.delete('/remove', requireAuth, handleRemoveSite);
+webhostRouter.delete('/instance/:session_key', requireAuth, handleRemoveSite);
