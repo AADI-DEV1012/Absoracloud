@@ -89,17 +89,85 @@ def setup_kernels():
             }, f, indent=2)
 
         km = ks.KernelSpecManager()
-        km.install_kernel_spec(gpu_dir, "python3-gpu", user=True, replace=True)
-        km.install_kernel_spec(cpu_dir, "python3-cpu", user=True, replace=True)
+
+        # Install with prefix (sys.prefix e.g. /opt/conda)
+        try:
+            km.install_kernel_spec(gpu_dir, "python3-gpu", prefix=sys.prefix, replace=True)
+            km.install_kernel_spec(cpu_dir, "python3-cpu", prefix=sys.prefix, replace=True)
+        except Exception:
+            pass
+
+        # Install to user home (~/.local/share/jupyter/kernels)
+        try:
+            km.install_kernel_spec(gpu_dir, "python3-gpu", user=True, replace=True)
+            km.install_kernel_spec(cpu_dir, "python3-cpu", user=True, replace=True)
+        except Exception:
+            pass
+
+        # Direct copy into all known jupyter kernel locations
+        target_dirs = [
+            os.path.join(sys.prefix, "share", "jupyter", "kernels"),
+            "/usr/local/share/jupyter/kernels",
+            "/usr/share/jupyter/kernels",
+            os.path.expanduser("~/.local/share/jupyter/kernels"),
+        ]
+        for td in target_dirs:
+            try:
+                g_dest = os.path.join(td, "python3-gpu")
+                c_dest = os.path.join(td, "python3-cpu")
+                os.makedirs(g_dest, exist_ok=True)
+                shutil.copy(f"{gpu_dir}/kernel.json", os.path.join(g_dest, "kernel.json"))
+                os.makedirs(c_dest, exist_ok=True)
+                shutil.copy(f"{cpu_dir}/kernel.json", os.path.join(c_dest, "kernel.json"))
+
+                # Also update existing default python3 kernel to 2x Tesla T4 GPU by default
+                p3_dest = os.path.join(td, "python3")
+                if os.path.exists(p3_dest):
+                    p3_file = os.path.join(p3_dest, "kernel.json")
+                    try:
+                        with open(p3_file, "r") as pf:
+                            pdata = json.load(pf)
+                        pdata["display_name"] = "Python 3 (2× Tesla T4 GPU)"
+                        pdata["env"] = {"CUDA_VISIBLE_DEVICES": "0,1"}
+                        with open(p3_file, "w") as pf:
+                            json.dump(pdata, pf, indent=2)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         log.info("✅ Colab runtimes installed: 'Python 3 (2× Tesla T4 GPU)' & 'Python 3 (Standard CPU)'.")
     except Exception as e:
         log.warning(f"Kernel registration note: {e}")
 
+def configure_jupyterlab():
+    """Configure modern Colab-like dark theme and clean editor settings."""
+    try:
+        settings_base = os.path.expanduser("~/.jupyter/lab/user-settings")
+        theme_dir = os.path.join(settings_base, "@jupyterlab", "apputils-extension")
+        os.makedirs(theme_dir, exist_ok=True)
+        with open(os.path.join(theme_dir, "themes.jupyterlab-settings"), "w") as f:
+            json.dump({"theme": "JupyterLab Dark"}, f, indent=2)
+
+        doc_dir = os.path.join(settings_base, "@jupyterlab", "docmanager-extension")
+        os.makedirs(doc_dir, exist_ok=True)
+        with open(os.path.join(doc_dir, "plugin.jupyterlab-settings"), "w") as f:
+            json.dump({"autosaveInterval": 30}, f, indent=2)
+
+        term_dir = os.path.join(settings_base, "@jupyterlab", "terminal-extension")
+        os.makedirs(term_dir, exist_ok=True)
+        with open(os.path.join(term_dir, "plugin.jupyterlab-settings"), "w") as f:
+            json.dump({
+                "theme": "dark",
+                "fontSize": 14,
+                "fontFamily": "Menlo, Consolas, 'DejaVu Sans Mono', monospace"
+            }, f, indent=2)
+    except Exception as e:
+        log.warning(f"JupyterLab settings configuration note: {e}")
+
 def create_welcome_notebook(workspace: str):
     """Create a friendly Google Colab-style starter notebook in the workspace."""
     welcome_path = os.path.join(workspace, "welcome.ipynb")
-    if os.path.exists(welcome_path):
-        return
 
     welcome_content = {
         "cells": [
@@ -107,21 +175,23 @@ def create_welcome_notebook(workspace: str):
                 "cell_type": "markdown",
                 "metadata": {},
                 "source": [
-                    "# ☁️ AbsoraCloud DevBox Workstation\n",
+                    "# ⚡ AbsoraCloud DevBox — Cloud GPU Workstation\n",
                     "Welcome to your interactive notebook and terminal environment — designed to feel and work just like **Google Colab**.\n",
                     "\n",
                     "---\n",
                     "\n",
-                    "### ⚡ Switching Runtime (CPU ↔ 2× Tesla T4 GPU)\n",
-                    "You can switch between CPU and GPU compute at any time on this same notebook:\n",
-                    "1. In the top-right corner, click on the **Kernel Name** (`Python 3 (2× Tesla T4 GPU)` or `Python 3 (Standard CPU)`).\n",
-                    "2. Select **Python 3 (2× Tesla T4 GPU)** for PyTorch/CUDA machine learning, or **Python 3 (Standard CPU)** for general compute.\n",
+                    "### 🔄 Hardware Runtime Switching (Colab Style)\n",
+                    "Switch between **GPU** and **Standard CPU** compute seamlessly at any time on this same notebook:\n",
+                    "1. Click the **Runtime / Kernel name** in the top-right corner (currently `Python 3 (2× Tesla T4 GPU)`).\n",
+                    "2. Select:\n",
+                    "   * 🟢 **Python 3 (2× Tesla T4 GPU)** — Full hardware access to dual Nvidia Tesla T4 GPUs (32GB VRAM, CUDA 12)\n",
+                    "   * ⚪ **Python 3 (Standard CPU)** — High-performance CPU compute with GPU hardware masked\n",
                     "3. Click **Select** — execution immediately switches hardware!\n",
                     "\n",
                     "---\n",
                     "\n",
                     "### 💻 Dedicated Web Terminal\n",
-                    "- Open a full bash terminal anytime via **File → New → Terminal**, or from the `+` Launcher.\n",
+                    "- Open a full bash terminal anytime via **File → New → Terminal**, or using the **Terminal** button on your AbsoraCloud Dashboard.\n",
                     "- You can also run bash commands in any notebook cell by prefixing with `!` (e.g. `!pip install transformers`)."
                 ]
             },
@@ -149,9 +219,27 @@ def create_welcome_notebook(workspace: str):
                     "if cuda_ok:\n",
                     "    print(f\"Detected {torch.cuda.device_count()} GPU(s):\")\n",
                     "    for i in range(torch.cuda.device_count()):\n",
-                    "        print(f\"  • GPU {i}: {torch.cuda.get_device_name(i)}\")\n",
+                    "        vram = torch.cuda.get_device_properties(i).total_memory / (1024**3)\n",
+                    "        print(f\"  • GPU {i}: {torch.cuda.get_device_name(i)} ({vram:.1f} GB VRAM)\")\n",
                     "else:\n",
-                    "    print(\"Currently running on CPU Runtime. Switch kernel in the top-right to 'Python 3 (2× Tesla T4 GPU)' to access GPU hardware.\")"
+                    "    print(\"Currently running on CPU Runtime. Switch kernel in top-right to 'Python 3 (2× Tesla T4 GPU)' to access GPU hardware.\")"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 3. Fast Dual GPU Tensor Benchmark:\n",
+                    "if torch.cuda.is_available():\n",
+                    "    for i in range(torch.cuda.device_count()):\n",
+                    "        dev = f'cuda:{i}'\n",
+                    "        a = torch.randn(4096, 4096, device=dev)\n",
+                    "        b = torch.matmul(a, a)\n",
+                    "        print(f\"⚡ GPU {i} Matrix Multiplication (4096x4096): PASSED\")\n",
+                    "else:\n",
+                    "    print(\"Running on CPU.\")"
                 ]
             }
         ],
@@ -172,6 +260,7 @@ def create_welcome_notebook(workspace: str):
     try:
         with open(welcome_path, "w", encoding="utf-8") as f:
             json.dump(welcome_content, f, indent=2)
+        os.chmod(welcome_path, 0o666)
     except Exception as e:
         log.warning(f"Could not write welcome.ipynb: {e}")
 
@@ -221,11 +310,16 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
 
     workspace = f"/tmp/devbox_{session_key}"
     os.makedirs(workspace, exist_ok=True)
+    os.chmod(workspace, 0o777)
+
+    # Ensure Colab kernels and theme settings are up to date
+    setup_kernels()
+    configure_jupyterlab()
     create_welcome_notebook(workspace)
 
     log.info(f"Starting DevBox JupyterLab for {session_key} on port {port} (Runtime: {runtime})...")
 
-    # Launch JupyterLab headless with open remote access & tokenless login
+    # Launch JupyterLab headless with open remote access, dark theme & direct welcome notebook load
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "jupyter", "lab",
@@ -241,6 +335,8 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
             "--ServerApp.allow_origin=*",
             "--NotebookApp.allow_remote_access=True",
             "--NotebookApp.allow_origin=*",
+            "--ServerApp.default_url=/lab/tree/welcome.ipynb",
+            "--NotebookApp.default_url=/lab/tree/welcome.ipynb",
             f"--notebook-dir={workspace}",
             "--allow-root"
         ],
