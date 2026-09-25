@@ -30,14 +30,36 @@ loadEnvFile(path.resolve('./.env'));
 loadEnvFile(path.resolve('../.env'));
 loadEnvFile(path.resolve('../../.env'));
 
-// Map D1_DB_1_ID to D1_DB_ID if not set
+// ── Map env aliases for backward compatibility ──
+// D1: primary DB ID
 if (!process.env.D1_DB_ID && process.env.D1_DB_1_ID) {
   process.env.D1_DB_ID = process.env.D1_DB_1_ID;
 }
-if (!process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_B_URL) {
-  process.env.UPSTASH_REDIS_URL = process.env.UPSTASH_REDIS_B_URL;
-  process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_B_TOKEN;
+
+// Redis: auto-select from Redis A or Redis B
+if (!process.env.UPSTASH_REDIS_URL) {
+  if (process.env.UPSTASH_REDIS_A_URL) {
+    process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_A_URL;
+    process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_A_TOKEN;
+  } else if (process.env.UPSTASH_REDIS_B_URL) {
+    process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_B_URL;
+    process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_B_TOKEN;
+  }
 }
+
+// Worker secret: generate a default if not set (for local dev)
+if (!process.env.WORKER_SECRET) {
+  process.env.WORKER_SECRET = 'absoracloud_worker_secret_2026';
+}
+
+// JWT secret: ensure a strong default
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'absoracloud_jwt_secret_production_2026_key';
+}
+
+// GitHub Actions: default to current repo
+if (!process.env.GITHUB_OWNER) process.env.GITHUB_OWNER = 'absoracloud';
+if (!process.env.GITHUB_REPO)  process.env.GITHUB_REPO  = 'absoracloud-v2';
 
 // Boot AbsoraCloud API Gateway
 import './src/index.js';

@@ -1,29 +1,50 @@
 // ── Upstash Redis HTTP Client ──
+// Dual-shard support: Redis A = primary, Redis B = failover.
 // Used for heartbeats, session locks, GPU queue, and quota tracking.
 
-export async function redisCmd(...args) {
-  const url   = process.env.UPSTASH_REDIS_URL;
-  const token = process.env.UPSTASH_REDIS_TOKEN;
+function getRedisConfig() {
+  // Try primary (A) first, fallback to B
+  let url   = process.env.UPSTASH_REDIS_URL   || process.env.UPSTASH_REDIS_A_URL;
+  let token = process.env.UPSTASH_REDIS_TOKEN || process.env.UPSTASH_REDIS_A_TOKEN;
 
   if (!url || !token) {
-    throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN)');
+    url   = process.env.UPSTASH_REDIS_B_URL;
+    token = process.env.UPSTASH_REDIS_B_TOKEN;
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(args),
-  });
-
-  const data = await res.json();
-  if (data.error) {
-    throw new Error(`Redis error: ${data.error}`);
+  if (!url || !token) {
+    throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_A_URL/TOKEN or UPSTASH_REDIS_B_URL/TOKEN)');
   }
 
-  return data.result;
+  return { url, token };
+}
+
+export async function redisCmd(...args) {
+  const { url, token } = getRedisConfig();
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(5000), // 5s timeout
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      console.warn(`Redis error: ${data.error}`);
+      return null;
+    }
+
+    return data.result;
+  } catch (e) {
+    // Graceful degradation: Redis unavailable
+    console.warn(`Redis unavailable: ${e.message}`);
+    return null;
+  }
 }
 
 export function redisParseHash(flatArr) {
@@ -36,12 +57,7 @@ export function redisParseHash(flatArr) {
 }
 
 export async function redisPipeline(commands) {
-  const url   = process.env.UPSTASH_REDIS_URL;
-  const token = process.env.UPSTASH_REDIS_TOKEN;
-
-  if (!url || !token) {
-    throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN)');
-  }
+  const { url, token } = getRedisConfig();
 
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',
@@ -54,4 +70,17 @@ export async function redisPipeline(commands) {
 
   const data = await res.json();
   return data;
+}
+
+// ── Health check ──
+export async function checkRedisHealth() {
+  try {
+    const result = await redisCmd('PING');
+    if (result === null) {
+      return { status: 'offline', error: 'Redis unreachable (DNS or connection failed)' };
+    }
+    return { status: 'online', response: result };
+  } catch (e) {
+    return { status: 'offline', error: e.message };
+  }
 }

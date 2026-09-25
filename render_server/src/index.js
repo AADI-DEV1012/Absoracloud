@@ -29,9 +29,59 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+import { checkD1Health } from './shared/d1.js';
+import { checkRedisHealth } from './shared/redis.js';
+import { queryD1 } from './shared/d1.js';
+
 // ── Health Check ──
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'absoracloud-api', version: '2.0.0' });
+});
+
+// ── Deep Health Check (verifies D1 shards + Redis) ──
+app.get('/health/deep', async (req, res) => {
+  try {
+    const [d1Health, redisHealth] = await Promise.all([
+      checkD1Health(),
+      checkRedisHealth(),
+    ]);
+
+    const allD1Online = d1Health.every(d => d.status === 'online');
+    const redisOnline = redisHealth.status === 'online';
+
+    res.json({
+      status: allD1Online && redisOnline ? 'healthy' : 'degraded',
+      service: 'absoracloud-api',
+      version: '2.0.0',
+      d1_shards: d1Health,
+      redis: redisHealth,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: e.message });
+  }
+});
+
+// ── DB Tables Verification ──
+app.get('/health/db', async (req, res) => {
+  try {
+    const tables = await queryD1(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name"
+    );
+    const tableNames = tables.map(t => t.name);
+
+    const required = ['users', 'instances', 'runners', 'plan_definitions'];
+    const missing = required.filter(t => !tableNames.includes(t));
+
+    res.json({
+      status: missing.length === 0 ? 'ok' : 'missing_tables',
+      tables: tableNames,
+      required,
+      missing,
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: e.message });
+  }
 });
 
 // ── Service Routes ──

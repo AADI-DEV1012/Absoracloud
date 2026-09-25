@@ -62,9 +62,12 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     const user = await d1QueryOne(
       'SELECT * FROM users WHERE username = ? OR email = ?', [login, login]
     );
+    if (!user) {
+      return res.status(401).json({ status: 'error', msg: 'Invalid credentials' });
+    }
     const hashMatches = user.password_hash && bcrypt.compareSync(password, user.password_hash);
     const legacyMatches = user.password && (user.password === password || bcrypt.compareSync(password, user.password));
-    if (!user || (!hashMatches && !legacyMatches)) {
+    if (!hashMatches && !legacyMatches) {
       return res.status(401).json({ status: 'error', msg: 'Invalid credentials' });
     }
 
