@@ -90,7 +90,7 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
       session_key: sessionKey,
       site_name,
       expires_at: expiresAt,
-      msg: 'Deployment dispatched to Gradio host! Generating Cloudflare Tunnel...',
+      msg: 'Deployment dispatched! Generating live URL...',
     });
   } catch (e) {
     console.error('WebHost deploy error:', e);
@@ -148,7 +148,7 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
     res.json({
       status: 'deploying',
       session_key: newSessionKey,
-      msg: 'Re-deploying website to Gradio host...',
+      msg: 'Re-deploying website...',
     });
   } catch (e) {
     console.error('WebHost relaunch error:', e);
@@ -179,8 +179,8 @@ webhostRouter.get('/check_session', requireAuth, async (req, res) => {
       const createdTime = new Date(inst.created_at).getTime();
       if (Date.now() - createdTime > 90000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_key]);
-        await redisCmd('HSET', `session:${session_key}`, 'status', 'failed', 'error', 'Deployment timed out on Gradio host.');
-        return res.json({ status: 'failed', msg: 'Deployment timed out on Gradio host.' });
+        await redisCmd('HSET', `session:${session_key}`, 'status', 'failed', 'error', 'Deployment timed out on web cluster.');
+        return res.json({ status: 'failed', msg: 'Deployment timed out on web cluster.' });
       }
     }
 
