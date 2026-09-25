@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-☁️ AbsoraCloud DevBox Cloud GPU Pool Runner
+☁️ AbsoraCloud DevBox Cloud GPU Workstation Runner
 Runs inside an automated GPU container with Dual Nvidia T4 GPUs.
-Handles up to 4 concurrent multi-tenant user sessions with GPU access,
-Cloudflare Tunnels, Redis task queue polling, and automated watchdog timeouts.
+Colab-style interactive compute:
+  • Multi-runtime kernel switching: "Python 3 (2× Tesla T4 GPU)" ↔ "Python 3 (Standard CPU)"
+  • Integrated headless JupyterLab with pre-configured welcome notebook
+  • Dedicated bash web terminal
+  • Direct Upstash Redis REST POST state synchronization
+  • Dual Nvidia Tesla T4 GPU hardware acceleration with VRAM auto-clearing
 """
 
 import os
@@ -42,6 +46,135 @@ def ensure_dependencies():
         log.info("Installing jupyterlab...")
         subprocess.run([sys.executable, "-m", "pip", "install", "-q", "jupyterlab"], check=False)
 
+def setup_kernels():
+    """
+    Install Colab-style runtime kernelspecs:
+    1. Python 3 (2× Tesla T4 GPU): CUDA_VISIBLE_DEVICES="0,1"
+    2. Python 3 (Standard CPU): CUDA_VISIBLE_DEVICES=""
+    This allows switching runtimes directly on the same notebook via the top-right kernel selector.
+    """
+    try:
+        import jupyter_client.kernelspec as ks
+
+        # 1. GPU Runtime (2x Tesla T4)
+        gpu_dir = "/tmp/kernels/python3-gpu"
+        os.makedirs(gpu_dir, exist_ok=True)
+        with open(f"{gpu_dir}/kernel.json", "w") as f:
+            json.dump({
+                "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+                "display_name": "Python 3 (2× Tesla T4 GPU)",
+                "language": "python",
+                "env": {
+                    "CUDA_VISIBLE_DEVICES": "0,1"
+                },
+                "metadata": {
+                    "debugger": True
+                }
+            }, f, indent=2)
+
+        # 2. CPU Runtime (GPU masked, CPU only)
+        cpu_dir = "/tmp/kernels/python3-cpu"
+        os.makedirs(cpu_dir, exist_ok=True)
+        with open(f"{cpu_dir}/kernel.json", "w") as f:
+            json.dump({
+                "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+                "display_name": "Python 3 (Standard CPU)",
+                "language": "python",
+                "env": {
+                    "CUDA_VISIBLE_DEVICES": ""
+                },
+                "metadata": {
+                    "debugger": True
+                }
+            }, f, indent=2)
+
+        km = ks.KernelSpecManager()
+        km.install_kernel_spec(gpu_dir, "python3-gpu", user=True, replace=True)
+        km.install_kernel_spec(cpu_dir, "python3-cpu", user=True, replace=True)
+        log.info("✅ Colab runtimes installed: 'Python 3 (2× Tesla T4 GPU)' & 'Python 3 (Standard CPU)'.")
+    except Exception as e:
+        log.warning(f"Kernel registration note: {e}")
+
+def create_welcome_notebook(workspace: str):
+    """Create a friendly Google Colab-style starter notebook in the workspace."""
+    welcome_path = os.path.join(workspace, "welcome.ipynb")
+    if os.path.exists(welcome_path):
+        return
+
+    welcome_content = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "# ☁️ AbsoraCloud DevBox Workstation\n",
+                    "Welcome to your interactive notebook and terminal environment — designed to feel and work just like **Google Colab**.\n",
+                    "\n",
+                    "---\n",
+                    "\n",
+                    "### ⚡ Switching Runtime (CPU ↔ 2× Tesla T4 GPU)\n",
+                    "You can switch between CPU and GPU compute at any time on this same notebook:\n",
+                    "1. In the top-right corner, click on the **Kernel Name** (`Python 3 (2× Tesla T4 GPU)` or `Python 3 (Standard CPU)`).\n",
+                    "2. Select **Python 3 (2× Tesla T4 GPU)** for PyTorch/CUDA machine learning, or **Python 3 (Standard CPU)** for general compute.\n",
+                    "3. Click **Select** — execution immediately switches hardware!\n",
+                    "\n",
+                    "---\n",
+                    "\n",
+                    "### 💻 Dedicated Web Terminal\n",
+                    "- Open a full bash terminal anytime via **File → New → Terminal**, or from the `+` Launcher.\n",
+                    "- You can also run bash commands in any notebook cell by prefixing with `!` (e.g. `!pip install transformers`)."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 1. Inspect hardware and active GPU drivers:\n",
+                    "!nvidia-smi"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 2. Test PyTorch CUDA acceleration:\n",
+                    "import torch\n",
+                    "\n",
+                    "cuda_ok = torch.cuda.is_available()\n",
+                    "print(f\"CUDA Accelerated: {cuda_ok}\")\n",
+                    "if cuda_ok:\n",
+                    "    print(f\"Detected {torch.cuda.device_count()} GPU(s):\")\n",
+                    "    for i in range(torch.cuda.device_count()):\n",
+                    "        print(f\"  • GPU {i}: {torch.cuda.get_device_name(i)}\")\n",
+                    "else:\n",
+                    "    print(\"Currently running on CPU Runtime. Switch kernel in the top-right to 'Python 3 (2× Tesla T4 GPU)' to access GPU hardware.\")"
+                ]
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3 (2× Tesla T4 GPU)",
+                "language": "python",
+                "name": "python3-gpu"
+            },
+            "language_info": {
+                "name": "python"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 2
+    }
+
+    try:
+        with open(welcome_path, "w", encoding="utf-8") as f:
+            json.dump(welcome_content, f, indent=2)
+    except Exception as e:
+        log.warning(f"Could not write welcome.ipynb: {e}")
+
 def ensure_cloudflared():
     global CLOUDFLARED_BIN
     if shutil.which("cloudflared"):
@@ -72,7 +205,7 @@ def get_free_port():
                     return p
     return None
 
-def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: int = 3600):
+def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: int = 3600, runtime: str = "gpu"):
     if len(ACTIVE_SESSIONS) >= CAPACITY:
         log.warning(f"Capacity full ({len(ACTIVE_SESSIONS)}/{CAPACITY}), cannot launch {session_key}")
         return
@@ -88,10 +221,11 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
 
     workspace = f"/tmp/devbox_{session_key}"
     os.makedirs(workspace, exist_ok=True)
+    create_welcome_notebook(workspace)
 
-    log.info(f"Starting DevBox JupyterLab for {session_key} on port {port}...")
+    log.info(f"Starting DevBox JupyterLab for {session_key} on port {port} (Runtime: {runtime})...")
 
-    # Launch JupyterLab headless with open remote access & no token requirement
+    # Launch JupyterLab headless with open remote access & tokenless login
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "jupyter", "lab",
@@ -115,6 +249,12 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
     )
 
     time.sleep(2)
+
+    # Pre-create Terminal 1 so user can directly click "Terminal" from dashboard
+    try:
+        requests.post(f"http://127.0.0.1:{port}/api/terminals", timeout=5)
+    except Exception:
+        pass
 
     # Launch Cloudflare quick tunnel
     ensure_cloudflared()
@@ -172,13 +312,34 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
         "port": port,
         "tunnel_url": tunnel_url,
         "plan": plan,
+        "runtime": runtime,
         "expires_at": expires_at,
         "workspace": workspace,
     }
 
     log.info(f"✅ DevBox session '{session_key}' live at {tunnel_url}")
 
-    # Notify API Gateway
+    # 1. Direct Upstash Redis REST POST (Instant status update, zero gateway delay)
+    if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
+        try:
+            requests.post(
+                UPSTASH_REDIS_URL,
+                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                json=[
+                    "HSET",
+                    f"session:{session_key}",
+                    "status", "active",
+                    "tunnel_url", tunnel_url,
+                    "runtime", runtime,
+                    "expires_at", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(expires_at))
+                ],
+                timeout=5
+            )
+            log.info(f"Pushed session {session_key} directly to Upstash Redis.")
+        except Exception as e:
+            log.warning(f"Redis direct sync notice: {e}")
+
+    # 2. Notify API Gateway
     try:
         requests.post(
             f"{API_URL}/worker/session_update",
@@ -191,27 +352,9 @@ def start_devbox_session(session_key: str, plan: str = "free", timeout_seconds: 
             },
             timeout=5,
         )
+        log.info(f"Reported session {session_key} to API Gateway.")
     except Exception as e:
         log.error(f"Failed to report session: {e}")
-
-    # Direct Redis fast-sync fallback (ensures immediate frontend discovery)
-    if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
-        try:
-            requests.post(
-                UPSTASH_REDIS_URL,
-                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
-                json=[
-                    "HSET",
-                    f"session:{session_key}",
-                    "status", "active",
-                    "tunnel_url", tunnel_url,
-                    "expires_at", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(expires_at))
-                ],
-                timeout=5
-            )
-            log.info(f"Pushed session {session_key} directly to Redis.")
-        except Exception as e:
-            log.warning(f"Redis direct sync notice: {e}")
 
 def stop_devbox_session(session_key: str):
     if session_key not in ACTIVE_SESSIONS:
@@ -279,7 +422,12 @@ def redis_queue_consumer():
                     # Run launcher in thread so consumer loop is non-blocking
                     threading.Thread(
                         target=start_devbox_session,
-                        args=(session_key, task.get("plan", "free"), int(task.get("timeout_seconds", 3600))),
+                        args=(
+                            session_key,
+                            task.get("plan", "free"),
+                            int(task.get("timeout_seconds", 3600)),
+                            task.get("runtime", "gpu")
+                        ),
                         daemon=True
                     ).start()
                 elif action == "stop":
@@ -330,16 +478,17 @@ def heartbeat_loop():
         time.sleep(30)
 
 if __name__ == "__main__":
-    log.info(f"Starting DevBox GPU Pool {RUNNER_ID}...")
+    log.info(f"Starting DevBox Colab-Style GPU Pool {RUNNER_ID}...")
 
     ensure_dependencies()
+    setup_kernels()
 
     # Log GPU info
     try:
         import torch
         if torch.cuda.is_available():
             dev_name = torch.cuda.get_device_name(0)
-            log.info(f"🚀 CUDA Detected: {dev_name} (Devices: {torch.cuda.device_count()})")
+            log.info(f"🚀 CUDA Hardware Detected: {dev_name} (Devices: {torch.cuda.device_count()})")
         else:
             log.info("No CUDA hardware detected in this environment.")
     except Exception:
@@ -365,6 +514,6 @@ if __name__ == "__main__":
     threading.Thread(target=local_watchdog, daemon=True).start()
     threading.Thread(target=heartbeat_loop, daemon=True).start()
 
-    log.info("DevBox GPU Pool is ready and listening for tasks.")
+    log.info("DevBox Colab-Style GPU Pool is ready and listening for tasks.")
     while True:
         time.sleep(60)

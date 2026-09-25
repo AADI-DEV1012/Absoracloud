@@ -29,7 +29,7 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
   try {
     const userId     = req.user.sub;
     const plan       = getPlan(req.user.plan);
-    const { force, relaunch } = req.body;
+    const { force, relaunch, runtime = 'gpu' } = req.body;
     const sessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
 
     await syncUserDevBoxState(userId);
@@ -61,30 +61,32 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       });
     }
 
-    // Check GPU pool availability via Redis
-    const activeGPU = await redisCmd('SCARD', 'gpu:active');
-    const gpuCapacity = 4; // Max concurrent GPU sessions on T4×2
+    // Check GPU pool availability via Redis if GPU runtime requested
+    if (runtime === 'gpu') {
+      const activeGPU = await redisCmd('SCARD', 'gpu:active');
+      const gpuCapacity = 4; // Max concurrent GPU sessions on T4×2
 
-    if (parseInt(activeGPU || '0') >= gpuCapacity) {
-      // Queue the request
-      await redisCmd('RPUSH', 'gpu:queue', JSON.stringify({
-        session_key: sessionKey, user_id: userId, plan: req.user.plan, priority: plan.priority,
-      }));
-      await executeD1(
-        "INSERT INTO instances (user_id, service, session_key, status, config) VALUES (?, 'devbox', ?, 'pending', ?)",
-        [userId, sessionKey, JSON.stringify({ gpu: true, queued: true })]
-      );
-      const queuePos = await redisCmd('LLEN', 'gpu:queue');
-      return res.json({ status: 'queued', session_key: sessionKey, queue_position: queuePos, msg: 'GPU pool full — you are in the queue' });
+      if (parseInt(activeGPU || '0') >= gpuCapacity) {
+        // Queue the request
+        await redisCmd('RPUSH', 'gpu:queue', JSON.stringify({
+          session_key: sessionKey, user_id: userId, plan: req.user.plan, priority: plan.priority, runtime,
+        }));
+        await executeD1(
+          "INSERT INTO instances (user_id, service, session_key, status, config) VALUES (?, 'devbox', ?, 'pending', ?)",
+          [userId, sessionKey, JSON.stringify({ gpu: true, runtime: 'gpu', queued: true })]
+        );
+        const queuePos = await redisCmd('LLEN', 'gpu:queue');
+        return res.json({ status: 'queued', session_key: sessionKey, queue_position: queuePos, msg: 'GPU pool full — you are in the queue' });
+      }
+
+      await redisCmd('SADD', 'gpu:active', sessionKey);
     }
 
-    // GPU available — launch Kaggle kernel
-    await redisCmd('SADD', 'gpu:active', sessionKey);
     const expiresAt = new Date(Date.now() + plan.devbox_gpu_min * 60 * 1000).toISOString();
 
     await executeD1(
       "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'devbox', ?, ?, ?)",
-      [userId, sessionKey, JSON.stringify({ gpu: true }), expiresAt]
+      [userId, sessionKey, JSON.stringify({ gpu: runtime === 'gpu', runtime }), expiresAt]
     );
 
     // Push task to devbox:tasks for the Kaggle GPU runner
@@ -93,6 +95,7 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       session_key: sessionKey,
       user_id: userId,
       plan: req.user.plan,
+      runtime: runtime,
       timeout_seconds: plan.devbox_gpu_min * 60,
     }));
 
@@ -102,7 +105,7 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       console.warn('Kaggle kernel trigger notice:', kErr.message);
     }
 
-    res.json({ status: 'queued', session_key: sessionKey, expires: expiresAt, msg: 'DevBox GPU session launching...' });
+    res.json({ status: 'queued', session_key: sessionKey, runtime, expires: expiresAt, msg: `DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session launching...` });
   } catch (e) {
     console.error('DevBox launch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to launch DevBox' });
@@ -113,7 +116,7 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
 devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
   try {
     const userId = req.user.sub;
-    const { session_key } = req.body;
+    const { session_key, runtime = 'gpu' } = req.body;
 
     if (session_key) {
       await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?", [session_key, userId]);
@@ -124,12 +127,14 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     req.body.force = true;
     const plan = getPlan(req.user.plan);
     const newSessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
-    await redisCmd('SADD', 'gpu:active', newSessionKey);
+    if (runtime === 'gpu') {
+      await redisCmd('SADD', 'gpu:active', newSessionKey);
+    }
     const expiresAt = new Date(Date.now() + plan.devbox_gpu_min * 60 * 1000).toISOString();
 
     await executeD1(
       "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'devbox', ?, ?, ?)",
-      [userId, newSessionKey, JSON.stringify({ gpu: true }), expiresAt]
+      [userId, newSessionKey, JSON.stringify({ gpu: runtime === 'gpu', runtime }), expiresAt]
     );
 
     // Push task to devbox:tasks for the Kaggle GPU runner
@@ -138,6 +143,7 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       session_key: newSessionKey,
       user_id: userId,
       plan: req.user.plan,
+      runtime: runtime,
       timeout_seconds: plan.devbox_gpu_min * 60,
     }));
 
@@ -146,7 +152,7 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     } catch (kErr) {
       console.warn('Kaggle kernel trigger notice:', kErr.message);
     }
-    res.json({ status: 'queued', session_key: newSessionKey, expires: expiresAt, msg: 'Re-launching fresh DevBox GPU session...' });
+    res.json({ status: 'queued', session_key: newSessionKey, runtime, expires: expiresAt, msg: `Re-launching fresh DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session...` });
   } catch (e) {
     console.error('DevBox relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-launch DevBox' });

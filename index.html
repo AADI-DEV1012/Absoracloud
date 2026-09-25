@@ -774,14 +774,31 @@
 
             <!-- DevBox Tab -->
             <section id="panel-devbox" class="tab-panel hidden space-y-6">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">DevBox Cloud GPU Workstation</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Enterprise Dual Nvidia Tesla T4 GPU compute cluster with plan priority queue.</p>
+                        <h1 class="font-heading font-bold text-2xl text-primary">DevBox Cloud Workstation</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Colab-style interactive compute with dynamic CPU / 2× Tesla T4 GPU switching & web terminal.</p>
                     </div>
-                    <button onclick="launchDevBox()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-bolt"></i> Request GPU Session
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="inline-flex rounded-xl p-1 bg-neutral-100 border border-neutral-200">
+                            <button id="devbox-rt-gpu" onclick="selectDevboxRuntime('gpu')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt text-amber-500"></i> 2× Tesla T4 GPU
+                            </button>
+                            <button id="devbox-rt-cpu" onclick="selectDevboxRuntime('cpu')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5">
+                                <i class="fa-solid fa-microchip text-neutral-400"></i> Standard CPU
+                            </button>
+                        </div>
+                        <button onclick="launchDevBoxWithSelectedRuntime()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-play"></i> Start Session
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-start gap-3 text-xs text-blue-900">
+                    <i class="fa-solid fa-circle-info text-blue-600 mt-0.5 text-sm"></i>
+                    <div class="leading-relaxed">
+                        <span class="font-bold">Colab-Style Runtime Switching:</span> Switch between <strong>2× Tesla T4 GPU</strong> and <strong>Standard CPU</strong> anytime on the same notebook via the <strong>Kernel selector</strong> in the top-right corner. You also have access to a dedicated interactive <strong>Web Terminal</strong>.
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1275,17 +1292,38 @@
             }
         }
 
-        async function launchDevBox() {
-            showToast('Requesting GPU DevBox session...', 'info');
+        let selectedDevboxRuntime = 'gpu';
+        function selectDevboxRuntime(rt) {
+            selectedDevboxRuntime = rt;
+            const gpuBtn = document.getElementById('devbox-rt-gpu');
+            const cpuBtn = document.getElementById('devbox-rt-cpu');
+            if (gpuBtn && cpuBtn) {
+                if (rt === 'gpu') {
+                    gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5";
+                    cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                } else {
+                    cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5";
+                    gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                }
+            }
+        }
+
+        function launchDevBoxWithSelectedRuntime() {
+            launchDevBox(selectedDevboxRuntime);
+        }
+
+        async function launchDevBox(runtime = selectedDevboxRuntime) {
+            showToast(`Requesting ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} DevBox session...`, 'info');
             try {
                 const res = await fetch(`${API_BASE}/devbox/launch`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ runtime })
                 });
                 const data = await res.json();
                 if (res.status === 409 && data.can_relaunch) {
                     if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing DevBox session?`)) {
-                        return relaunchInstance('devbox', data.session_key);
+                        return relaunchInstance('devbox', data.session_key, runtime);
                     }
                     return;
                 }
@@ -1293,7 +1331,7 @@
                     showToast(data.msg || 'Failed to launch DevBox', 'error');
                     return;
                 }
-                showToast(data.msg || 'DevBox GPU session requested', 'success');
+                showToast(data.msg || 'DevBox session requested', 'success');
                 refreshActiveTab('devbox');
                 if (data.session_key) startPolling('devbox', data.session_key);
             } catch(e) {
@@ -1301,13 +1339,13 @@
             }
         }
 
-        async function relaunchInstance(service, session_key) {
+        async function relaunchInstance(service, session_key, runtime = selectedDevboxRuntime) {
             showToast(`Re-launching ${service.toUpperCase()}...`, 'info');
             try {
                 const res = await fetch(`${API_BASE}/${service}/relaunch`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_key })
+                    body: JSON.stringify({ session_key, runtime })
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -1453,18 +1491,37 @@
                     const d = await r.json();
                     const list = document.getElementById('devbox-list');
                     if (d.instances && d.instances.length > 0) {
-                        list.innerHTML = d.instances.map(inst => `
+                        list.innerHTML = d.instances.map(inst => {
+                            const cfg = JSON.parse(inst.config || '{}');
+                            const isGpu = cfg.runtime !== 'cpu' && cfg.gpu !== false;
+                            return `
                             <tr>
                                 <td class="py-3 font-mono font-medium">${inst.session_key}</td>
-                                <td class="py-3 text-neutral-500">2× Nvidia Tesla T4</td>
-                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">Jupyter / Terminal ↗</a>` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">GPU allocation failed</span>' : '<span class="text-neutral-400 animate-pulse">Allocating GPU slot...</span>')}</td>
+                                <td class="py-3">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${isGpu ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-neutral-100 text-neutral-700'}">
+                                        <i class="fa-solid ${isGpu ? 'fa-bolt text-amber-500' : 'fa-microchip text-neutral-400'}"></i> ${isGpu ? '2× Tesla T4 GPU' : 'Standard CPU'}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    ${inst.public_url ? `
+                                        <div class="flex items-center gap-2">
+                                            <a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold hover:bg-blue-100 flex items-center gap-1 transition">
+                                                <i class="fa-solid fa-book-open"></i> Notebook ↗
+                                            </a>
+                                            <a href="${inst.public_url}/terminals/1" target="_blank" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 flex items-center gap-1 transition font-mono">
+                                                <i class="fa-solid fa-terminal"></i> Terminal ↗
+                                            </a>
+                                        </div>
+                                    ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Allocation failed</span>' : '<span class="text-neutral-400 animate-pulse">Allocating slot...</span>')}
+                                </td>
                                 <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '30m cap'}</td>
                                 <td class="py-3">${renderStatusBadge(inst.status)}</td>
                                 <td class="py-3 text-right">${renderActions('devbox', inst)}</td>
                             </tr>
-                        `).join('');
+                        `;
+                        }).join('');
                     } else {
-                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Click "Request GPU Session" to start.</td></tr>`;
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Select runtime and click "Start Session" to begin.</td></tr>`;
                     }
                 } else if (tabId === 'webhost') {
                     const r = await fetch(`${API_BASE}/webhost/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
