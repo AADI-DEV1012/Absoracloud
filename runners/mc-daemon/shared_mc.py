@@ -53,7 +53,8 @@ def get_free_port():
 
 def get_recommended_java_version(mc_version: str) -> int:
     """
-    Determine the standard Java LTS version required for a given Minecraft release.
+    Determine the standard Java version required for a given Minecraft release.
+      • Minecraft 26.x (26.3, 26.2, 26.1) requires Java 25 (or 21+)
       • Minecraft 1.20.5+ & 1.21+ strictly require Java 21
       • Minecraft 1.18 to 1.20.4 require Java 17
       • Minecraft 1.17 requires Java 17 (or 16)
@@ -63,8 +64,13 @@ def get_recommended_java_version(mc_version: str) -> int:
     try:
         clean = re.sub(r"[^0-9.]", "", mc_version)
         parts = [int(p) for p in clean.split(".") if p.isdigit()]
+        major = parts[0] if len(parts) > 0 else 1
         minor = parts[1] if len(parts) > 1 else 20
         patch = parts[2] if len(parts) > 2 else 0
+
+        # Minecraft 26.x releases (26.3, 26.2, 26.1) run on Java 21 LTS standard
+        if major >= 26:
+            return 21
 
         if (minor == 20 and patch >= 5) or minor >= 21:
             return 21
@@ -82,8 +88,8 @@ def get_recommended_java_version(mc_version: str) -> int:
 def resolve_java_binary(requested_java: str, mc_version: str) -> str:
     """
     Finds or downloads the exact Java binary for the requested or auto-detected JVM version.
-    Supports Java 8, 11, 17, and 21.
-    If not pre-installed, auto-downloads portable Adoptium/Temurin JRE binaries into /tmp/jvms.
+    Supports Java 8, 11, 17, 21, and 25.
+    If not pre-installed, auto-downloads portable Adoptium/Temurin JRE/JDK binaries into /tmp/jvms.
     """
     if not requested_java or requested_java.lower() == "auto":
         target_ver = get_recommended_java_version(mc_version)
@@ -127,12 +133,12 @@ def resolve_java_binary(requested_java: str, mc_version: str) -> str:
     except Exception:
         pass
 
-    # 4. Auto-download lightweight standalone JRE from Adoptium API
+    # 4. Auto-download lightweight standalone JRE/JDK from Adoptium API
     jvm_dir = f"/tmp/jvms/java-{target_ver}"
     if os.path.isfile(f"{jvm_dir}/bin/java") and os.access(f"{jvm_dir}/bin/java", os.X_OK):
         return f"{jvm_dir}/bin/java"
 
-    log.info(f"Java {target_ver} not found locally. Auto-fetching portable Temurin JRE {target_ver}...")
+    log.info(f"Java {target_ver} not found locally. Auto-fetching portable Temurin runtime {target_ver}...")
     try:
         os.makedirs("/tmp/jvms", exist_ok=True)
         temurin_map = {
@@ -140,6 +146,7 @@ def resolve_java_binary(requested_java: str, mc_version: str) -> str:
             11: "https://api.adoptium.net/v3/binary/latest/11/ga/linux/x64/jre/hotspot/normal/eclipse",
             17: "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse",
             21: "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse",
+            25: "https://api.adoptium.net/v3/binary/latest/25/ea/linux/x64/jdk/hotspot/normal/eclipse",
         }
         dl_url = temurin_map.get(target_ver, temurin_map[21])
         tar_path = f"/tmp/jvms/jre_{target_ver}.tar.gz"
@@ -154,7 +161,7 @@ def resolve_java_binary(requested_java: str, mc_version: str) -> str:
         java_bin = f"{jvm_dir}/bin/java"
         if os.path.isfile(java_bin):
             os.chmod(java_bin, 0o755)
-            log.info(f"✅ Successfully installed portable Java {target_ver} JRE.")
+            log.info(f"✅ Successfully installed portable Java {target_ver} runtime.")
             return java_bin
     except Exception as e:
         log.warning(f"Could not auto-download Java {target_ver}: {e}. Falling back to system 'java'.")
@@ -175,7 +182,8 @@ def _download_file(url: str, dest_path: str):
 def download_server_jar(server_type: str, version: str, dest_dir: str) -> str:
     """
     Downloads the appropriate server JAR for:
-      paper, purpur, folia, pufferfish, fabric, quilt, forge, neoforge, arclight, mohist.
+      vanilla, paper, purpur, folia, pufferfish, fabric, quilt, forge, neoforge, arclight, mohist.
+    Supports Minecraft 26.3, 26.2, 26.1, 1.21.11 down to 1.8.8.
     Returns the target execution file (e.g. 'server.jar' or 'run.sh').
     """
     st = server_type.lower().strip()
@@ -186,29 +194,79 @@ def download_server_jar(server_type: str, version: str, dest_dir: str) -> str:
     log.info(f"Resolving server software: Engine='{st}', Version='{version}'...")
 
     try:
-        # 1. PAPER
+        # Check local catalogs first if available
+        cat_file = os.path.join(os.path.dirname(__file__), "catalogs", f"{st}.json")
+        if os.path.isfile(cat_file):
+            try:
+                with open(cat_file, "r") as cf:
+                    cdata = json.load(cf)
+                cat_url = None
+                if "versions" in cdata and version in cdata["versions"]:
+                    cat_url = cdata["versions"][version]
+                elif version in cdata:
+                    cat_url = cdata[version]
+                elif f"{st.capitalize()} {version}" in cdata:
+                    cat_url = cdata[f"{st.capitalize()} {version}"]
+                if cat_url:
+                    log.info(f"Resolved from {st}.json catalog: {cat_url}")
+                    _download_file(cat_url, jar_path)
+                    return "server.jar"
+            except Exception as e:
+                log.warning(f"Catalog check error: {e}")
+
+        # 1. PAPER (Supports 26.3, 26.2, 1.21.11, 1.21.4 down to 1.7)
         if st == "paper":
-            r = requests.get(f"https://api.papermc.io/v2/projects/paper/versions/{version}", timeout=10).json()
-            builds = r.get("builds", [])
-            latest_build = builds[-1] if builds else "latest"
-            dl_url = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{latest_build}/downloads/paper-{version}-{latest_build}.jar"
-            _download_file(dl_url, jar_path)
+            try:
+                r = requests.get(f"https://fill.papermc.io/v3/projects/paper/versions/{version}/builds", timeout=15).json()
+                if isinstance(r, list) and len(r) > 0:
+                    stable = [b for b in r if b.get("channel") == "STABLE"]
+                    best = stable[0] if stable else r[0]
+                    dl_url = best.get("downloads", {}).get("server:default", {}).get("url")
+                    if dl_url:
+                        _download_file(dl_url, jar_path)
+                        return "server.jar"
+            except Exception as e:
+                log.warning(f"fill.papermc.io error for paper {version}: {e}")
+
+            # Fallback to Paper 1.20.4 on fill-data
+            paper_url = "https://fill-data.papermc.io/v1/objects/cabed3ae77cf55deba7c7d8722bc9cfd5e991201c211665f9265616d9fe5c77b/paper-1.20.4-499.jar"
+            _download_file(paper_url, jar_path)
             return "server.jar"
 
-        # 2. PURPUR
+        # 2. PURPUR (Supports 26.3, 1.21.4 down to 1.14.4)
         elif st == "purpur":
             dl_url = f"https://api.purpurmc.org/v2/purpur/{version}/latest/download"
             _download_file(dl_url, jar_path)
             return "server.jar"
 
-        # 3. FOLIA
+        # 3. FOLIA (Supports 26.2, 26.1, 1.21.x, 1.20.x, 1.19.x)
         elif st in ("folia", "filoa"):
-            r = requests.get(f"https://api.papermc.io/v2/projects/folia/versions/{version}", timeout=10).json()
-            builds = r.get("builds", [])
-            latest_build = builds[-1] if builds else "latest"
-            dl_url = f"https://api.papermc.io/v2/projects/folia/versions/{version}/builds/{latest_build}/downloads/folia-{version}-{latest_build}.jar"
-            _download_file(dl_url, jar_path)
-            return "server.jar"
+            try:
+                r = requests.get(f"https://fill.papermc.io/v3/projects/folia/versions/{version}/builds", timeout=15).json()
+                if isinstance(r, list) and len(r) > 0:
+                    best = r[0]
+                    dl_url = best.get("downloads", {}).get("server:default", {}).get("url")
+                    if dl_url:
+                        _download_file(dl_url, jar_path)
+                        return "server.jar"
+            except Exception as e:
+                log.warning(f"fill.papermc.io error for folia {version}: {e}")
+            return download_server_jar("paper", version, dest_dir)
+
+        # 4. VANILLA / OFFICIAL MOJANG (Supports 26.3, 26.2, 26.1, 1.21.x down to 1.8.8)
+        elif st in ("vanilla", "official"):
+            try:
+                m = requests.get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", timeout=10).json()
+                for v_entry in m.get("versions", []):
+                    if v_entry.get("id") == version:
+                        v_meta = requests.get(v_entry["url"], timeout=10).json()
+                        server_url = v_meta.get("downloads", {}).get("server", {}).get("url")
+                        if server_url:
+                            _download_file(server_url, jar_path)
+                            return "server.jar"
+            except Exception as e:
+                log.warning(f"Vanilla manifest fetch error: {e}")
+            return download_server_jar("paper", version, dest_dir)
 
         # 4. PUFFERFISH
         elif st == "pufferfish":
@@ -229,11 +287,14 @@ def download_server_jar(server_type: str, version: str, dest_dir: str) -> str:
 
         # 6. QUILT
         elif st == "quilt":
-            r = requests.get("https://meta.quiltmc.org/v3/versions/loader", timeout=10).json()
-            loader_ver = r[0]["version"]
-            dl_url = f"https://meta.quiltmc.org/v3/versions/loader/{version}/{loader_ver}/0.26.0/server/jar"
-            _download_file(dl_url, jar_path)
-            return "server.jar"
+            try:
+                r = requests.get("https://meta.quiltmc.org/v3/versions/loader", timeout=10).json()
+                loader_ver = r[0]["version"]
+                dl_url = f"https://meta.quiltmc.org/v3/versions/loader/{version}/{loader_ver}/0.26.0/server/jar"
+                _download_file(dl_url, jar_path)
+                return "server.jar"
+            except Exception:
+                return download_server_jar("fabric", version, dest_dir)
 
         # 7. MOHIST (Forge + Paper Hybrid)
         elif st in ("mohist", "moonshight", "mohistmc"):
@@ -294,7 +355,7 @@ def download_server_jar(server_type: str, version: str, dest_dir: str) -> str:
 
     except Exception as e:
         log.error(f"Failed to fetch jar for {st} {version}: {e}. Falling back to Paper 1.20.4.")
-        paper_url = "https://api.papermc.io/v2/projects/paper/versions/1.20.4/builds/496/downloads/paper-1.20.4-496.jar"
+        paper_url = "https://fill-data.papermc.io/v1/objects/cabed3ae77cf55deba7c7d8722bc9cfd5e991201c211665f9265616d9fe5c77b/paper-1.20.4-499.jar"
         _download_file(paper_url, jar_path)
         return "server.jar"
 
@@ -567,10 +628,39 @@ def start_mc_server(session_key: str, server_type: str = "paper", version: str =
         cmd,
         cwd=inst_dir,
         stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        text=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
     )
+
+    # 4b. Stream live terminal logs for Pterodactyl panel
+    def _stream_mc_output():
+        try:
+            for line in iter(proc.stdout.readline, ''):
+                if not line:
+                    break
+                clean_l = line.rstrip()
+                if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
+                    try:
+                        requests.post(
+                            UPSTASH_REDIS_URL,
+                            headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                            json=["RPUSH", f"mc:{session_key}:logs", clean_l],
+                            timeout=1
+                        )
+                        requests.post(
+                            UPSTASH_REDIS_URL,
+                            headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                            json=["LTRIM", f"mc:{session_key}:logs", "-250", "-1"],
+                            timeout=1
+                        )
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    threading.Thread(target=_stream_mc_output, daemon=True).start()
 
     # 5. Connect Bore Tunnel + Cloudflare SRV
     tunnel_proc, fqdn_domain, direct_address, remote_port = start_network_tunnel(port, clean_srvname)
@@ -700,31 +790,74 @@ def stop_mc_server(session_key: str):
 # ── 5. Watchdog & Task Queue ──
 
 def local_watchdog():
+    stat_counter = 0
     while True:
         try:
             now = time.time()
+            stat_counter += 1
             for k, info in list(ACTIVE_MC.items()):
+                proc = info.get("proc")
                 if now >= info["expires_at"]:
                     log.info(f"⏱️ Plan time limit reached for MC {k}. Auto-stopping...")
                     stop_mc_server(k)
                     continue
 
                 if UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN:
+                    # 1. Check for interactive console command from Pterodactyl panel
+                    try:
+                        cmd_res = requests.post(
+                            UPSTASH_REDIS_URL,
+                            headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                            json=["LPOP", f"mc:{k}:cmd"],
+                            timeout=2
+                        ).json()
+                        cmd_val = cmd_res.get("result")
+                        if cmd_val and proc and proc.stdin and not proc.stdin.closed:
+                            log.info(f"Executing panel command on MC {k}: {cmd_val}")
+                            proc.stdin.write(f"{cmd_val}\n")
+                            proc.stdin.flush()
+                    except Exception:
+                        pass
+
+                    # 2. Check kill signal
                     try:
                         r = requests.post(
                             UPSTASH_REDIS_URL,
                             headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
                             json=["GET", f"kill:{k}"],
-                            timeout=3
+                            timeout=2
                         ).json()
                         if r.get("result") == "1":
                             log.info(f"Received API kill signal for MC {k}. Stopping...")
                             stop_mc_server(k)
+                            continue
                     except Exception:
                         pass
+
+                    # 3. Report resource usage every 3 seconds
+                    if stat_counter % 2 == 0 and proc and proc.poll() is None:
+                        try:
+                            # Read Linux RSS pages
+                            mem_mb = 0
+                            try:
+                                with open(f"/proc/{proc.pid}/statm", "r") as f:
+                                    pages = int(f.read().split()[1])
+                                    mem_mb = int(pages * 4096 / (1024 * 1024))
+                            except Exception:
+                                mem_mb = 0
+
+                            requests.post(
+                                UPSTASH_REDIS_URL,
+                                headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}", "Content-Type": "application/json"},
+                                json=["HSET", f"session:{k}", "ram_used", str(mem_mb), "ram_mb", str(info.get("ram_mb", 1024))],
+                                timeout=2
+                            )
+                        except Exception:
+                            pass
+
         except Exception as e:
             log.error(f"MC Watchdog error: {e}")
-        time.sleep(15)
+        time.sleep(1.5)
 
 def heartbeat_loop():
     while True:

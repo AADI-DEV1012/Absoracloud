@@ -1,0 +1,21 @@
+{
+  "Arclight (Fabric) 1.21.1": "https://github.com/IzzelAliz/Arclight/releases/download/FeudalKings/1.0.1/arclight-fabric-1.21.1-1.0.1-8ec9529.jar",
+  "Arclight (Forge) 1.21.1": "https://github.com/IzzelAliz/Arclight/releases/download/FeudalKings/1.0.1/arclight-forge-1.21.1-1.0.1-8ec9529.jar",
+  "Arclight (Neoforge) 1.21.1": "https://github.com/IzzelAliz/Arclight/releases/download/FeudalKings/1.0.1/arclight-neoforge-1.21.1-1.0.1-8ec9529.jar",
+  "Arclight (Forge) 1.20.1": "https://github.com/IzzelAliz/Arclight/releases/download/Trials/1.0.6/arclight-forge-1.20.1-1.0.6.jar",
+  "Arclight (Fabric) 1.21": "https://github.com/IzzelAliz/Arclight/releases/download/FeudalKings/1.0.0-SNAPSHOT/arclight-fabric-1.21-1.0.0-SNAPSHOT.jar",
+  "Arclight (Neoforge) 1.21": "https://github.com/IzzelAliz/Arclight/releases/download/FeudalKings/1.0.0-SNAPSHOT/arclight-neoforge-1.21-1.0.0-SNAPSHOT.jar",
+  "Arclight (Fabric) 1.20.4": "https://github.com/IzzelAliz/Arclight/releases/download/Whisper/1.0.4/arclight-fabric-1.20.4-1.0.4-80ec5df.jar",
+  "Arclight (Forge) 1.20.4": "https://github.com/IzzelAliz/Arclight/releases/download/Whisper/1.0.4/arclight-forge-1.20.4-1.0.4-80ec5df.jar",
+  "Arclight (Neoforge) 1.20.4": "https://github.com/IzzelAliz/Arclight/releases/download/Whisper/1.0.4/arclight-neoforge-1.20.4-1.0.4-80ec5df.jar",
+  "Arclight (Forge) 1.18.2": "https://github.com/IzzelAliz/Arclight/releases/download/1.18/1.0.12/arclight-forge-1.18.2-1.0.12.jar",
+  "Arclight (Forge) 1.19.2": "https://github.com/IzzelAliz/Arclight/releases/download/horn/1.0.5/arclight-forge-1.19.2-1.0.5.jar",
+  "Arclight (Forge) 1.20.2": "https://github.com/IzzelAliz/Arclight/releases/download/Net/1.0.3/arclight-forge-1.20.2-1.0.3.jar",
+  "Arclight (Forge) 1.19.4": "https://github.com/IzzelAliz/Arclight/releases/download/Executions/1.0.8/arclight-forge-1.19.4-1.0.8.jar",
+  "Mohist 1.20.1": "https://mohistmc.com/api/v2/projects/mohist/1.20.1/builds/latest/download",
+  "Mohist 1.19.4": "https://mohistmc.com/api/v2/projects/mohist/1.19.4/builds/latest/download",
+  "Mohist 1.19.2": "https://mohistmc.com/api/v2/projects/mohist/1.19.2/builds/latest/download",
+  "Mohist 1.18.2": "https://mohistmc.com/api/v2/projects/mohist/1.18.2/builds/latest/download",
+  "Mohist 1.16.5": "https://mohistmc.com/api/v2/projects/mohist/1.16.5/builds/latest/download",
+  "Mohist 1.12.2": "https://mohistmc.com/api/v2/projects/mohist/1.12.2/builds/latest/download"
+}

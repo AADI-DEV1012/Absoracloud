@@ -1,0 +1,16 @@
+{
+  "NeoForge 1.21.1": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.121/neoforge-21.1.121-installer.jar",
+  "NeoForge 1.20.6": "https://maven.neoforged.net/releases/net/neoforged/neoforge/20.6.119/neoforge-20.6.119-installer.jar",
+  "NeoForge 1.20.4": "https://maven.neoforged.net/releases/net/neoforged/neoforge/20.4.181/neoforge-20.4.181-installer.jar",
+  "Forge 1.20.4": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.4-49.0.50/forge-1.20.4-49.0.50-installer.jar",
+  "Forge 1.20.1": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.3.0/forge-1.20.1-47.3.0-installer.jar",
+  "Forge 1.19.4": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.19.4-45.3.3/forge-1.19.4-45.3.3-installer.jar",
+  "Forge 1.19.2": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.19.2-43.5.2/forge-1.19.2-43.5.2-installer.jar",
+  "Forge 1.18.2": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.18.2-40.2.18/forge-1.18.2-40.2.18-installer.jar",
+  "Forge 1.17.1": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.17.1-37.1.1/forge-1.17.1-37.1.1-installer.jar",
+  "Forge 1.16.5": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.16.5-36.2.39/forge-1.16.5-36.2.39-installer.jar",
+  "Forge 1.15.2": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.15.2-31.2.57/forge-1.15.2-31.2.57-installer.jar",
+  "Forge 1.14.4": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.14.4-28.2.26/forge-1.14.4-28.2.26-installer.jar",
+  "Forge 1.13.2": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.13.2-25.0.223/forge-1.13.2-25.0.223-installer.jar",
+  "Forge 1.12.2": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.12.2-14.23.5.2860/forge-1.12.2-14.23.5.2860-installer.jar"
+}

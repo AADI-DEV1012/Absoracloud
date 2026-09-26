@@ -335,3 +335,85 @@ mcRouter.delete('/instance/:session_key', requireAuth, async (req, res) => {
     res.status(500).json({ status: 'error', msg: 'Failed to dismiss instance' });
   }
 });
+
+// ── Pterodactyl Panel: Fetch Server Console Logs ──
+mcRouter.get('/logs', requireAuth, async (req, res) => {
+  try {
+    const { session_key } = req.query;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'Missing session_key' });
+    const raw = await redisCmd('LRANGE', `mc:${session_key}:logs`, '0', '-1');
+    const logs = Array.isArray(raw) ? raw : [];
+    res.json({ status: 'success', logs });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to fetch logs' });
+  }
+});
+
+// ── Pterodactyl Panel: Send Console Command ──
+mcRouter.post('/command', requireAuth, async (req, res) => {
+  try {
+    const { session_key, command } = req.body;
+    if (!session_key || !command) return res.status(400).json({ status: 'error', msg: 'Missing parameters' });
+    
+    // Echo command in logs buffer
+    await redisCmd('RPUSH', `mc:${session_key}:logs`, `> ${command}`);
+    // Push command to runner queue
+    await redisCmd('RPUSH', `mc:${session_key}:cmd`, command);
+    res.json({ status: 'success', msg: 'Command dispatched' });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to send command' });
+  }
+});
+
+// ── Pterodactyl Panel: Power Actions (start, restart, stop, kill) ──
+mcRouter.post('/power', requireAuth, async (req, res) => {
+  try {
+    const { session_key, action } = req.body;
+    if (!session_key || !action) return res.status(400).json({ status: 'error', msg: 'Missing parameters' });
+
+    if (action === 'stop' || action === 'kill') {
+      await executeD1(
+        "UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?",
+        [session_key, req.user.sub]
+      );
+      await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+      await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
+      await redisCmd('RPUSH', `mc:${session_key}:logs`, `[Server] Power action triggered: ${action.toUpperCase()}`);
+      return res.json({ status: 'success', msg: `Server ${action} signal sent` });
+    }
+
+    if (action === 'restart') {
+      await redisCmd('RPUSH', `mc:${session_key}:logs`, `[Server] Restart signal received.`);
+      await redisCmd('RPUSH', `mc:${session_key}:cmd`, 'stop');
+      return res.json({ status: 'success', msg: 'Restart initiated' });
+    }
+
+    res.json({ status: 'success' });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to process power action' });
+  }
+});
+
+// ── Pterodactyl Panel: Live Stats ──
+mcRouter.get('/stats', requireAuth, async (req, res) => {
+  try {
+    const { session_key } = req.query;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'Missing session_key' });
+    const raw = await redisCmd('HGETALL', `session:${session_key}`);
+    const data = redisParseHash(raw) || {};
+    res.json({
+      status: 'success',
+      stats: {
+        cpu: parseFloat(data.cpu || '0.0'),
+        ram_used: parseInt(data.ram_used || '0', 10),
+        ram_max: parseInt(data.ram_mb || '1024', 10),
+        domain: data.domain || data.tunnel_url || null,
+        direct_address: data.direct_address || null,
+        bore_port: data.bore_port || null,
+        server_status: data.status || 'unknown'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', msg: 'Failed to fetch stats' });
+  }
+});

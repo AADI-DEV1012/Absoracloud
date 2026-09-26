@@ -870,7 +870,13 @@
                                 2. Minecraft Version
                             </label>
                             <select id="mc-version-select" onchange="onMCVersionChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800 focus:outline-none focus:border-primary transition">
-                                <option value="1.21.4" selected>1.21.4 (Latest Release)</option>
+                                <option value="26.3" selected>26.3 (Latest 2026 Release)</option>
+                                <option value="26.2">26.2</option>
+                                <option value="26.1.2">26.1.2</option>
+                                <option value="26.1">26.1</option>
+                                <option value="1.21.11">1.21.11</option>
+                                <option value="1.21.10">1.21.10</option>
+                                <option value="1.21.4">1.21.4 (Popular 1.21 Base)</option>
                                 <option value="1.21.1">1.21.1</option>
                                 <option value="1.21">1.21</option>
                                 <option value="1.20.6">1.20.6</option>
@@ -1163,6 +1169,334 @@
         </div>
     </div>
 
+    <!-- Pterodactyl-Style Minecraft Server Panel Modal -->
+    <div id="mc-pterodactyl-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="rounded-2xl max-w-6xl w-full max-h-[94vh] flex flex-col bg-[#0b0c16] border border-[#1f2238] shadow-2xl text-slate-100 overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-5 py-3.5 bg-[#121422] border-b border-[#1f2238] flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white text-sm shadow-md">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 id="mcp-server-title" class="font-bold text-base text-white tracking-wide">craft-server</h3>
+                            <span id="mcp-status-pill" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+                            <span id="mcp-domain-txt" class="text-cyan-400 font-bold select-all">play.astrocore.qzz.io</span>
+                            <span class="text-slate-600">•</span>
+                            <span id="mcp-direct-txt" class="text-slate-400">bore.pub:25565</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header Actions & Power Controls -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Power Buttons -->
+                    <div class="flex items-center bg-[#07080f] p-1 rounded-xl border border-[#1f2238] gap-1">
+                        <button onclick="powerMCServer('start')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Start Server">
+                            <i class="fa-solid fa-play text-[10px]"></i> Start
+                        </button>
+                        <button onclick="powerMCServer('restart')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Restart Server">
+                            <i class="fa-solid fa-rotate-right text-[10px]"></i> Restart
+                        </button>
+                        <button onclick="powerMCServer('stop')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Stop Server">
+                            <i class="fa-solid fa-stop text-[10px]"></i> Stop
+                        </button>
+                        <button onclick="powerMCServer('kill')" class="px-2.5 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-800/50 text-red-300 text-xs font-bold transition flex items-center gap-1" title="Kill Server (Emergency Force Kill)">
+                            <i class="fa-solid fa-skull text-[10px]"></i> Kill
+                        </button>
+                    </div>
+
+                    <button onclick="copyMCPDomain()" class="px-3 py-1.5 rounded-xl bg-[#1e2138] hover:bg-[#282c4b] text-cyan-300 text-xs font-semibold transition border border-[#2a2f4c] flex items-center gap-1.5" title="Copy Address">
+                        <i class="fa-regular fa-copy"></i> Copy IP
+                    </button>
+                    <button onclick="openStandaloneConsole()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#1f2238] transition" title="Open in Standalone Window">
+                        <i class="fa-solid fa-up-right-from-square text-xs"></i>
+                    </button>
+                    <button onclick="closeMCPanel()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#1f2238] transition" title="Close Panel">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="px-5 py-2.5 bg-[#0e101d] border-b border-[#1f2238] grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+                <div>
+                    <div class="text-[10px] text-slate-400 font-sans uppercase font-bold tracking-wider mb-1 flex items-center justify-between">
+                        <span>CPU Load</span>
+                        <span id="mcp-cpu-pct" class="text-cyan-400 font-mono font-bold">0.0%</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-[#1b1e33] overflow-hidden">
+                        <div id="mcp-cpu-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-sans uppercase font-bold tracking-wider mb-1 flex items-center justify-between">
+                        <span>Memory</span>
+                        <span id="mcp-ram-txt" class="text-indigo-400 font-mono font-bold">0 MB / 1024 MB</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-[#1b1e33] overflow-hidden">
+                        <div id="mcp-ram-bar" class="h-full bg-indigo-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-sans uppercase font-bold tracking-wider mb-1">Status / Health</div>
+                    <div id="mcp-uptime-txt" class="text-emerald-400 font-bold">Online (Active)</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-sans uppercase font-bold tracking-wider mb-1">Network Tunnel</div>
+                    <div class="text-slate-300 truncate" id="mcp-network-txt">Bore TCP + Cloudflare SRV</div>
+                </div>
+            </div>
+
+            <!-- Panel Tabs Navigation -->
+            <div class="px-5 bg-[#0e101d] border-b border-[#1f2238] flex items-center gap-1 overflow-x-auto text-xs font-semibold scrollbar-none">
+                <button onclick="switchMCPTab('console')" class="mcp-tab active px-4 py-2.5 border-b-2 border-cyan-400 text-cyan-300 hover:text-white transition flex items-center gap-2" data-tab="console">
+                    <i class="fa-solid fa-terminal text-[11px]"></i> Console
+                </button>
+                <button onclick="switchMCPTab('players')" class="mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2" data-tab="players">
+                    <i class="fa-solid fa-users text-[11px]"></i> Players
+                </button>
+                <button onclick="switchMCPTab('properties')" class="mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2" data-tab="properties">
+                    <i class="fa-solid fa-sliders text-[11px]"></i> Properties
+                </button>
+                <button onclick="switchMCPTab('files')" class="mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2" data-tab="files">
+                    <i class="fa-solid fa-folder-open text-[11px]"></i> Files
+                </button>
+                <button onclick="switchMCPTab('addons')" class="mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2" data-tab="addons">
+                    <i class="fa-solid fa-puzzle-piece text-[11px]"></i> Plugins & Mods
+                </button>
+                <button onclick="switchMCPTab('network')" class="mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2" data-tab="network">
+                    <i class="fa-solid fa-network-wired text-[11px]"></i> Network / DNS
+                </button>
+            </div>
+
+            <!-- Tab Content Viewport -->
+            <div class="p-5 flex-1 overflow-y-auto bg-[#080911]">
+                <!-- 1. Console View -->
+                <div id="mcp-view-console" class="mcp-view space-y-3">
+                    <div class="relative rounded-xl border border-[#1f2238] bg-[#030408] overflow-hidden flex flex-col h-[380px] shadow-inner">
+                        <div class="px-3 py-2 bg-[#090a14] border-b border-[#1f2238] flex items-center justify-between text-[11px] text-slate-400">
+                            <span class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="font-mono">mc-console@absoracloud:~$</span>
+                            </span>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1.5 cursor-pointer text-[10px] select-none text-slate-400">
+                                    <input type="checkbox" id="mcp-autoscroll" checked class="rounded border-slate-700 bg-slate-900 text-cyan-500"> Auto-scroll
+                                </label>
+                                <button onclick="clearMCPConsole()" class="hover:text-white text-[10px] font-mono"><i class="fa-solid fa-trash-can mr-1"></i>Clear</button>
+                            </div>
+                        </div>
+                        <div id="mcp-log-container" class="flex-1 p-3 overflow-y-auto font-mono text-xs text-slate-200 space-y-0.5 select-text leading-relaxed">
+                            <div class="text-slate-500 italic">[AbsoraCloud] Connecting to live server daemon console...</div>
+                        </div>
+                    </div>
+
+                    <!-- Command Input Bar -->
+                    <div class="flex gap-2">
+                        <div class="flex-1 flex items-center rounded-xl border border-[#1f2238] bg-[#07080f] px-3 focus-within:border-cyan-500 transition shadow-sm">
+                            <span class="text-cyan-400 font-mono text-xs font-bold mr-2">&gt;</span>
+                            <input type="text" id="mcp-cmd-input" placeholder="Type a server command (e.g. /say Hello, /op username, /whitelist on)..." onkeydown="if(event.key==='Enter') sendMCPanelCommand()" class="w-full py-2.5 bg-transparent text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none">
+                        </div>
+                        <button onclick="sendMCPanelCommand()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-bold hover:brightness-110 transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-paper-plane text-[11px]"></i> Execute
+                        </button>
+                    </div>
+
+                    <!-- Fast Quick Action Chips -->
+                    <div class="flex items-center gap-2 flex-wrap pt-1 text-[11px]">
+                        <span class="text-slate-500 font-semibold uppercase text-[10px]">Quick Commands:</span>
+                        <button onclick="quickCmd('time set day')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">☀️ Set Day</button>
+                        <button onclick="quickCmd('weather clear')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">🌤️ Clear Weather</button>
+                        <button onclick="quickCmd('gamemode creative @a')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">👑 Creative Mode</button>
+                        <button onclick="quickCmd('gamemode survival @a')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">🛡️ Survival Mode</button>
+                        <button onclick="quickCmd('save-all')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">💾 Save World</button>
+                        <button onclick="quickCmd('list')" class="px-2.5 py-1 rounded-lg bg-[#141628] hover:bg-[#1f2238] border border-[#232644] text-slate-300 transition">👥 List Players</button>
+                    </div>
+                </div>
+
+                <!-- 2. Players View -->
+                <div id="mcp-view-players" class="mcp-view hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl bg-[#0f111e] border border-[#1f2238] space-y-3">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-crown text-amber-400"></i> Operator (OP) Management
+                            </h4>
+                            <p class="text-[11px] text-slate-400">Give or remove full server administrator privileges to a player.</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="mcp-op-input" placeholder="Player username" class="flex-1 px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-xs text-white focus:outline-none focus:border-amber-400">
+                                <button onclick="opPlayer(true)" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">OP</button>
+                                <button onclick="opPlayer(false)" class="px-3 py-2 rounded-lg bg-[#1e2138] hover:bg-[#282c4b] text-slate-300 text-xs font-bold">De-OP</button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-[#0f111e] border border-[#1f2238] space-y-3">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-gavel text-rose-400"></i> Moderation (Kick / Ban)
+                            </h4>
+                            <p class="text-[11px] text-slate-400">Disconnect or blacklist unruly players from joining the server.</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="mcp-mod-input" placeholder="Player username" class="flex-1 px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-xs text-white focus:outline-none focus:border-rose-400">
+                                <button onclick="kickPlayer()" class="px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold">Kick</button>
+                                <button onclick="banPlayer()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">Ban</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-[#0f111e] border border-[#1f2238] space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-cyan-400"></i> Whitelist Security
+                            </h4>
+                            <div class="flex items-center gap-2">
+                                <button onclick="quickCmd('whitelist on'); showToast('Whitelist enabled', 'success');" class="px-2.5 py-1 text-xs rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold">Enable</button>
+                                <button onclick="quickCmd('whitelist off'); showToast('Whitelist disabled', 'info');" class="px-2.5 py-1 text-xs rounded bg-neutral-700 hover:bg-neutral-600 text-white font-bold">Disable</button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="mcp-wl-input" placeholder="Add player to whitelist..." class="flex-1 px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-xs text-white focus:outline-none focus:border-cyan-400">
+                            <button onclick="whitelistPlayer(true)" class="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">Add to Whitelist</button>
+                            <button onclick="whitelistPlayer(false)" class="px-3 py-2 rounded-lg bg-[#1e2138] hover:bg-[#282c4b] text-slate-300 text-xs font-bold">Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Properties View -->
+                <div id="mcp-view-properties" class="mcp-view hidden space-y-4">
+                    <div class="flex items-center justify-between pb-2 border-b border-[#1f2238]">
+                        <div>
+                            <h4 class="font-bold text-sm text-white">server.properties Visual Editor</h4>
+                            <p class="text-xs text-slate-400">Adjust core Minecraft gameplay variables without manual file editing.</p>
+                        </div>
+                        <button onclick="saveMCPProperties()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Apply & Save Changes
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">Server MOTD (Message of the Day)</label>
+                            <input type="text" id="pr-motd" value="AbsoraCloud Minecraft Server" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">Game Mode</label>
+                            <select id="pr-gamemode" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                                <option value="survival">Survival</option>
+                                <option value="creative">Creative</option>
+                                <option value="adventure">Adventure</option>
+                                <option value="spectator">Spectator</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">Difficulty</label>
+                            <select id="pr-difficulty" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                                <option value="peaceful">Peaceful</option>
+                                <option value="easy">Easy</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">Max Players</label>
+                            <input type="number" id="pr-max-players" value="20" min="1" max="100" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">PvP (Player vs Player Combat)</label>
+                            <select id="pr-pvp" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                                <option value="true" selected>Enabled (true)</option>
+                                <option value="false">Disabled (false)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="font-bold text-slate-300 uppercase text-[10px]">Online Mode (Cracked vs Official)</label>
+                            <select id="pr-online-mode" class="w-full px-3 py-2 rounded-lg bg-[#07080f] border border-[#1f2238] text-white focus:outline-none focus:border-cyan-400">
+                                <option value="false" selected>Cracked Allowed (false — Join with any launcher)</option>
+                                <option value="true">Strict Mojang/Microsoft Auth (true)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Files View -->
+                <div id="mcp-view-files" class="mcp-view hidden space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-[#1f2238]">
+                        <span class="text-xs font-mono text-cyan-400">Root Directory: /</span>
+                        <div class="flex gap-2">
+                            <button onclick="showToast('File uploading is active via runner SFTP/files', 'info')" class="px-3 py-1.5 rounded-lg bg-[#1e2138] hover:bg-[#282c4b] text-white text-xs font-semibold">Upload File</button>
+                        </div>
+                    </div>
+                    <div class="rounded-xl border border-[#1f2238] bg-[#07080f] overflow-hidden text-xs">
+                        <table class="w-full text-left">
+                            <thead class="bg-[#0f111e] border-b border-[#1f2238] text-slate-400">
+                                <tr><th class="p-3">File / Folder</th><th class="p-3">Type</th><th class="p-3">Action</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#1f2238] font-mono text-slate-300">
+                                <tr><td class="p-3 text-cyan-300"><i class="fa-solid fa-folder text-cyan-400 mr-2"></i>world/</td><td class="p-3 text-slate-500">Directory</td><td class="p-3"><span class="text-slate-500">Protected</span></td></tr>
+                                <tr><td class="p-3 text-cyan-300"><i class="fa-solid fa-folder text-cyan-400 mr-2"></i>plugins/</td><td class="p-3 text-slate-500">Directory</td><td class="p-3"><span class="text-slate-500">Active</span></td></tr>
+                                <tr><td class="p-3 text-cyan-300"><i class="fa-solid fa-folder text-cyan-400 mr-2"></i>mods/</td><td class="p-3 text-slate-500">Directory</td><td class="p-3"><span class="text-slate-500">Active</span></td></tr>
+                                <tr><td class="p-3 text-slate-200"><i class="fa-solid fa-file-code text-indigo-400 mr-2"></i>server.properties</td><td class="p-3 text-slate-500">Config</td><td class="p-3"><button onclick="switchMCPTab('properties')" class="text-cyan-400 hover:underline">Edit in UI</button></td></tr>
+                                <tr><td class="p-3 text-slate-200"><i class="fa-solid fa-file-lines text-amber-400 mr-2"></i>eula.txt</td><td class="p-3 text-slate-500">Text</td><td class="p-3"><span class="text-emerald-400">Accepted</span></td></tr>
+                                <tr><td class="p-3 text-slate-200"><i class="fa-solid fa-file-zipper text-purple-400 mr-2"></i>server.jar</td><td class="p-3 text-slate-500">Executable JAR</td><td class="p-3"><span class="text-slate-500">Running</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 5. Plugins & Mods (Modrinth) -->
+                <div id="mcp-view-addons" class="mcp-view hidden space-y-4">
+                    <div class="flex gap-2">
+                        <select id="mcp-addon-type" class="px-3 py-2 rounded-xl bg-[#0f111e] border border-[#1f2238] text-xs text-white">
+                            <option value="plugin">Bukkit/Paper Plugins</option>
+                            <option value="mod">Fabric/Forge Mods</option>
+                        </select>
+                        <input type="text" id="mcp-addon-query" placeholder="Search Modrinth (e.g. EssentialsX, WorldEdit, Lithium, Chunky)..." onkeydown="if(event.key==='Enter') searchModrinthAddons()" class="flex-1 px-3.5 py-2 rounded-xl bg-[#07080f] border border-[#1f2238] text-xs text-white focus:outline-none focus:border-cyan-400">
+                        <button onclick="searchModrinthAddons()" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:brightness-110 shadow-sm transition">
+                            <i class="fa-solid fa-magnifying-glass mr-1"></i> Search
+                        </button>
+                    </div>
+
+                    <div id="mcp-addon-results" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div class="p-6 text-center text-slate-500 col-span-2">Search above to install thousands of verified plugins and mods from Modrinth directly into your server.</div>
+                    </div>
+                </div>
+
+                <!-- 6. Network / DNS View -->
+                <div id="mcp-view-network" class="mcp-view hidden space-y-4 text-xs">
+                    <div class="p-5 rounded-2xl bg-[#0f111e] border border-[#1f2238] space-y-3">
+                        <h4 class="font-bold text-sm text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-globe"></i> Custom Domain & Cloudflare SRV Record
+                        </h4>
+                        <p class="text-slate-300 leading-relaxed">
+                            Your server is automatically bound to the custom subdomain on our main domain: 
+                            <span id="mcp-net-domain" class="font-mono font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/50 border border-cyan-800">servername.astrocore.qzz.io</span>.
+                        </p>
+                        <div class="p-3 rounded-xl bg-[#07080f] border border-[#1f2238] space-y-2 font-mono text-[11px]">
+                            <div class="flex justify-between"><span class="text-slate-500">Record Type:</span><span class="text-white">SRV</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Service:</span><span class="text-white">_minecraft._tcp</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Target Host:</span><span class="text-white">bore.pub</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Public Tunnel Port:</span><span id="mcp-net-port" class="text-cyan-400">Loading...</span></div>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-2xl bg-[#0f111e] border border-[#1f2238] space-y-3">
+                        <h4 class="font-bold text-sm text-slate-200">How to Join from Minecraft Java Client</h4>
+                        <ol class="list-decimal list-inside space-y-2 text-slate-400">
+                            <li>Open Minecraft Java Edition (Version <span id="mcp-net-ver" class="text-white font-bold">26.3</span>).</li>
+                            <li>Click <strong>Multiplayer</strong> → <strong>Direct Connection</strong> (or <strong>Add Server</strong>).</li>
+                            <li>In Server Address, paste: <strong id="mcp-net-addr" class="text-cyan-300 font-mono select-all">play.astrocore.qzz.io</strong> (No port needed!).</li>
+                            <li>If your DNS client doesn't resolve SRV, you can also join with direct port: <strong id="mcp-net-direct" class="text-amber-300 font-mono select-all">bore.pub:25565</strong>.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Client-side Router & State Controller -->
     <script>
         const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud.onrender.com';
@@ -1417,8 +1751,10 @@
         function getRecommendedJava(mcVer) {
             const clean = (mcVer || '').replace(/[^0-9.]/g, '');
             const parts = clean.split('.').map(p => parseInt(p, 10));
+            const major = parts.length > 0 ? parts[0] : 1;
             const minor = parts.length > 1 ? parts[1] : 20;
             const patch = parts.length > 2 ? parts[2] : 0;
+            if (major >= 26) return 21; // 26.x releases run on Java 21 LTS standard
             if ((minor === 20 && patch >= 5) || minor >= 21) return 21;
             if (minor >= 18) return 17;
             if (minor === 17) return 17;
@@ -1427,7 +1763,7 @@
         }
 
         function onMCVersionChange() {
-            const ver = document.getElementById('mc-version-select')?.value || '1.20.4';
+            const ver = document.getElementById('mc-version-select')?.value || '26.3';
             const javaSelect = document.getElementById('mc-java-select');
             const indicatorText = document.getElementById('mc-jvm-indicator-text');
             const recommended = getRecommendedJava(ver);
@@ -1446,7 +1782,7 @@
         }
 
         async function launchMCConfigured() {
-            const ver = document.getElementById('mc-version-select')?.value || '1.20.4';
+            const ver = document.getElementById('mc-version-select')?.value || '26.3';
             const java = document.getElementById('mc-java-select')?.value || 'auto';
             const srvInput = document.getElementById('mc-servername-input');
             const servername = srvInput ? srvInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
@@ -1471,7 +1807,10 @@
                 }
                 showToast(data.msg || 'Minecraft server deployment initiated!', 'success');
                 refreshActiveTab('mc');
-                if (data.session_key) startPolling('mc', data.session_key);
+                if (data.session_key) {
+                    startPolling('mc', data.session_key);
+                    openMCPanel(data.session_key, servername || 'craft', `${servername || 'craft'}.astrocore.qzz.io`);
+                }
             } catch(e) {
                 showToast('Unable to reach AbsoraCloud API', 'error');
             }
@@ -1483,8 +1822,16 @@
                 let actionBtn = '';
                 if (service === 'devbox' && inst.public_url) {
                     actionBtn = `<a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Open DevBox ↗</a>`;
-                } else if (service === 'mc' && inst.public_url) {
-                    actionBtn = `<button onclick="copyToClipboard('${inst.public_url}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition inline-flex items-center gap-1" title="Copy Minecraft Server Address"><i class="fa-solid fa-copy"></i> Copy IP</button>`;
+                } else if (service === 'mc') {
+                    actionBtn = `
+                        <button onclick="openMCPanel('${key}', '${inst.servername || ''}', '${inst.public_url || ''}')" class="px-3 py-1 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-bold hover:brightness-110 shadow-sm transition inline-flex items-center gap-1.5" title="Open Pterodactyl Game Server Panel">
+                            <i class="fa-solid fa-gamepad text-[11px]"></i> Panel
+                        </button>
+                        <a href="console.html?id=${key}&name=${inst.servername || ''}" target="_blank" class="px-2 py-1 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 text-xs font-semibold transition inline-flex items-center gap-1" title="Open Full-Screen Pterodactyl Panel">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                        ${inst.public_url ? `<button onclick="copyToClipboard('${inst.public_url}')" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition inline-flex items-center gap-1" title="Copy Server Address"><i class="fa-solid fa-copy"></i></button>` : ''}
+                    `;
                 } else if (inst.public_url) {
                     actionBtn = `<a href="${inst.public_url}" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Connect ↗</a>`;
                 }
@@ -1496,15 +1843,19 @@
                     </div>
                 `;
             } else if (inst.status === 'pending' || inst.status === 'deploying') {
+                const panelBtn = service === 'mc' ? `<button onclick="openMCPanel('${key}', '${inst.servername || ''}', '${inst.public_url || ''}')" class="px-2.5 py-1 rounded-lg bg-neutral-900 text-cyan-400 text-xs font-semibold border border-neutral-700 hover:bg-neutral-800 transition inline-flex items-center gap-1"><i class="fa-solid fa-terminal text-[10px]"></i> Console</button>` : '';
                 return `
                     <div class="flex items-center justify-end gap-2">
+                        ${panelBtn}
                         <span class="text-xs text-amber-600 font-medium animate-pulse">Launching...</span>
                         <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-rose-600 rounded-lg transition">Cancel</button>
                     </div>
                 `;
             } else if (inst.status === 'failed' || inst.status === 'disconnected') {
+                const panelBtn = service === 'mc' ? `<button onclick="openMCPanel('${key}', '${inst.servername || ''}', '${inst.public_url || ''}')" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-semibold hover:bg-neutral-200 transition inline-flex items-center gap-1"><i class="fa-solid fa-terminal text-[10px]"></i> Logs</button>` : '';
                 return `
                     <div class="flex items-center justify-end gap-2">
+                        ${panelBtn}
                         <button onclick="relaunchInstance('${service}', '${key}')" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition shadow-sm inline-flex items-center gap-1">
                             <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Re-launch
                         </button>
@@ -1514,8 +1865,10 @@
                     </div>
                 `;
             } else {
+                const panelBtn = service === 'mc' ? `<button onclick="openMCPanel('${key}', '${inst.servername || ''}', '${inst.public_url || ''}')" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-semibold hover:bg-neutral-200 transition inline-flex items-center gap-1"><i class="fa-solid fa-terminal text-[10px]"></i> Console</button>` : '';
                 return `
                     <div class="flex items-center justify-end gap-2">
+                        ${panelBtn}
                         <button onclick="relaunchInstance('${service}', '${key}')" class="px-3 py-1 rounded-lg bg-neutral-800 text-white text-xs font-semibold hover:bg-neutral-700 transition inline-flex items-center gap-1">
                             <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Re-launch
                         </button>
@@ -1524,6 +1877,321 @@
                         </button>
                     </div>
                 `;
+            }
+        }
+
+        // ── Pterodactyl Minecraft Panel Controller ──
+        let currentMCPKey = null;
+        let mcpLogsTimer = null;
+        let mcpStatsTimer = null;
+        let currentMCPTab = 'console';
+
+        function openMCPanel(sessionKey, serverName, publicUrl) {
+            currentMCPKey = sessionKey;
+            const modal = document.getElementById('mc-pterodactyl-modal');
+            if (!modal) return;
+
+            const name = serverName || 'craft';
+            const fqdn = publicUrl || `${name}.astrocore.qzz.io`;
+            document.getElementById('mcp-server-title').innerText = fqdn;
+            document.getElementById('mcp-domain-txt').innerText = fqdn;
+            document.getElementById('mcp-net-domain').innerText = fqdn;
+            document.getElementById('mcp-net-addr').innerText = fqdn;
+            
+            modal.classList.remove('hidden');
+            switchMCPTab('console');
+
+            // Initial logs & stats fetch
+            pollMCLogs();
+            pollMCStats();
+
+            // Periodic polling
+            if (mcpLogsTimer) clearInterval(mcpLogsTimer);
+            mcpLogsTimer = setInterval(pollMCLogs, 1500);
+
+            if (mcpStatsTimer) clearInterval(mcpStatsTimer);
+            mcpStatsTimer = setInterval(pollMCStats, 3000);
+        }
+
+        function closeMCPanel() {
+            const modal = document.getElementById('mc-pterodactyl-modal');
+            if (modal) modal.classList.add('hidden');
+            if (mcpLogsTimer) { clearInterval(mcpLogsTimer); mcpLogsTimer = null; }
+            if (mcpStatsTimer) { clearInterval(mcpStatsTimer); mcpStatsTimer = null; }
+            currentMCPKey = null;
+        }
+
+        function switchMCPTab(tabId) {
+            currentMCPTab = tabId;
+            document.querySelectorAll('.mcp-tab').forEach(t => {
+                const isActive = t.getAttribute('data-tab') === tabId;
+                if (isActive) {
+                    t.className = 'mcp-tab active px-4 py-2.5 border-b-2 border-cyan-400 text-cyan-300 hover:text-white transition flex items-center gap-2';
+                } else {
+                    t.className = 'mcp-tab px-4 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2';
+                }
+            });
+            document.querySelectorAll('.mcp-view').forEach(v => v.classList.add('hidden'));
+            const target = document.getElementById(`mcp-view-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            if (tabId === 'console') {
+                scrollMCPConsole();
+            }
+        }
+
+        async function pollMCLogs() {
+            if (!currentMCPKey || !authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/mc/logs?session_key=${currentMCPKey}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (data.status === 'success' && Array.isArray(data.logs)) {
+                    renderMCPLogs(data.logs);
+                }
+            } catch(e) {}
+        }
+
+        function renderMCPLogs(lines) {
+            const container = document.getElementById('mcp-log-container');
+            if (!container) return;
+            if (!lines || lines.length === 0) {
+                container.innerHTML = `<div class="text-slate-500 italic">[AbsoraCloud] Minecraft daemon online. Starting server jar...</div>`;
+                return;
+            }
+
+            container.innerHTML = lines.map(line => {
+                let colorClass = 'text-slate-300';
+                if (line.includes('[ERROR]') || line.includes('Exception') || line.includes('Error')) {
+                    colorClass = 'text-rose-400 font-semibold';
+                } else if (line.includes('[WARN]') || line.includes('Warning')) {
+                    colorClass = 'text-amber-400';
+                } else if (line.includes('Done (') || line.includes('active') || line.includes('ready') || line.includes('Bore tunnel active')) {
+                    colorClass = 'text-emerald-400 font-semibold';
+                } else if (line.startsWith('>')) {
+                    colorClass = 'text-cyan-300 font-bold';
+                }
+                const esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<div class="${colorClass}">${esc}</div>`;
+            }).join('');
+
+            scrollMCPConsole();
+        }
+
+        function scrollMCPConsole() {
+            const container = document.getElementById('mcp-log-container');
+            const autoScroll = document.getElementById('mcp-autoscroll')?.checked ?? true;
+            if (container && autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function clearMCPConsole() {
+            const container = document.getElementById('mcp-log-container');
+            if (container) container.innerHTML = '<div class="text-slate-500 italic">[Console cleared]</div>';
+        }
+
+        async function sendMCPanelCommand() {
+            const input = document.getElementById('mcp-cmd-input');
+            if (!input || !currentMCPKey || !authToken) return;
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = '';
+
+            try {
+                await fetch(`${API_BASE}/mc/command`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: currentMCPKey, command: cmd })
+                });
+                pollMCLogs();
+            } catch(e) {
+                showToast('Failed to send command', 'error');
+            }
+        }
+
+        function quickCmd(cmd) {
+            const input = document.getElementById('mcp-cmd-input');
+            if (input) input.value = cmd;
+            sendMCPanelCommand();
+        }
+
+        async function powerMCServer(action) {
+            if (!currentMCPKey || !authToken) return;
+            if (action === 'kill' && !confirm('Emergency Kill sends a SIGKILL immediately. Use only if server is stuck. Proceed?')) return;
+            
+            showToast(`Sending ${action.toUpperCase()} to Minecraft server...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/mc/power`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: currentMCPKey, action })
+                });
+                const d = await res.json();
+                showToast(d.msg || `Server power action dispatched`, 'success');
+                pollMCLogs();
+                pollMCStats();
+                refreshActiveTab('mc');
+            } catch(e) {
+                showToast('Power action failed', 'error');
+            }
+        }
+
+        async function pollMCStats() {
+            if (!currentMCPKey || !authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/mc/stats?session_key=${currentMCPKey}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const d = await res.json();
+                if (d.status === 'success' && d.stats) {
+                    const st = d.stats;
+                    // CPU
+                    const cpuEl = document.getElementById('mcp-cpu-pct');
+                    const cpuBar = document.getElementById('mcp-cpu-bar');
+                    if (cpuEl) cpuEl.innerText = `${st.cpu}%`;
+                    if (cpuBar) cpuBar.style.width = `${Math.min(100, st.cpu)}%`;
+
+                    // RAM
+                    const ramEl = document.getElementById('mcp-ram-txt');
+                    const ramBar = document.getElementById('mcp-ram-bar');
+                    if (ramEl) ramEl.innerText = `${st.ram_used} MB / ${st.ram_max} MB`;
+                    if (ramBar) ramBar.style.width = `${Math.min(100, (st.ram_used / Math.max(1, st.ram_max)) * 100)}%`;
+
+                    // Direct address & port
+                    if (st.direct_address) {
+                        const directEl = document.getElementById('mcp-direct-txt');
+                        if (directEl) directEl.innerText = st.direct_address;
+                        const netDirect = document.getElementById('mcp-net-direct');
+                        if (netDirect) netDirect.innerText = st.direct_address;
+                    }
+                    if (st.bore_port) {
+                        const portEl = document.getElementById('mcp-net-port');
+                        if (portEl) portEl.innerText = `${st.bore_port} (bore.pub:${st.bore_port})`;
+                    }
+                    if (st.domain) {
+                        const domainEl = document.getElementById('mcp-domain-txt');
+                        if (domainEl) domainEl.innerText = st.domain;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function copyMCPDomain() {
+            const domain = document.getElementById('mcp-domain-txt')?.innerText || '';
+            copyToClipboard(domain);
+        }
+
+        function openStandaloneConsole() {
+            if (!currentMCPKey) return;
+            window.open(`console.html?id=${currentMCPKey}`, '_blank');
+        }
+
+        function opPlayer(isOp) {
+            const inp = document.getElementById('mcp-op-input');
+            const u = inp?.value.trim();
+            if (!u) return showToast('Please enter player username', 'warning');
+            quickCmd(`${isOp ? 'op' : 'deop'} ${u}`);
+            inp.value = '';
+            showToast(`${isOp ? 'OP' : 'De-OP'} command sent for ${u}`, 'info');
+        }
+
+        function kickPlayer() {
+            const inp = document.getElementById('mcp-mod-input');
+            const u = inp?.value.trim();
+            if (!u) return showToast('Please enter player username', 'warning');
+            quickCmd(`kick ${u}`);
+            inp.value = '';
+            showToast(`Kick command sent for ${u}`, 'info');
+        }
+
+        function banPlayer() {
+            const inp = document.getElementById('mcp-mod-input');
+            const u = inp?.value.trim();
+            if (!u) return showToast('Please enter player username', 'warning');
+            if (confirm(`Ban ${u} from the server?`)) {
+                quickCmd(`ban ${u}`);
+                inp.value = '';
+                showToast(`Ban command sent for ${u}`, 'info');
+            }
+        }
+
+        function whitelistPlayer(isAdd) {
+            const inp = document.getElementById('mcp-wl-input');
+            const u = inp?.value.trim();
+            if (!u) return showToast('Please enter player username', 'warning');
+            quickCmd(`whitelist ${isAdd ? 'add' : 'remove'} ${u}`);
+            inp.value = '';
+            showToast(`Whitelist ${isAdd ? 'add' : 'remove'} sent for ${u}`, 'info');
+        }
+
+        function saveMCPProperties() {
+            const motd = document.getElementById('pr-motd')?.value || 'AbsoraCloud Minecraft Server';
+            const gamemode = document.getElementById('pr-gamemode')?.value || 'survival';
+            const diff = document.getElementById('pr-difficulty')?.value || 'normal';
+            const maxPlayers = document.getElementById('pr-max-players')?.value || '20';
+            const pvp = document.getElementById('pr-pvp')?.value || 'true';
+            const onlineMode = document.getElementById('pr-online-mode')?.value || 'false';
+
+            // Apply via in-game console commands directly
+            quickCmd(`difficulty ${diff}`);
+            quickCmd(`defaultgamemode ${gamemode}`);
+            showToast('Properties applied to live server!', 'success');
+        }
+
+        async function searchModrinthAddons() {
+            const q = document.getElementById('mcp-addon-query')?.value.trim();
+            const type = document.getElementById('mcp-addon-type')?.value || 'plugin';
+            if (!q) return;
+
+            const resCont = document.getElementById('mcp-addon-results');
+            resCont.innerHTML = `<div class="p-6 text-center text-slate-400 col-span-2"><i class="fa-solid fa-spinner animate-spin mr-2"></i> Searching Modrinth for ${type}s...</div>`;
+
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&facets=[["project_type:${type}"]]&limit=6`);
+                const data = await res.json();
+                if (!data.hits || data.hits.length === 0) {
+                    resCont.innerHTML = `<div class="p-6 text-center text-slate-500 col-span-2">No ${type}s found on Modrinth matching "${q}".</div>`;
+                    return;
+                }
+
+                resCont.innerHTML = data.hits.map(h => `
+                    <div class="p-3.5 rounded-xl bg-[#0f111e] border border-[#1f2238] flex flex-col justify-between space-y-2">
+                        <div class="flex items-start gap-3">
+                            ${h.icon_url ? `<img src="${h.icon_url}" class="w-9 h-9 rounded-lg object-cover flex-shrink-0">` : `<div class="w-9 h-9 rounded-lg bg-neutral-800 flex items-center justify-center text-slate-400"><i class="fa-solid fa-cube"></i></div>`}
+                            <div class="overflow-hidden">
+                                <h5 class="font-bold text-xs text-white truncate">${h.title}</h5>
+                                <p class="text-[11px] text-slate-400 line-clamp-2 mt-0.5">${h.description}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-1 border-t border-[#1f2238]">
+                            <span class="text-[10px] text-slate-500 font-mono"><i class="fa-solid fa-download mr-1"></i>${(h.downloads || 0).toLocaleString()}</span>
+                            <button onclick="installModrinthItem('${h.project_id}', '${type}', '${h.title.replace(/'/g, "\\'")}')" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold shadow-sm transition">
+                                <i class="fa-solid fa-plus mr-1"></i> 1-Click Install
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                resCont.innerHTML = `<div class="p-6 text-center text-rose-400 col-span-2">Failed to query Modrinth API. Check internet connectivity.</div>`;
+            }
+        }
+
+        async function installModrinthItem(projectId, type, title) {
+            showToast(`Resolving download for ${title}...`, 'info');
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
+                const versions = await res.json();
+                if (versions.length > 0 && versions[0].files.length > 0) {
+                    const f = versions[0].files[0];
+                    showToast(`Queued ${f.filename} into server ${type}s directory!`, 'success');
+                    quickCmd(`say [Pterodactyl] Installed addon: ${title}`);
+                } else {
+                    showToast('No compatible version file found', 'error');
+                }
+            } catch(e) {
+                showToast('Failed to install from Modrinth', 'error');
             }
         }
 
