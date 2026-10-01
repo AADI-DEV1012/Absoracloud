@@ -45,7 +45,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'absoracloud-api', version: '2.0.0' });
 });
 
-// ── Service Routes ──
+// ── API Router (/api/*) & Direct Routes ──
+const apiRouter = express.Router();
+apiRouter.use('/auth',      authRouter);
+apiRouter.use('/mc',        mcRouter);
+apiRouter.use('/vps',       vpsRouter);
+apiRouter.use('/devbox',    devboxRouter);
+apiRouter.use('/webhost',   webhostRouter);
+apiRouter.use('/plans',     plansRouter);
+apiRouter.use('/admin',     adminRouter);
+apiRouter.use('/worker',    workerRouter);
+apiRouter.use('/community', communityRouter);
+
+app.use('/api', apiRouter);
+
+// Direct root route aliases for backward compatibility
 app.use('/auth',      authRouter);
 app.use('/mc',        mcRouter);
 app.use('/vps',       vpsRouter);
@@ -56,7 +70,16 @@ app.use('/admin',     adminRouter);
 app.use('/worker',    workerRouter);
 app.use('/community', communityRouter);
 
-import { startWatchdog } from './services/watchdog.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const webDir = path.resolve(__dirname, '../../web');
+
+// Serve static web app and Pterodactyl console
+app.use(express.static(webDir));
+app.use(express.static(path.resolve(__dirname, '../../../')));
 
 // ── Error Handler ──
 app.use(errorHandler);
