@@ -5,7 +5,7 @@ import { Router } from 'express';
 import { requireAuth }    from '../middleware/auth.js';
 import { requireQuota }   from '../middleware/quota.js';
 import { launchLimiter }  from '../middleware/abuse_guard.js';
-import { triggerWorkflow } from '../services/github_actions.js';
+
 import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
 import { redisCmd, redisParseHash }       from '../shared/redis.js';
 import { getPlan }                        from '../shared/plans.js';
@@ -113,17 +113,20 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
         msg: 'VPS assigned to active runner — launching container...'
       });
     } else {
-      // Slow path: spin up runner via GitHub Actions
-      await triggerWorkflow('vps_runner.yml', { 
+      // No runner has capacity — push to global VPS task queue
+      // (the persistent bare-metal daemon polls vps:tasks)
+      await redisCmd('RPUSH', 'vps:tasks', JSON.stringify({
+        action: 'start_vps',
         session_key: sessionKey,
-        plan: req.user.plan 
-      });
+        plan: req.user.plan,
+        timeout_seconds: Math.floor(plan.vps_hours_week / 7 * 3600)
+      }));
       res.json({ 
         status: 'queued', 
         session_key: sessionKey, 
         plan: req.user.plan, 
         expires: expiresAt,
-        msg: 'Spinning up dedicated runner environment...' 
+        msg: 'VPS container queued — launching shortly...' 
       });
     }
   } catch (e) {
@@ -175,8 +178,8 @@ vpsRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       return res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching on active runner...' });
     }
 
-    await triggerWorkflow('vps_runner.yml', { session_key: newSessionKey, plan: req.user.plan });
-    res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching fresh VPS runner...' });
+    await redisCmd('RPUSH', 'vps:tasks', JSON.stringify({ action: 'start_vps', session_key: newSessionKey, plan: req.user.plan, timeout_seconds: 14400 }));
+    res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching VPS container...' });
   } catch (e) {
     console.error('VPS relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-launch VPS' });

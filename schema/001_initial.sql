@@ -63,19 +63,18 @@ CREATE TABLE IF NOT EXISTS runners (
 -- ── Plan Definitions ──
 CREATE TABLE IF NOT EXISTS plan_definitions (
     plan_key        TEXT PRIMARY KEY,
-    mc_hours_week   INTEGER DEFAULT 6,
     vps_hours_week  INTEGER DEFAULT 4,
     devbox_gpu_min  INTEGER DEFAULT 30,
     webhost_sites   INTEGER DEFAULT 1,
-    mc_ram_mb       INTEGER DEFAULT 1024,
-    vps_ram_mb      INTEGER DEFAULT 512,
+    vps_ram_mb      INTEGER DEFAULT 2048,
+    storage_gb      INTEGER DEFAULT 5,
     priority        INTEGER DEFAULT 0
 );
 
 -- Seed default plans
-INSERT OR IGNORE INTO plan_definitions (plan_key, mc_hours_week, vps_hours_week, devbox_gpu_min, webhost_sites, mc_ram_mb, vps_ram_mb, priority)
+INSERT OR IGNORE INTO plan_definitions (plan_key, vps_hours_week, devbox_gpu_min, webhost_sites, vps_ram_mb, storage_gb, priority)
 VALUES
-    ('free',       6,  4,  30,  1, 1024,  2048,  0),
-    ('basic',      12, 10, 120, 3, 2048,  4096,  1),
-    ('pro',        24, 20, 240, 5, 4096,  8192,  2),
-    ('enterprise', 48, 40, 480, 10, 8192, 16384, 3);
+    ('free',       4,  30,  1,  2048,  5,   0),
+    ('basic',      10, 120, 3,  4096,  25,  1),
+    ('pro',        20, 240, 5,  8192,  75,  2),
+    ('enterprise', 40, 480, 10, 16384, 200, 3);

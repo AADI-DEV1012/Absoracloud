@@ -376,24 +376,24 @@
                     </button>
                 </div>
 
-                <!-- Minecraft Hosting -->
+                <!-- Cloud Storage -->
                 <div class="spec-card text-left p-6 flex flex-col justify-between">
                     <div>
                         <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-primary text-base mb-4">
-                            <i class="fa-solid fa-cube"></i>
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
                         </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">Minecraft Server Engine</h3>
+                        <h3 class="font-heading font-bold text-lg text-primary">High-Speed Cloud Storage</h3>
                         <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            High-tickrate Paper & Fabric game servers with Aikar's optimized JVM garbage collection, automated world backups, and low-latency ports.
+                            Encrypted, high-speed object storage drive with instant public download links, rich media previews, file categorization, and generous bandwidth.
                         </p>
                         <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">1GB - 8GB RAM</span>
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Paper / Fabric</span>
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Auto Backup</span>
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">5GB - 200GB Storage</span>
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Direct CDN Links</span>
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Instant Preview</span>
                         </div>
                     </div>
-                    <button onclick="navigateTo('dashboard', 'mc')" class="mt-6 text-xs font-bold text-primary hover:underline flex items-center gap-1.5">
-                        Start Minecraft Server <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    <button onclick="navigateTo('dashboard', 'storage')" class="mt-6 text-xs font-bold text-primary hover:underline flex items-center gap-1.5">
+                        Open Cloud Drive <i class="fa-solid fa-arrow-right text-[10px]"></i>
                     </button>
                 </div>
 
@@ -649,9 +649,10 @@
                 <span class="ml-auto text-[10px] bg-neutral-200 text-neutral-800 px-1.5 py-0.5 rounded font-bold">Sliced</span>
             </button>
 
-            <button onclick="switchDashboardTab('mc')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
-                <i class="fa-solid fa-cube text-sm w-4"></i>
-                <span>Minecraft Hosting</span>
+            <button onclick="switchDashboardTab('storage')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">
+                <i class="fa-solid fa-cloud-arrow-up text-sm w-4"></i>
+                <span>Cloud Storage</span>
+                <span class="ml-auto text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">Drive</span>
             </button>
 
             <button onclick="switchDashboardTab('devbox')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100">

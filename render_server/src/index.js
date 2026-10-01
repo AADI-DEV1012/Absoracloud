@@ -5,7 +5,7 @@ import express from 'express';
 import cors from 'cors';
 
 import { authRouter }      from './routes/auth.js';
-import { mcRouter }        from './routes/mc.js';
+import { storageRouter }   from './routes/storage.js';
 import { vpsRouter }       from './routes/vps.js';
 import { devboxRouter }    from './routes/devbox.js';
 import { webhostRouter }   from './routes/webhost.js';
@@ -95,9 +95,23 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
-// ── Service Routes ──
+// ── API Router (/api/*) & Direct Routes ──
+const apiRouter = express.Router();
+apiRouter.use('/auth',      authRouter);
+apiRouter.use('/storage',   storageRouter);
+apiRouter.use('/vps',       vpsRouter);
+apiRouter.use('/devbox',    devboxRouter);
+apiRouter.use('/webhost',   webhostRouter);
+apiRouter.use('/plans',     plansRouter);
+apiRouter.use('/admin',     adminRouter);
+apiRouter.use('/worker',    workerRouter);
+apiRouter.use('/community', communityRouter);
+
+app.use('/api', apiRouter);
+
+// Direct root route aliases for backward compatibility
 app.use('/auth',      authRouter);
-app.use('/mc',        mcRouter);
+app.use('/storage',   storageRouter);
 app.use('/vps',       vpsRouter);
 app.use('/devbox',    devboxRouter);
 app.use('/webhost',   webhostRouter);
@@ -106,7 +120,16 @@ app.use('/admin',     adminRouter);
 app.use('/worker',    workerRouter);
 app.use('/community', communityRouter);
 
-import { startWatchdog } from './services/watchdog.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const webDir = path.resolve(__dirname, '../../apps/web');
+
+// Serve static web app and Pterodactyl console
+app.use(express.static(webDir));
+app.use(express.static(path.resolve(__dirname, '../..')));
 
 // ── Error Handler ──
 app.use(errorHandler);

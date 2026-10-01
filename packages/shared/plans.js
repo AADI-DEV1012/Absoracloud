@@ -4,36 +4,33 @@ export const PLANS = {
   free: {
     name: 'Free',
     price: 0,
-    mc_hours_week: 6,
-    mc_ram_mb: 1024,
+    storage_gb: 5,
     vps_hours_week: 4,
     vps_cpu: 0.5,
     vps_ram_mb: 2048,
     vps_slots: 1,
     devbox_gpu_min: 30,
     webhost_sites: 1,
-    file_manager: false,
+    file_manager: true,
     priority: 0,
   },
   basic: {
     name: 'Basic',
     price: 99,
-    mc_hours_week: 12,
-    mc_ram_mb: 2048,
+    storage_gb: 25,
     vps_hours_week: 10,
     vps_cpu: 1,
     vps_ram_mb: 4096,
     vps_slots: 2,
     devbox_gpu_min: 120,
     webhost_sites: 3,
-    file_manager: false,
+    file_manager: true,
     priority: 1,
   },
   pro: {
     name: 'Pro',
     price: 299,
-    mc_hours_week: 24,
-    mc_ram_mb: 4096,
+    storage_gb: 75,
     vps_hours_week: 20,
     vps_cpu: 2,
     vps_ram_mb: 8192,
@@ -46,8 +43,7 @@ export const PLANS = {
   enterprise: {
     name: 'Enterprise',
     price: 799,
-    mc_hours_week: 48,
-    mc_ram_mb: 8192,
+    storage_gb: 200,
     vps_hours_week: 40,
     vps_cpu: 4,
     vps_ram_mb: 16384,
@@ -66,11 +62,11 @@ export function getPlan(key) {
 export function getPlanLimits(planKey, service) {
   const p = getPlan(planKey);
   switch (service) {
-    case 'mc':     return { weekly_seconds: p.mc_hours_week * 3600, ram_mb: p.mc_ram_mb };
-    case 'vps':    return { weekly_seconds: p.vps_hours_week * 3600, cpu: p.vps_cpu, ram_mb: p.vps_ram_mb, slots: p.vps_slots };
-    case 'devbox': return { weekly_seconds: p.devbox_gpu_min * 60 };
-    case 'webhost':return { max_sites: p.webhost_sites };
-    default:       return {};
+    case 'storage': return { storage_gb: p.storage_gb };
+    case 'vps':     return { weekly_seconds: p.vps_hours_week * 3600, cpu: p.vps_cpu, ram_mb: p.vps_ram_mb, slots: p.vps_slots };
+    case 'devbox':  return { weekly_seconds: p.devbox_gpu_min * 60 };
+    case 'webhost': return { max_sites: p.webhost_sites };
+    default:        return {};
   }
 }
 

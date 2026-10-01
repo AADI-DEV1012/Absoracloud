@@ -5,7 +5,7 @@ import express from 'express';
 import cors from 'cors';
 
 import { authRouter }      from './routes/auth.js';
-import { mcRouter }        from './routes/mc.js';
+import { storageRouter }   from './routes/storage.js';
 import { vpsRouter }       from './routes/vps.js';
 import { devboxRouter }    from './routes/devbox.js';
 import { webhostRouter }   from './routes/webhost.js';
@@ -29,8 +29,8 @@ app.use(cors({
   origin: (origin, callback) => callback(null, true),
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Force no-cache headers on all dynamic API endpoints
 app.use((req, res, next) => {
@@ -48,7 +48,7 @@ app.get('/health', (req, res) => {
 // ── API Router (/api/*) & Direct Routes ──
 const apiRouter = express.Router();
 apiRouter.use('/auth',      authRouter);
-apiRouter.use('/mc',        mcRouter);
+apiRouter.use('/storage',   storageRouter);
 apiRouter.use('/vps',       vpsRouter);
 apiRouter.use('/devbox',    devboxRouter);
 apiRouter.use('/webhost',   webhostRouter);
@@ -61,7 +61,7 @@ app.use('/api', apiRouter);
 
 // Direct root route aliases for backward compatibility
 app.use('/auth',      authRouter);
-app.use('/mc',        mcRouter);
+app.use('/storage',   storageRouter);
 app.use('/vps',       vpsRouter);
 app.use('/devbox',    devboxRouter);
 app.use('/webhost',   webhostRouter);

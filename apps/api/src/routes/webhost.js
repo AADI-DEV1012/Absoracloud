@@ -7,7 +7,7 @@ import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
 import { redisCmd, redisParseHash }       from '../shared/redis.js';
 import { getPlan }                        from '../shared/plans.js';
 import { deploySiteToGradioHost, stopSiteOnGradioHost } from '../services/huggingface.js';
-import { triggerWorkflow } from '../services/github_actions.js';
+
 import crypto from 'crypto';
 
 export const webhostRouter = Router();
@@ -71,19 +71,8 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
       plan: req.user.plan,
     });
 
-    // If no runner is currently online, spin up one via GitHub Actions
-    if (!runners || runners.length === 0) {
-      try {
-        await triggerWorkflow('webhost_runner.yml', {
-          session_key: sessionKey,
-          site_name: site_name,
-          repo_url: repo_url,
-          plan: req.user.plan,
-        });
-      } catch (err) {
-        console.warn('Could not dispatch webhost_runner.yml workflow:', err.message);
-      }
-    }
+    // Webhost daemon is always-on — tasks are dispatched via deploySiteToGradioHost()
+    // which pushes to the webhost:tasks Redis queue.
 
     res.json({
       status: 'deploying',
@@ -132,18 +121,7 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
       plan: req.user.plan,
     });
 
-    if (!runners || runners.length === 0) {
-      try {
-        await triggerWorkflow('webhost_runner.yml', {
-          session_key: newSessionKey,
-          site_name: cfg.site_name,
-          repo_url: cfg.repo_url,
-          plan: req.user.plan,
-        });
-      } catch (err) {
-        console.warn('Could not dispatch webhost_runner.yml workflow:', err.message);
-      }
-    }
+    // Webhost daemon is always-on — tasks already dispatched via deploySiteToGradioHost().
 
     res.json({
       status: 'deploying',
