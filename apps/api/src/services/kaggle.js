@@ -146,16 +146,22 @@ def redis_cmd(*args):
     return r.json().get("result")
 
 def report_url(url):
-    redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
-    requests.post(f"{API_URL}/api/worker/heartbeat",
-        json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-        headers={"X-Worker-Secret": WORKER_SECRET})
+    try:
+        redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
+    except Exception as re:
+        print("redis error:", re)
+    try:
+        requests.post(f"{API_URL}/api/worker/session_update",
+            json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
+            headers={"X-Worker-Secret": WORKER_SECRET})
+    except Exception as he:
+        print("api update error:", he)
 
-# Install ttyd for browser terminal
+# Install ttyd for browser terminal (-W for writable terminal)
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
 subprocess.Popen(["bash", "-c",
     "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    "&& chmod +x /usr/local/bin/ttyd && ttyd -p 7860 bash"
+    "&& chmod +x /usr/local/bin/ttyd && ttyd -W -p 7860 bash"
 ])
 
 # Install cloudflared for tunnel
@@ -165,19 +171,20 @@ subprocess.Popen(["bash", "-c",
     "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf.log"
 ])
 
-# Wait for tunnel URL and report
-time.sleep(15)
-for _ in range(30):
+# Wait for tunnel URL and report (poll every 3s up to 60 times)
+for _ in range(60):
+    time.sleep(3)
     try:
-        log = open("/tmp/cf.log").read()
-        import re
-        urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
-        if urls:
-            report_url(urls[0])
-            print(f"✅ DevBox live: {urls[0]}")
-            break
-    except: pass
-    time.sleep(5)
+        if os.path.exists("/tmp/cf.log"):
+            log = open("/tmp/cf.log").read()
+            import re
+            urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
+            if urls:
+                report_url(urls[0])
+                print(f"✅ DevBox live: {urls[0]}")
+                break
+    except Exception as e:
+        print("devbox poll error:", e)
 
 # Keep alive with heartbeats
 while True:
@@ -216,17 +223,23 @@ def redis_cmd(*args):
     return r.json().get("result")
 
 def report_url(url):
-    redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
-    requests.post(f"{API_URL}/api/worker/heartbeat",
-        json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-        headers={"X-Worker-Secret": WORKER_SECRET})
+    try:
+        redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
+    except Exception as re:
+        print("redis error:", re)
+    try:
+        requests.post(f"{API_URL}/api/worker/session_update",
+            json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
+            headers={"X-Worker-Secret": WORKER_SECRET})
+    except Exception as he:
+        print("api update error:", he)
 
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
 
-# Install ttyd (browser terminal) on CPU runtime
+# Install ttyd (browser terminal) on CPU runtime (-W for writable terminal)
 subprocess.Popen(["bash", "-c",
     "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    "&& chmod +x /usr/local/bin/ttyd && ttyd -p 7860 bash"
+    "&& chmod +x /usr/local/bin/ttyd && ttyd -W -p 7860 bash"
 ])
 
 # Cloudflare tunnel
@@ -236,17 +249,19 @@ subprocess.Popen(["bash", "-c",
     "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf_vps.log"
 ])
 
-time.sleep(20)
-for _ in range(30):
+# Wait for tunnel URL and report (poll every 3s up to 60 times)
+for _ in range(60):
+    time.sleep(3)
     try:
-        log = open("/tmp/cf_vps.log").read()
-        urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
-        if urls:
-            report_url(urls[0])
-            print(f"✅ VPS live: {urls[0]}")
-            break
-    except: pass
-    time.sleep(5)
+        if os.path.exists("/tmp/cf_vps.log"):
+            log = open("/tmp/cf_vps.log").read()
+            urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
+            if urls:
+                report_url(urls[0])
+                print(f"✅ VPS live: {urls[0]}")
+                break
+    except Exception as e:
+        print("vps poll error:", e)
 
 # Keep alive with heartbeats, respect kill signal and timeout
 start = time.time()

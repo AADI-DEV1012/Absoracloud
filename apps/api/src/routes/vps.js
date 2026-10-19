@@ -1,4 +1,4 @@
-﻿// ── VPS Routes — V3 Architecture (Kaggle CPU-only) ──
+// ── VPS Routes — V3 Architecture (Kaggle CPU-only) ──
 // POST /vps/launch, GET /vps/status, POST /vps/stop, GET /vps/check_session, POST /vps/relaunch, DELETE /vps/instance/:session_key
 
 import { Router } from 'express';
@@ -186,10 +186,10 @@ vpsRouter.get('/check_session', requireAuth, async (req, res) => {
       return res.status(404).json({ status: 'not_found', msg: 'Instance not found' });
     }
 
-    // Auto-mark timed out pending (90s timeout)
+    // Auto-mark timed out pending (300s / 5m timeout for Kaggle boot)
     if (inst.status === 'pending') {
       const createdTime = new Date(inst.created_at).getTime();
-      if (Date.now() - createdTime > 90000) {
+      if (Date.now() - createdTime > 300000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
         await redisCmd('HSET', `session:${session_id}`, 'status', 'failed', 'error', 'Runner startup timed out or failed to connect.');
         return res.json({ status: 'failed', msg: 'Runner startup timed out or failed to connect.' });
@@ -215,6 +215,25 @@ vpsRouter.get('/status', requireAuth, async (req, res) => {
       "SELECT * FROM instances WHERE user_id = ? AND service = 'vps' AND status != 'dismissed' ORDER BY created_at DESC LIMIT 10",
       [req.user.sub]
     );
+
+    for (const inst of instances) {
+      if (inst.public_url && inst.status === 'active') continue;
+      const rawData = await redisCmd('HGETALL', `session:${inst.session_key}`);
+      const data = redisParseHash(rawData);
+      if (data && (data.status === 'active' || data.tunnel_url)) {
+        if (data.tunnel_url) {
+          inst.public_url = data.tunnel_url;
+        }
+        if (data.status) {
+          inst.status = data.status;
+        }
+        await executeD1(
+          "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url), stopped_at = NULL WHERE session_key = ?",
+          [inst.status, inst.public_url || null, inst.session_key]
+        );
+      }
+    }
+
     res.json({ status: 'success', instances });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch status' });

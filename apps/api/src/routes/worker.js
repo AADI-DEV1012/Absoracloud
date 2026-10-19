@@ -1,4 +1,4 @@
-﻿// ── Worker Routes ──
+// ── Worker Routes ──
 // Called by runners (MC daemon, VPS server, DevBox kernel) to register and heartbeat.
 
 import { Router } from 'express';
@@ -34,8 +34,23 @@ workerRouter.post('/register', async (req, res) => {
 
 // ── Heartbeat ──
 workerRouter.post('/heartbeat', async (req, res) => {
-  const { runner_id, active_count = 0 } = req.body;
-  if (!runner_id) return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+  const { runner_id, active_count = 0, session_key, status, tunnel_url } = req.body;
+
+  // Handle session updates sent to /heartbeat
+  if (session_key) {
+    if (status || tunnel_url) {
+      await executeD1(
+        "UPDATE instances SET status = COALESCE(?, status), public_url = COALESCE(?, public_url) WHERE session_key = ?",
+        [status || 'active', tunnel_url || null, session_key]
+      );
+      if (tunnel_url) {
+        await redisCmd('HSET', `session:${session_key}`, 'status', status || 'active', 'tunnel_url', tunnel_url);
+      }
+    }
+    return res.json({ status: 'success', msg: 'Session heartbeat registered' });
+  }
+
+  if (!runner_id) return res.status(400).json({ status: 'error', msg: 'runner_id or session_key required' });
 
   await executeD1(
     "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ? WHERE id = ?",

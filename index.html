@@ -2152,7 +2152,7 @@
             let attempts = 0;
             activePollTimer = setInterval(async () => {
                 attempts++;
-                if (attempts > 30) {
+                if (attempts > 100) {
                     clearInterval(activePollTimer);
                     return;
                 }
