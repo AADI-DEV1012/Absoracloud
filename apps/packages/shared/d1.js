@@ -62,3 +62,18 @@ export async function d1QueryOne(sql, params = []) {
   const rows = await queryD1(sql, params);
   return rows[0] || null;
 }
+
+export async function ensureSchemaMigrations() {
+  try {
+    const cols = await queryD1("PRAGMA table_info(instances);");
+    if (cols && !cols.some(c => c.name === 'runner_id')) {
+      await executeD1("ALTER TABLE instances ADD COLUMN runner_id TEXT;");
+      console.log('✅ Auto-migration: Added runner_id column to instances table');
+    }
+    await executeD1(
+      "CREATE TABLE IF NOT EXISTS runners (id TEXT PRIMARY KEY, type TEXT, service TEXT, capacity INTEGER DEFAULT 1, active_count INTEGER DEFAULT 0, status TEXT DEFAULT 'ready', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);"
+    );
+  } catch (err) {
+    console.warn('Auto-migration notice:', err.message);
+  }
+}
