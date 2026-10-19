@@ -1,9 +1,9 @@
-// ── AbsoraCloud Automated Watchdog / Reaper ──
+﻿// ── AbsoraCloud Automated Watchdog / Reaper ──
 // Periodically checks all active instances across MC, VPS, DevBox, and WebHost.
 // Enforces plan limits, timeouts, runner health, and disconnects failed/abandoned sessions.
 
-import { queryD1, executeD1 } from '../../../packages/shared/d1.js';
-import { redisCmd }           from '../../../packages/shared/redis.js';
+import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
+import { redisCmd }           from '../../../../packages/shared/redis.js';
 
 let watchdogInterval = null;
 

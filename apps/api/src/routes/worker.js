@@ -1,10 +1,10 @@
-// ── Worker Routes ──
+﻿// ── Worker Routes ──
 // Called by runners (MC daemon, VPS server, DevBox kernel) to register and heartbeat.
 
 import { Router } from 'express';
 import { requireWorkerAuth } from '../middleware/worker_auth.js';
-import { executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { redisCmd }              from '../../../packages/shared/redis.js';
+import { executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { redisCmd }              from '../../../../packages/shared/redis.js';
 
 export const workerRouter = Router();
 workerRouter.use(requireWorkerAuth);

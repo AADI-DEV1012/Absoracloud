@@ -1,9 +1,9 @@
-// ── AbsoraCloud Realtime WebSocket Multi-Provider Gateway ──
+﻿// ── AbsoraCloud Realtime WebSocket Multi-Provider Gateway ──
 // Multi-provider pool: Pusher + Ably + PieSocket + Scaledrone + Upstash Redis
 // Automatic failover, channel event publishing, and live client connection config.
 
 import crypto from 'crypto';
-import { redisCmd } from '../../../packages/shared/redis.js';
+import { redisCmd } from '../../../../packages/shared/redis.js';
 
 // ── Publish to Pusher REST API ──
 async function publishPusher(channel, event, data) {

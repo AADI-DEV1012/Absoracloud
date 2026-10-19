@@ -1,10 +1,10 @@
-// ── Realtime WebSocket Routes ──
+﻿// ── Realtime WebSocket Routes ──
 // POST /realtime/publish, GET /realtime/config, GET /realtime/events, GET /realtime/status
 
 import { Router } from 'express';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { executeD1, queryD1 } from '../../../packages/shared/d1.js';
-import { redisCmd } from '../../../packages/shared/redis.js';
+import { executeD1, queryD1 } from '../../../../packages/shared/d1.js';
+import { redisCmd } from '../../../../packages/shared/redis.js';
 import { broadcastRealtimeEvent, getClientWebSocketConfig } from '../services/realtime_gateway.js';
 
 export const realtimeRouter = Router();

@@ -1,4 +1,4 @@
-// ── DevBox Routes ──
+﻿// ── DevBox Routes ──
 // POST /devbox/launch, GET /devbox/status, POST /devbox/stop, GET /devbox/gpu_status, GET /devbox/check_session, POST /devbox/relaunch, DELETE /devbox/instance/:session_key
 
 import { Router } from 'express';
@@ -6,9 +6,9 @@ import { requireAuth }   from '../middleware/auth.js';
 import { requireQuota }  from '../middleware/quota.js';
 import { launchLimiter } from '../middleware/abuse_guard.js';
 import { triggerKaggleKernel, getKernelStatus } from '../services/kaggle.js';
-import { queryD1, executeD1, d1QueryOne }       from '../../../packages/shared/d1.js';
-import { redisCmd, redisParseHash }             from '../../../packages/shared/redis.js';
-import { getPlan }                              from '../../../packages/shared/plans.js';
+import { queryD1, executeD1, d1QueryOne }       from '../../../../packages/shared/d1.js';
+import { redisCmd, redisParseHash }             from '../../../../packages/shared/redis.js';
+import { getPlan }                              from '../../../../packages/shared/plans.js';
 import crypto from 'crypto';
 
 export const devboxRouter = Router();

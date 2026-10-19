@@ -1,4 +1,4 @@
-// ── VPS Routes — V3 Architecture (Kaggle CPU-only) ──
+﻿// ── VPS Routes — V3 Architecture (Kaggle CPU-only) ──
 // POST /vps/launch, GET /vps/status, POST /vps/stop, GET /vps/check_session, POST /vps/relaunch, DELETE /vps/instance/:session_key
 
 import { Router } from 'express';
@@ -6,9 +6,9 @@ import { requireAuth }    from '../middleware/auth.js';
 import { requireQuota }   from '../middleware/quota.js';
 import { launchLimiter }  from '../middleware/abuse_guard.js';
 
-import { queryD1, executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { redisCmd, redisParseHash }       from '../../../packages/shared/redis.js';
-import { getPlan }                        from '../../../packages/shared/plans.js';
+import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { redisCmd, redisParseHash }       from '../../../../packages/shared/redis.js';
+import { getPlan }                        from '../../../../packages/shared/plans.js';
 import { triggerVPSKernel }               from '../services/kaggle.js';
 import crypto from 'crypto';
 

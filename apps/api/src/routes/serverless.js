@@ -1,4 +1,4 @@
-// ── Serverless Functions Routes (Cloudflare Workers) ──
+﻿// ── Serverless Functions Routes (Cloudflare Workers) ──
 // POST /serverless/deploy   — Deploy a new function
 // GET  /serverless/status   — List all user functions
 // PUT  /serverless/update   — Update existing function code
@@ -8,9 +8,9 @@
 import { Router } from 'express';
 import { requireAuth }   from '../middleware/auth.js';
 import { launchLimiter } from '../middleware/abuse_guard.js';
-import { queryD1, executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { redisCmd }      from '../../../packages/shared/redis.js';
-import { getPlan }       from '../../../packages/shared/plans.js';
+import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { redisCmd }      from '../../../../packages/shared/redis.js';
+import { getPlan }       from '../../../../packages/shared/plans.js';
 import {
   deployFunction,
   deleteFunction,

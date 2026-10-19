@@ -1,10 +1,10 @@
-// ── Auth Routes ──
+﻿// ── Auth Routes ──
 // POST /auth/login, /auth/register, /auth/logout, GET /auth/me
 
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { queryD1, executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { signToken }                      from '../../../packages/shared/jwt.js';
+import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { signToken }                      from '../../../../packages/shared/jwt.js';
 import { requireAuth }                    from '../middleware/auth.js';
 import { authLimiter }                    from '../middleware/abuse_guard.js';
 

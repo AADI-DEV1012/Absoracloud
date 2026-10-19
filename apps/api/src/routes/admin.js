@@ -1,8 +1,8 @@
-// ── Admin Routes ──
+﻿// ── Admin Routes ──
 import { Router } from 'express';
 import { requireAuth }  from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin_auth.js';
-import { queryD1, executeD1 } from '../../../packages/shared/d1.js';
+import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireAdmin);

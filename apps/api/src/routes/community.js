@@ -1,7 +1,7 @@
-// ── Community Routes ──
+﻿// ── Community Routes ──
 import { Router } from 'express';
 import { requireAuth }  from '../middleware/auth.js';
-import { queryD1, executeD1 } from '../../../packages/shared/d1.js';
+import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 
 export const communityRouter = Router();
 

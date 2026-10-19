@@ -1,4 +1,4 @@
-// ── Cloud Storage Route ──
+﻿// ── Cloud Storage Route ──
 // Secure, high-speed object storage for AbsoraCloud users.
 // Supports file upload, download, streaming preview, direct shareable URLs, and plan quotas.
 
@@ -7,9 +7,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.js';
-import { executeD1, queryD1 } from '../../../packages/shared/d1.js';
-import { redisCmd } from '../../../packages/shared/redis.js';
-import { getPlan } from '../../../packages/shared/plans.js';
+import { executeD1, queryD1 } from '../../../../packages/shared/d1.js';
+import { redisCmd } from '../../../../packages/shared/redis.js';
+import { getPlan } from '../../../../packages/shared/plans.js';
 import { uploadMediaToCloudPool } from '../services/media_cdn.js';
 
 export const storageRouter = Router();

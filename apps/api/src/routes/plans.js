@@ -1,8 +1,8 @@
-// ── Plans Routes ──
+﻿// ── Plans Routes ──
 import { Router } from 'express';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { PLANS }     from '../../../packages/shared/plans.js';
-import { redisCmd }  from '../../../packages/shared/redis.js';
+import { PLANS }     from '../../../../packages/shared/plans.js';
+import { redisCmd }  from '../../../../packages/shared/redis.js';
 
 export const plansRouter = Router();
 
