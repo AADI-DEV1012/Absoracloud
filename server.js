@@ -1,7 +1,21 @@
 // ── Root Server Entrypoint ──
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
+// Auto-heal missing dependencies if build manager did not link them
+try {
+  const expressPkg = path.resolve('./node_modules/express/package.json');
+  if (!fs.existsSync(expressPkg)) {
+    console.log('⚡ [AbsoraCloud] express not found in node_modules, running npm install...');
+    execSync('npm install --prefer-offline --no-audit', { stdio: 'inherit' });
+    console.log('✅ [AbsoraCloud] Dependencies installed successfully');
+  }
+} catch (e) {
+  console.warn('⚠️ [AbsoraCloud] Auto-install notice:', e.message);
+}
+
+// Auto-load .env / .env.V3 from current directory
 function loadEnvFile(filePath) {
   try {
     if (fs.existsSync(filePath)) {
@@ -25,7 +39,6 @@ function loadEnvFile(filePath) {
   } catch (e) {}
 }
 
-// Auto-load .env / .env.V3 from current directory
 loadEnvFile(path.resolve('./.env.V3'));
 loadEnvFile(path.resolve('./.env'));
 loadEnvFile(path.resolve('./render_server/.env'));
@@ -53,5 +66,5 @@ if (!process.env.JWT_SECRET) {
 if (!process.env.GITHUB_OWNER) process.env.GITHUB_OWNER = 'lunarhost520';
 if (!process.env.GITHUB_REPO)  process.env.GITHUB_REPO  = 'Absoracloud';
 
-// Boot AbsoraCloud API Gateway
-import './apps/api/src/index.js';
+// Boot AbsoraCloud API Gateway via dynamic import
+await import('./apps/api/src/index.js');
