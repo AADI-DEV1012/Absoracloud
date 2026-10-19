@@ -2,8 +2,8 @@ services:
   - type: web
     name: absoracloud-api
     runtime: node
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm ci --production=false
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -38,6 +38,38 @@ services:
       - key: KAGGLE_USERNAME
         sync: false
       - key: KAGGLE_KEY
+        sync: false
+      - key: PUSHER_APP_ID
+        sync: false
+      - key: PUSHER_KEY
+        sync: false
+      - key: PUSHER_SECRET
+        sync: false
+      - key: PUSHER_CLUSTER
+        sync: false
+      - key: ABLY_API_KEY
+        sync: false
+      - key: PIESOCKET_API_KEY
+        sync: false
+      - key: PIESOCKET_CLUSTER_ID
+        sync: false
+      - key: PIESOCKET_SECRET_KEY
+        sync: false
+      - key: SCALEDRONE_CHANNEL_ID
+        sync: false
+      - key: SCALEDRONE_SECRET_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
         sync: false
       - key: GITHUB_OWNER
         value: lunarhost520
