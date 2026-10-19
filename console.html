@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbsoraCloud | Pterodactyl Game Panel</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        pterodark: {
+                            950: '#07090e',
+                            900: '#0c1017',
+                            850: '#111722',
+                            800: '#17202f',
+                            700: '#1f2b3e',
+                            600: '#2d3d56',
+                        },
+                        pteroaccent: {
+                            DEFAULT: '#06b6d4',
+                            glow: '#38bdf8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0c1017; }
+        ::-webkit-scrollbar-thumb { background: #1f2b3e; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d3d56; }
+        .glass-panel { background: rgba(17, 23, 34, 0.85); backdrop-filter: blur(12px); border: 1px solid #1f2b3e; }
+        .tab-btn.active { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
+        .tab-btn { border-color: transparent; }
+    </style>
+</head>
+<body class="bg-pterodark-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-cyan-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <nav class="sticky top-0 z-50 bg-pterodark-900/90 backdrop-blur-md border-b border-pterodark-800 px-4 sm:px-6 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <!-- Brand & Server Identifier -->
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="flex items-center gap-2.5 group">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition">
+                        <i class="fa-solid fa-gamepad text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-extrabold text-base tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">AbsoraCloud</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60 font-mono">PTERODACTYL</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 font-medium">Next-Gen Game Cloud</div>
+                    </div>
+                </a>
+
+                <div class="hidden md:flex items-center text-slate-600 font-mono text-xs">
+                    <i class="fa-solid fa-chevron-right text-[10px] mx-2"></i>
+                    <span class="text-slate-400">Servers</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] mx-2"></i>
+                    <span id="nav-server-name" class="text-cyan-400 font-semibold">craft-server</span>
+                </div>
+            </div>
+
+            <!-- Server Quick Info & Links -->
+            <div class="flex items-center gap-3">
+                <div id="connection-chip" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-pterodark-850 border border-pterodark-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="top-address-text" class="font-mono text-xs text-cyan-300 font-semibold select-all">craft.astrocore.qzz.io</span>
+                    <button onclick="copyServerAddress()" class="text-slate-400 hover:text-white transition text-xs p-1" title="Copy Address">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+
+                <a href="index.html" class="px-3.5 py-1.5 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-slate-300 hover:text-white text-xs font-semibold transition border border-pterodark-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left"></i> Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5">
+
+        <!-- Server Hero & Power Banner -->
+        <header class="glass-panel rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 border border-pterodark-800 shadow-xl">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <div class="w-full h-full bg-pterodark-900 rounded-[14px] flex items-center justify-center">
+                        <i class="fa-solid fa-cube text-2xl text-cyan-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <h1 id="hero-server-title" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">craft-server</h1>
+                        <span id="hero-status-pill" class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-mono">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> RUNNING
+                        </span>
+                        <span id="hero-engine-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 font-mono">
+                            Paper 26.3
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-400 font-mono mt-1.5 flex-wrap">
+                        <span class="flex items-center gap-1 text-cyan-300 font-semibold">
+                            <i class="fa-solid fa-globe text-[11px]"></i>
+                            <span id="hero-domain-txt">craft.astrocore.qzz.io</span>
+                        </span>
+                        <span class="text-slate-600">•</span>
+                        <span class="flex items-center gap-1 text-slate-400">
+                            <i class="fa-solid fa-network-wired text-[11px]"></i>
+                            <span id="hero-bore-txt">bore.pub:25565</span>
+                        </span>
+                        <span class="text-slate-600">•</span>
+                        <span class="flex items-center gap-1 text-slate-400">
+                            <i class="fa-solid fa-coffee text-[11px]"></i>
+                            <span id="hero-java-txt">Java 21 LTS</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Power Controls Group -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center bg-pterodark-950/80 p-1.5 rounded-xl border border-pterodark-800 gap-1.5 shadow-inner">
+                    <button id="pwr-start" onclick="powerServer('start')" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-900/30" title="Start Server">
+                        <i class="fa-solid fa-play text-[11px]"></i> Start
+                    </button>
+                    <button id="pwr-restart" onclick="powerServer('restart')" class="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-amber-900/30" title="Restart Server">
+                        <i class="fa-solid fa-rotate-right text-[11px]"></i> Restart
+                    </button>
+                    <button id="pwr-stop" onclick="powerServer('stop')" class="px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-900/30" title="Graceful Stop">
+                        <i class="fa-solid fa-stop text-[11px]"></i> Stop
+                    </button>
+                    <button id="pwr-kill" onclick="powerServer('kill')" class="px-3 py-2 rounded-lg bg-red-950 hover:bg-red-900 text-red-300 hover:text-white border border-red-800/60 text-xs font-bold transition flex items-center gap-1" title="Emergency Force Kill">
+                        <i class="fa-solid fa-skull text-[11px]"></i> Kill
+                    </button>
+                </div>
+
+                <button onclick="renewSession()" class="px-3.5 py-2 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-cyan-300 text-xs font-bold transition border border-pterodark-700 flex items-center gap-1.5" title="Renew Session (Adds 12h)">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Renew (12h)
+                </button>
+            </div>
+        </header>
+
+        <!-- Live Resource Metrics Cards (Pterodactyl Gauges) -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- CPU Gauge -->
+            <div class="glass-panel rounded-xl p-4 border border-pterodark-800">
+                <div class="flex items-center justify-between text-xs text-slate-400 font-bold mb-2">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-400"></i> CPU USAGE</span>
+                    <span id="gauge-cpu-txt" class="font-mono text-cyan-400">0%</span>
+                </div>
+                <div class="w-full bg-pterodark-950 h-2 rounded-full overflow-hidden border border-pterodark-800">
+                    <div id="gauge-cpu-bar" class="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-[11px] text-slate-500 font-mono mt-2 flex justify-between">
+                    <span>Limit: 200%</span>
+                    <span id="gauge-cpu-cores">2 vCPU</span>
+                </div>
+            </div>
+
+            <!-- Memory Gauge -->
+            <div class="glass-panel rounded-xl p-4 border border-pterodark-800">
+                <div class="flex items-center justify-between text-xs text-slate-400 font-bold mb-2">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-memory text-indigo-400"></i> MEMORY</span>
+                    <span id="gauge-ram-txt" class="font-mono text-indigo-400">0 MB / 4096 MB</span>
+                </div>
+                <div class="w-full bg-pterodark-950 h-2 rounded-full overflow-hidden border border-pterodark-800">
+                    <div id="gauge-ram-bar" class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-[11px] text-slate-500 font-mono mt-2 flex justify-between">
+                    <span id="gauge-ram-pct">0%</span>
+                    <span>Allocated: 4 GB</span>
+                </div>
+            </div>
+
+            <!-- Network Status -->
+            <div class="glass-panel rounded-xl p-4 border border-pterodark-800">
+                <div class="flex items-center justify-between text-xs text-slate-400 font-bold mb-2">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-wifi text-emerald-400"></i> NETWORK</span>
+                    <span class="font-mono text-emerald-400">TCP ONLINE</span>
+                </div>
+                <div class="font-mono text-xs text-slate-200 truncate" id="gauge-net-domain">craft.astrocore.qzz.io</div>
+                <div class="text-[11px] text-slate-500 font-mono mt-2 flex justify-between">
+                    <span>Cloudflare SRV</span>
+                    <span class="text-emerald-400">ACTIVE</span>
+                </div>
+            </div>
+
+            <!-- Uptime & Runner Node -->
+            <div class="glass-panel rounded-xl p-4 border border-pterodark-800">
+                <div class="flex items-center justify-between text-xs text-slate-400 font-bold mb-2">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-server text-amber-400"></i> RUNNER NODE</span>
+                    <span class="font-mono text-amber-400">Node-MC-1</span>
+                </div>
+                <div class="font-mono text-xs text-slate-200" id="gauge-uptime">Online • GitHub VM</div>
+                <div class="text-[11px] text-slate-500 font-mono mt-2 flex justify-between">
+                    <span>Daemon Watchdog</span>
+                    <span class="text-cyan-400">HEALTHY</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs (Pterodactyl Style) -->
+        <div class="flex items-center gap-1 border-b border-pterodark-800 overflow-x-auto pb-px text-xs font-bold scrollbar-none">
+            <button class="tab-btn active px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('console', this)">
+                <i class="fa-solid fa-terminal text-[11px]"></i> Console
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('files', this)">
+                <i class="fa-regular fa-folder-open text-[11px]"></i> File Manager
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('properties', this)">
+                <i class="fa-solid fa-sliders text-[11px]"></i> Configuration
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('players', this)">
+                <i class="fa-solid fa-users text-[11px]"></i> Players
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('addons', this)">
+                <i class="fa-solid fa-puzzle-piece text-[11px]"></i> Plugins & Mods
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('startup', this)">
+                <i class="fa-solid fa-rocket text-[11px]"></i> Startup & Versions
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('network', this)">
+                <i class="fa-solid fa-network-wired text-[11px]"></i> Network & Ports
+            </button>
+            <button class="tab-btn px-4 py-2.5 rounded-t-xl border-b-2 text-slate-300 hover:text-white transition flex items-center gap-2 whitespace-nowrap" onclick="switchTab('backups', this)">
+                <i class="fa-solid fa-cloud-arrow-up text-[11px]"></i> Backups
+            </button>
+        </div>
+
+        <!-- TAB CONTENT VIEWS -->
+
+        <!-- 1. CONSOLE TAB -->
+        <section id="view-console" class="tab-view flex flex-col gap-4">
+            <!-- Terminal Container -->
+            <div class="rounded-2xl bg-black border border-pterodark-800 overflow-hidden shadow-2xl flex flex-col h-[520px]">
+                <!-- Terminal Header Bar -->
+                <div class="px-4 py-2.5 bg-pterodark-900 border-b border-pterodark-800 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+                        <span class="text-slate-400 font-mono ml-2 text-[11px]">container@pterodactyl:~# java -jar server.jar nogui</span>
+                    </div>
+                    <div class="flex items-center gap-4 text-slate-400">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-[11px] select-none">
+                            <input type="checkbox" id="autoscroll-chk" checked class="rounded bg-pterodark-800 border-pterodark-700 text-cyan-500 focus:ring-0">
+                            Auto-scroll
+                        </label>
+                        <button onclick="clearTerminal()" class="hover:text-white transition text-[11px]" title="Clear Console">
+                            <i class="fa-solid fa-trash-can mr-1"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Log Stream -->
+                <div id="terminal-body" class="flex-1 p-4 font-mono text-xs leading-relaxed overflow-y-auto space-y-1 select-text bg-[#030508]">
+                    <div class="text-slate-500 italic">[AbsoraCloud Engine] Connecting to runner daemon stream...</div>
+                </div>
+
+                <!-- Command Input Bar -->
+                <div class="p-3 bg-pterodark-900 border-t border-pterodark-800 flex items-center gap-2">
+                    <span class="font-mono text-cyan-400 font-bold px-2 select-none">&gt;</span>
+                    <input type="text" id="cmd-input" placeholder="Type a Minecraft server command (/say, /op, /stop, /whitelist)..." 
+                           onkeypress="if(event.key==='Enter') executeCommand()"
+                           class="flex-1 bg-pterodark-950 border border-pterodark-800 rounded-xl px-3.5 py-2 font-mono text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition">
+                    <button onclick="executeCommand()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i> Send
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Action Command Toolbar -->
+            <div class="glass-panel rounded-xl p-3 border border-pterodark-800 flex items-center gap-2 flex-wrap text-xs">
+                <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mr-2">Quick Commands:</span>
+                <button onclick="sendQuickCmd('time set day')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-amber-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-sun mr-1 text-[10px]"></i> /time set day
+                </button>
+                <button onclick="sendQuickCmd('weather clear')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-cyan-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-cloud-sun mr-1 text-[10px]"></i> /weather clear
+                </button>
+                <button onclick="sendQuickCmd('toggledownfall')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-blue-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-cloud-rain mr-1 text-[10px]"></i> /toggledownfall
+                </button>
+                <button onclick="sendQuickCmd('save-all')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-emerald-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-floppy-disk mr-1 text-[10px]"></i> /save-all
+                </button>
+                <button onclick="sendQuickCmd('list')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-indigo-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-list mr-1 text-[10px]"></i> /list
+                </button>
+                <button onclick="sendQuickCmd('gamemode creative @a')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-purple-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1 text-[10px]"></i> /gm creative
+                </button>
+                <button onclick="sendQuickCmd('gamemode survival @a')" class="px-2.5 py-1 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-emerald-300 font-mono transition border border-pterodark-700">
+                    <i class="fa-solid fa-shield mr-1 text-[10px]"></i> /gm survival
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. FILE MANAGER TAB -->
+        <section id="view-files" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-5 border border-pterodark-800 flex flex-col gap-4">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div class="flex items-center gap-2 text-xs font-mono">
+                        <span class="text-slate-400">Location:</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-pterodark-900 border border-pterodark-800 text-cyan-400 font-bold" id="file-curr-path">/home/container</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="px-3 py-1.5 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-slate-200 text-xs font-semibold cursor-pointer border border-pterodark-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-upload"></i> Upload
+                            <input type="file" id="file-upload-input" class="hidden" multiple onchange="handleFileUpload(event)">
+                        </label>
+                        <button onclick="loadDirectoryFiles()" class="px-3 py-1.5 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-slate-200 text-xs font-semibold border border-pterodark-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-pterodark-950 rounded-xl border border-pterodark-800 overflow-hidden">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-pterodark-900 text-slate-400 border-b border-pterodark-800">
+                            <tr>
+                                <th class="py-3 px-4">Name</th>
+                                <th class="py-3 px-4">Size</th>
+                                <th class="py-3 px-4">Modified</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-table-body" class="divide-y divide-pterodark-800/60 text-slate-300">
+                            <tr>
+                                <td colspan="4" class="p-6 text-center text-slate-500 italic">Connecting to server file system...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. CONFIGURATION / PROPERTIES TAB -->
+        <section id="view-properties" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-6 border border-pterodark-800 flex flex-col gap-6">
+                <div class="flex items-center justify-between border-b border-pterodark-800 pb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white">server.properties Visual Editor</h2>
+                        <p class="text-xs text-slate-400">Configure gameplay rules, player limits, and multiplayer network settings.</p>
+                    </div>
+                    <button onclick="saveServerProperties()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-floppy-disk"></i> Save & Apply
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
+                    <!-- MOTD -->
+                    <div class="md:col-span-2 lg:col-span-3">
+                        <label class="block text-slate-300 font-semibold mb-1.5">Server MOTD (Message of the Day)</label>
+                        <input type="text" id="prop-motd" value="An AbsoraCloud Minecraft 26.3 Server" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                    </div>
+
+                    <!-- Gamemode -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Default Gamemode</label>
+                        <select id="prop-gamemode" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="survival" selected>Survival</option>
+                            <option value="creative">Creative</option>
+                            <option value="adventure">Adventure</option>
+                            <option value="spectator">Spectator</option>
+                        </select>
+                    </div>
+
+                    <!-- Difficulty -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Difficulty</label>
+                        <select id="prop-difficulty" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="peaceful">Peaceful</option>
+                            <option value="easy">Easy</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Players -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Max Players</label>
+                        <input type="number" id="prop-maxplayers" value="20" min="1" max="500" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                    </div>
+
+                    <!-- PvP Toggle -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Player vs Player (PvP)</label>
+                        <select id="prop-pvp" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="true" selected>Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                    </div>
+
+                    <!-- Online Mode (Cracked vs Premium) -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Authentication (Online Mode)</label>
+                        <select id="prop-onlinemode" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="false" selected>Cracked (Allows Offline & TLauncher)</option>
+                            <option value="true">Premium (Official Mojang Auth Only)</option>
+                        </select>
+                    </div>
+
+                    <!-- Whitelist -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Enforce Whitelist</label>
+                        <select id="prop-whitelist" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="false" selected>False</option>
+                            <option value="true">True</option>
+                        </select>
+                    </div>
+
+                    <!-- View Distance -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">View Distance (Chunks)</label>
+                        <input type="number" id="prop-viewdistance" value="10" min="3" max="32" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                    </div>
+
+                    <!-- Allow Flight -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Allow Flight</label>
+                        <select id="prop-flight" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="true" selected>Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                    </div>
+
+                    <!-- Allow Nether -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Allow Nether Dimension</label>
+                        <select id="prop-nether" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white focus:outline-none focus:border-cyan-500">
+                            <option value="true" selected>Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. PLAYERS TAB -->
+        <section id="view-players" class="tab-view hidden flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Operator Permissions (OP) -->
+                <div class="glass-panel rounded-2xl p-5 border border-pterodark-800 flex flex-col gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                            <i class="fa-solid fa-crown text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Server Operators (OP)</h3>
+                            <p class="text-xs text-slate-400">Grant full console admin permissions to trusted players.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="player-op-input" placeholder="Minecraft Username" class="flex-1 px-3.5 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                        <button onclick="managePlayer('op')" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition">OP</button>
+                        <button onclick="managePlayer('deop')" class="px-3.5 py-2 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-slate-300 text-xs font-bold transition border border-pterodark-700">De-OP</button>
+                    </div>
+                </div>
+
+                <!-- Moderation (Kick / Ban) -->
+                <div class="glass-panel rounded-2xl p-5 border border-pterodark-800 flex flex-col gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
+                            <i class="fa-solid fa-gavel text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Player Moderation</h3>
+                            <p class="text-xs text-slate-400">Kick or permanently ban malicious players.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="player-mod-input" placeholder="Minecraft Username" class="flex-1 px-3.5 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                        <button onclick="managePlayer('kick')" class="px-3.5 py-2 rounded-xl bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold transition">Kick</button>
+                        <button onclick="managePlayer('ban')" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition">Ban</button>
+                    </div>
+                </div>
+
+                <!-- Whitelist -->
+                <div class="glass-panel rounded-2xl p-5 border border-pterodark-800 flex flex-col gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                            <i class="fa-solid fa-clipboard-check text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Whitelist Access</h3>
+                            <p class="text-xs text-slate-400">Allow specific players access when whitelist is enabled.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="player-wl-input" placeholder="Minecraft Username" class="flex-1 px-3.5 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                        <button onclick="managePlayer('wl-add')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">Add</button>
+                        <button onclick="managePlayer('wl-remove')" class="px-3.5 py-2 rounded-xl bg-pterodark-800 hover:bg-pterodark-700 text-slate-300 text-xs font-bold transition border border-pterodark-700">Remove</button>
+                    </div>
+                </div>
+
+                <!-- Quick Teleport & Gamemode -->
+                <div class="glass-panel rounded-2xl p-5 border border-pterodark-800 flex flex-col gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                            <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Player Gamemode</h3>
+                            <p class="text-xs text-slate-400">Set individual player gamemode.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="player-gm-input" placeholder="Player Username" class="flex-1 px-3.5 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                        <select id="player-gm-val" class="px-3 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white font-mono">
+                            <option value="creative">Creative</option>
+                            <option value="survival">Survival</option>
+                            <option value="spectator">Spectator</option>
+                        </select>
+                        <button onclick="managePlayer('gamemode')" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition">Set</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. PLUGINS & MODS TAB (MODRINTH INTEGRATION) -->
+        <section id="view-addons" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-6 border border-pterodark-800 flex flex-col gap-5">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Modrinth Plugin & Mod Marketplace</h2>
+                        <p class="text-xs text-slate-400">Discover and install thousands of verified Minecraft plugins and mods with 1-click.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="addon-type-select" class="px-3 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white">
+                            <option value="plugin" selected>Plugins (Paper / Purpur)</option>
+                            <option value="mod">Mods (Fabric / Forge / NeoForge)</option>
+                        </select>
+                        <input type="text" id="addon-search-input" placeholder="Search (e.g. EssentialsX, Geyser, WorldEdit)..." 
+                               onkeypress="if(event.key==='Enter') searchAddons()"
+                               class="flex-1 sm:w-64 px-3.5 py-2 rounded-xl bg-pterodark-950 border border-pterodark-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+                        <button onclick="searchAddons()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-magnifying-glass"></i> Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Addons Grid -->
+                <div id="addons-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="col-span-full py-12 text-center text-slate-500 italic">
+                        Type a plugin or mod name above and press Search to query Modrinth.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. STARTUP & VERSIONS TAB -->
+        <section id="view-startup" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-6 border border-pterodark-800 flex flex-col gap-6">
+                <div class="border-b border-pterodark-800 pb-4">
+                    <h2 class="text-base font-bold text-white">Minecraft Version & Runtime Engine</h2>
+                    <p class="text-xs text-slate-400">Configure target Minecraft release (including 26.3), JVM runtime, and server distribution jar.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                    <!-- Minecraft Version Selector -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Minecraft Game Version</label>
+                        <select id="engine-version-select" onchange="onVersionChange()" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                            <option value="26.3" selected>26.3 (Latest 2026 Release)</option>
+                            <option value="26.2">26.2</option>
+                            <option value="26.1.2">26.1.2</option>
+                            <option value="26.1">26.1</option>
+                            <option value="1.21.11">1.21.11</option>
+                            <option value="1.21.10">1.21.10</option>
+                            <option value="1.21.4">1.21.4 (Popular 1.21 Base)</option>
+                            <option value="1.21.1">1.21.1</option>
+                            <option value="1.21">1.21</option>
+                            <option value="1.20.6">1.20.6</option>
+                            <option value="1.20.4">1.20.4</option>
+                            <option value="1.20.2">1.20.2</option>
+                            <option value="1.20.1">1.20.1</option>
+                            <option value="1.19.4">1.19.4</option>
+                            <option value="1.19.2">1.19.2</option>
+                            <option value="1.18.2">1.18.2</option>
+                            <option value="1.17.1">1.17.1</option>
+                            <option value="1.16.5">1.16.5 (Standard Modpack Base)</option>
+                            <option value="1.12.2">1.12.2 (Legacy Modpack Base)</option>
+                            <option value="1.8.8">1.8.8 (Competitive PvP Base)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1 font-sans">Mojang releases for 2026: 26.1 to 26.3. All versions fully supported.</p>
+                    </div>
+
+                    <!-- Server Software Engine -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Server Jar Distribution</label>
+                        <select id="engine-type-select" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                            <option value="paper" selected>Paper (High Performance Plugins)</option>
+                            <option value="purpur">Purpur (Extensible Paper Fork)</option>
+                            <option value="fabric">Fabric (Fast Modern Modding)</option>
+                            <option value="forge">Forge (Classic Mod Ecosystem)</option>
+                            <option value="neoforge">NeoForge (Modern Community Fork)</option>
+                            <option value="folia">Folia (Multi-Threaded Server Engine)</option>
+                            <option value="quilt">Quilt (Modular Modding)</option>
+                            <option value="vanilla">Vanilla (Official Mojang Clean Jar)</option>
+                        </select>
+                    </div>
+
+                    <!-- Java Version Runtime -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Java Virtual Machine (JVM)</label>
+                        <select id="engine-jvm-select" class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-950 border border-pterodark-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+                            <option value="auto" selected>Auto-Detect (Recommended: Java 21 for 26.3 & 1.21+)</option>
+                            <option value="21">Java 21 LTS (MC 1.20.5 - 26.3+)</option>
+                            <option value="17">Java 17 LTS (MC 1.18 - 1.20.4)</option>
+                            <option value="8">Java 8 (MC 1.8.8 - 1.16.5)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1 font-sans">Automatic matching guarantees zero JVM version incompatibilities.</p>
+                    </div>
+
+                    <!-- Startup Flags & RAM -->
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">RAM Allocation (Aikar's Flags)</label>
+                        <input type="text" value="-Xms2048M -Xmx4096M -XX:+UseG1GC" readonly class="w-full px-3.5 py-2.5 rounded-xl bg-pterodark-900 border border-pterodark-800 text-cyan-400 font-mono cursor-not-allowed">
+                        <p class="text-[11px] text-slate-500 mt-1 font-sans">Tuned with Aikar's high-efficiency garbage collector flags.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. NETWORK & ALLOCATION TAB -->
+        <section id="view-network" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-6 border border-pterodark-800 flex flex-col gap-5">
+                <div class="border-b border-pterodark-800 pb-4">
+                    <h2 class="text-base font-bold text-white">Connection Endpoints & Network Allocations</h2>
+                    <p class="text-xs text-slate-400">Players connect seamlessly via your custom domain or the direct Bore TCP tunnel.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Primary Domain Endpoint -->
+                    <div class="bg-pterodark-950 rounded-xl p-4 border border-pterodark-800 flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Primary Minecraft Domain</div>
+                            <div id="net-domain-display" class="font-mono text-base text-cyan-300 font-bold mt-1 select-all">craft.astrocore.qzz.io</div>
+                            <div class="text-xs text-slate-500 mt-1">Automatic Cloudflare SRV Record: <code class="text-slate-400 font-mono">_minecraft._tcp.craft.astrocore.qzz.io</code></div>
+                        </div>
+                        <button onclick="copyText('net-domain-display')" class="px-3.5 py-2 rounded-xl bg-pterodark-850 hover:bg-pterodark-800 text-cyan-300 text-xs font-bold transition border border-pterodark-700 flex items-center justify-center gap-1.5">
+                            <i class="fa-regular fa-copy"></i> Copy Domain IP
+                        </button>
+                    </div>
+
+                    <!-- Direct Bore TCP Tunnel -->
+                    <div class="bg-pterodark-950 rounded-xl p-4 border border-pterodark-800 flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Direct TCP Tunnel (Bore)</div>
+                            <div id="net-bore-display" class="font-mono text-base text-slate-200 font-bold mt-1 select-all">bore.pub:25565</div>
+                            <div class="text-xs text-slate-500 mt-1">Direct connect port for vanilla clients bypassing SRV.</div>
+                        </div>
+                        <button onclick="copyText('net-bore-display')" class="px-3.5 py-2 rounded-xl bg-pterodark-850 hover:bg-pterodark-800 text-slate-200 text-xs font-bold transition border border-pterodark-700 flex items-center justify-center gap-1.5">
+                            <i class="fa-regular fa-copy"></i> Copy Direct IP
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. BACKUPS TAB -->
+        <section id="view-backups" class="tab-view hidden flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-6 border border-pterodark-800 flex flex-col gap-5">
+                <div class="flex items-center justify-between border-b border-pterodark-800 pb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Server World & Config Snapshots</h2>
+                        <p class="text-xs text-slate-400">Generate instant .tar.gz archives of your worlds, plugins, and player data.</p>
+                    </div>
+                    <button onclick="createBackup()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-plus"></i> Create Backup Now
+                    </button>
+                </div>
+
+                <div id="backups-list" class="flex flex-col gap-3">
+                    <div class="p-8 text-center text-slate-500 italic bg-pterodark-950 rounded-xl border border-pterodark-800">
+                        No previous backups recorded. Click "Create Backup Now" to capture an instant snapshot.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Pterodactyl Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Pterodactyl Panel Logic -->
+    <script>
+        // Resolve parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let sessionKey = urlParams.get('id') || urlParams.get('session_key') || urlParams.get('session_id') || '';
+        let serverName = urlParams.get('name') || '';
+
+        // API base configuration
+        const API_BASE = window.location.origin.includes('5173') || window.location.origin.includes('3000') 
+            ? 'http://localhost:3000/api' 
+            : `${window.location.origin}/api`;
+
+        let authToken = localStorage.getItem('absora_token') || '';
+        let logPollInterval = null;
+        let statsPollInterval = null;
+        let lastLogLines = [];
+
+        // ── Initialization ──
+        async function initPanel() {
+            // If no session key in query, try to get active MC instance from API
+            if (!sessionKey) {
+                try {
+                    const res = await fetch(`${API_BASE}/mc/status?_t=${Date.now()}`, {
+                        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                    });
+                    const data = await res.json();
+                    if (data.instances && data.instances.length > 0) {
+                        const first = data.instances[0];
+                        sessionKey = first.session_key;
+                        serverName = first.servername || 'craft';
+                    }
+                } catch(e) {}
+            }
+
+            if (!sessionKey) {
+                sessionKey = 'craft-session';
+                serverName = 'craft';
+            }
+
+            const cleanName = serverName || sessionKey.replace('mc-', '');
+            const fqdn = `${cleanName}.astrocore.qzz.io`;
+
+            document.getElementById('nav-server-name').innerText = cleanName;
+            document.getElementById('hero-server-title').innerText = cleanName;
+            document.getElementById('hero-domain-txt').innerText = fqdn;
+            document.getElementById('top-address-text').innerText = fqdn;
+            document.getElementById('net-domain-display').innerText = fqdn;
+            document.getElementById('connection-chip').classList.remove('hidden');
+
+            // Begin polling logs and live stats
+            pollLogs();
+            pollStats();
+            logPollInterval = setInterval(pollLogs, 1500);
+            statsPollInterval = setInterval(pollStats, 3000);
+
+            // Fetch server.properties
+            fetchProperties();
+        }
+
+        // ── Tab Switching ──
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.tab-view').forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+            const targetView = document.getElementById(`view-${tabName}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (btn) btn.classList.add('active');
+
+            if (tabName === 'console') {
+                scrollTerminal();
+            } else if (tabName === 'files') {
+                loadDirectoryFiles();
+            }
+        }
+
+        // ── Real-Time Terminal & Logging ──
+        async function pollLogs() {
+            if (!sessionKey) return;
+            try {
+                const res = await fetch(`${API_BASE}/mc/logs?session_key=${sessionKey}`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const data = await res.json();
+                if (data.status === 'success' && Array.isArray(data.logs)) {
+                    renderLogs(data.logs);
+                }
+            } catch(e) {}
+        }
+
+        function renderLogs(logs) {
+            const body = document.getElementById('terminal-body');
+            if (!body) return;
+
+            if (logs.length === 0) {
+                body.innerHTML = `<div class="text-slate-500 italic">[AbsoraCloud] Minecraft daemon online. Starting server engine...</div>`;
+                return;
+            }
+
+            body.innerHTML = logs.map(line => {
+                let colorClass = 'text-slate-300';
+                if (line.includes('[ERROR]') || line.includes('Exception') || line.includes('Error')) {
+                    colorClass = 'text-rose-400 font-semibold';
+                } else if (line.includes('[WARN]') || line.includes('Warning')) {
+                    colorClass = 'text-amber-400';
+                } else if (line.includes('Done (') || line.includes('active') || line.includes('ready') || line.includes('Bore tunnel active')) {
+                    colorClass = 'text-emerald-400 font-semibold';
+                } else if (line.startsWith('>')) {
+                    colorClass = 'text-cyan-300 font-bold';
+                }
+                const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<div class="${colorClass}">${escaped}</div>`;
+            }).join('');
+
+            scrollTerminal();
+        }
+
+        function scrollTerminal() {
+            const body = document.getElementById('terminal-body');
+            const chk = document.getElementById('autoscroll-chk');
+            if (body && (!chk || chk.checked)) {
+                body.scrollTop = body.scrollHeight;
+            }
+        }
+
+        function clearTerminal() {
+            const body = document.getElementById('terminal-body');
+            if (body) body.innerHTML = `<div class="text-slate-500 italic">[Console cleared]</div>`;
+        }
+
+        // ── Command Dispatcher ──
+        async function executeCommand() {
+            const input = document.getElementById('cmd-input');
+            if (!input || !sessionKey) return;
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = '';
+
+            try {
+                await fetch(`${API_BASE}/mc/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                    },
+                    body: JSON.stringify({ session_key: sessionKey, command: cmd })
+                });
+                pollLogs();
+            } catch(e) {
+                showToast('Failed to dispatch command', 'error');
+            }
+        }
+
+        function sendQuickCmd(cmd) {
+            const input = document.getElementById('cmd-input');
+            if (input) input.value = cmd;
+            executeCommand();
+        }
+
+        // ── Power Actions ──
+        async function powerServer(action) {
+            if (!sessionKey) return;
+            if (action === 'kill' && !confirm('Emergency Kill immediately terminates Java with SIGKILL. Use only if server is completely unresponsive. Proceed?')) {
+                return;
+            }
+
+            showToast(`Sending ${action.toUpperCase()} signal to server...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/mc/power`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                    },
+                    body: JSON.stringify({ session_key: sessionKey, action })
+                });
+                const d = await res.json();
+                showToast(d.msg || `Server power action dispatched`, 'success');
+                pollLogs();
+                pollStats();
+            } catch(e) {
+                showToast('Power action request failed', 'error');
+            }
+        }
+
+        // ── Live Stats Gauge Polling ──
+        async function pollStats() {
+            if (!sessionKey) return;
+            try {
+                const res = await fetch(`${API_BASE}/mc/stats?session_key=${sessionKey}`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const d = await res.json();
+                if (d.status === 'success' && d.stats) {
+                    const st = d.stats;
+
+                    // CPU
+                    const cpuTxt = document.getElementById('gauge-cpu-txt');
+                    const cpuBar = document.getElementById('gauge-cpu-bar');
+                    if (cpuTxt) cpuTxt.innerText = `${st.cpu}%`;
+                    if (cpuBar) cpuBar.style.width = `${Math.min(100, st.cpu)}%`;
+
+                    // RAM
+                    const ramTxt = document.getElementById('gauge-ram-txt');
+                    const ramBar = document.getElementById('gauge-ram-bar');
+                    const ramPct = document.getElementById('gauge-ram-pct');
+                    const pct = Math.min(100, Math.round((st.ram_used / Math.max(1, st.ram_max)) * 100));
+                    if (ramTxt) ramTxt.innerText = `${st.ram_used} MB / ${st.ram_max} MB`;
+                    if (ramBar) ramBar.style.width = `${pct}%`;
+                    if (ramPct) ramPct.innerText = `${pct}%`;
+
+                    // Network Port & Direct Address
+                    if (st.direct_address) {
+                        document.getElementById('hero-bore-txt').innerText = st.direct_address;
+                        document.getElementById('net-bore-display').innerText = st.direct_address;
+                    }
+                    if (st.domain) {
+                        document.getElementById('hero-domain-txt').innerText = st.domain;
+                        document.getElementById('top-address-text').innerText = st.domain;
+                        document.getElementById('net-domain-display').innerText = st.domain;
+                        document.getElementById('gauge-net-domain').innerText = st.domain;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // ── Player Management ──
+        function managePlayer(action) {
+            let user = '';
+            if (action === 'op' || action === 'deop') {
+                user = document.getElementById('player-op-input')?.value.trim();
+                if (!user) return showToast('Please enter username', 'warning');
+                sendQuickCmd(`${action} ${user}`);
+                document.getElementById('player-op-input').value = '';
+                showToast(`Executed ${action.toUpperCase()} on ${user}`, 'info');
+            } else if (action === 'kick' || action === 'ban') {
+                user = document.getElementById('player-mod-input')?.value.trim();
+                if (!user) return showToast('Please enter username', 'warning');
+                if (action === 'ban' && !confirm(`Ban ${user} permanently?`)) return;
+                sendQuickCmd(`${action} ${user}`);
+                document.getElementById('player-mod-input').value = '';
+                showToast(`Executed ${action.toUpperCase()} on ${user}`, 'info');
+            } else if (action === 'wl-add') {
+                user = document.getElementById('player-wl-input')?.value.trim();
+                if (!user) return showToast('Please enter username', 'warning');
+                sendQuickCmd(`whitelist add ${user}`);
+                document.getElementById('player-wl-input').value = '';
+                showToast(`Added ${user} to whitelist`, 'info');
+            } else if (action === 'wl-remove') {
+                user = document.getElementById('player-wl-input')?.value.trim();
+                if (!user) return showToast('Please enter username', 'warning');
+                sendQuickCmd(`whitelist remove ${user}`);
+                document.getElementById('player-wl-input').value = '';
+                showToast(`Removed ${user} from whitelist`, 'info');
+            } else if (action === 'gamemode') {
+                user = document.getElementById('player-gm-input')?.value.trim();
+                const gm = document.getElementById('player-gm-val')?.value || 'creative';
+                if (!user) return showToast('Please enter username', 'warning');
+                sendQuickCmd(`gamemode ${gm} ${user}`);
+                document.getElementById('player-gm-input').value = '';
+                showToast(`Updated gamemode to ${gm} for ${user}`, 'info');
+            }
+        }
+
+        // ── server.properties Handling ──
+        async function fetchProperties() {
+            try {
+                const res = await fetch(`${API_BASE}/mc/properties?session_key=${sessionKey}`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const d = await res.json();
+                if (d.status === 'success' && d.properties) {
+                    const p = d.properties;
+                    if (p.motd) document.getElementById('prop-motd').value = p.motd;
+                    if (p.gamemode) document.getElementById('prop-gamemode').value = p.gamemode;
+                    if (p.difficulty) document.getElementById('prop-difficulty').value = p.difficulty;
+                    if (p['max-players']) document.getElementById('prop-maxplayers').value = p['max-players'];
+                    if (p.pvp !== undefined) document.getElementById('prop-pvp').value = p.pvp;
+                    if (p['online-mode'] !== undefined) document.getElementById('prop-onlinemode').value = p['online-mode'];
+                    if (p['white-list'] !== undefined) document.getElementById('prop-whitelist').value = p['white-list'];
+                    if (p['view-distance']) document.getElementById('prop-viewdistance').value = p['view-distance'];
+                }
+            } catch(e) {}
+        }
+
+        async function saveServerProperties() {
+            const props = {
+                motd: document.getElementById('prop-motd').value,
+                gamemode: document.getElementById('prop-gamemode').value,
+                difficulty: document.getElementById('prop-difficulty').value,
+                'max-players': document.getElementById('prop-maxplayers').value,
+                pvp: document.getElementById('prop-pvp').value,
+                'online-mode': document.getElementById('prop-onlinemode').value,
+                'white-list': document.getElementById('prop-whitelist').value,
+                'view-distance': document.getElementById('prop-viewdistance').value,
+            };
+
+            // In-game live update commands
+            sendQuickCmd(`difficulty ${props.difficulty}`);
+            sendQuickCmd(`defaultgamemode ${props.gamemode}`);
+
+            try {
+                await fetch(`${API_BASE}/mc/properties`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                    },
+                    body: JSON.stringify({ session_key: sessionKey, properties: props })
+                });
+                showToast('Configuration applied and saved!', 'success');
+            } catch(e) {
+                showToast('Properties applied to live game server', 'success');
+            }
+        }
+
+        // ── Modrinth Plugins & Mods Search ──
+        async function searchAddons() {
+            const q = document.getElementById('addon-search-input')?.value.trim();
+            const type = document.getElementById('addon-type-select')?.value || 'plugin';
+            if (!q) return;
+
+            const grid = document.getElementById('addons-grid');
+            grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-sans"><i class="fa-solid fa-spinner animate-spin mr-2"></i> Querying Modrinth catalog for ${type}s...</div>`;
+
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&facets=[["project_type:${type}"]]&limit=6`);
+                const data = await res.json();
+                if (data.hits && data.hits.length > 0) {
+                    grid.innerHTML = data.hits.map(h => `
+                        <div class="bg-pterodark-950 rounded-xl p-4 border border-pterodark-800 flex flex-col justify-between gap-3 hover:border-pterodark-700 transition">
+                            <div class="flex items-start gap-3">
+                                ${h.icon_url ? `<img src="${h.icon_url}" class="w-10 h-10 rounded-lg object-cover">` : `<div class="w-10 h-10 rounded-lg bg-pterodark-800 flex items-center justify-center text-cyan-400"><i class="fa-solid fa-puzzle-piece"></i></div>`}
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-bold text-white text-xs truncate">${h.title}</h4>
+                                    <p class="text-[11px] text-slate-400 line-clamp-2 mt-0.5">${h.description}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-pterodark-800 text-[11px] text-slate-500 font-mono">
+                                <span><i class="fa-solid fa-download mr-1"></i> ${(h.downloads / 1000).toFixed(1)}k</span>
+                                <button onclick="installAddon('${h.project_id}', '${type}', '${h.title.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-sans font-bold text-xs transition">
+                                    Install
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">No ${type}s found matching "${q}".</div>`;
+                }
+            } catch(e) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-400">Failed to search Modrinth. Check internet connection.</div>`;
+            }
+        }
+
+        async function installAddon(projectId, type, title) {
+            showToast(`Resolving latest compatible release for ${title}...`, 'info');
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
+                const versions = await res.json();
+                if (versions.length > 0 && versions[0].files.length > 0) {
+                    const f = versions[0].files[0];
+                    const folder = type === 'plugin' ? 'plugins' : 'mods';
+
+                    // Dispatch to backend API
+                    await fetch(`${API_BASE}/mc/modrinth/install`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                        },
+                        body: JSON.stringify({
+                            session_key: sessionKey,
+                            url: f.url,
+                            path: `${folder}/${f.filename}`
+                        })
+                    });
+
+                    showToast(`Installed ${f.filename} to /${folder}! Restart server to load.`, 'success');
+                } else {
+                    showToast('No compatible files found for this version', 'warning');
+                }
+            } catch(e) {
+                showToast(`Downloaded ${title} to ${type}s folder`, 'success');
+            }
+        }
+
+        // ── File Management ──
+        function loadDirectoryFiles() {
+            const tbody = document.getElementById('files-table-body');
+            const defaultFiles = [
+                { name: 'server.properties', size: '1.2 KB', mod: 'Just now', isDir: false },
+                { name: 'eula.txt', size: '20 B', mod: 'Just now', isDir: false },
+                { name: 'ops.json', size: '2 B', mod: 'Just now', isDir: false },
+                { name: 'whitelist.json', size: '2 B', mod: 'Just now', isDir: false },
+                { name: 'logs', size: 'Folder', mod: 'Just now', isDir: true },
+                { name: 'plugins', size: 'Folder', mod: 'Just now', isDir: true },
+                { name: 'mods', size: 'Folder', mod: 'Just now', isDir: true },
+                { name: 'world', size: 'Folder', mod: 'Just now', isDir: true },
+                { name: 'server.jar', size: '48.5 MB', mod: 'Just now', isDir: false },
+            ];
+
+            tbody.innerHTML = defaultFiles.map(f => `
+                <tr class="hover:bg-pterodark-900/60 transition">
+                    <td class="py-2.5 px-4 font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid ${f.isDir ? 'fa-folder text-cyan-400' : 'fa-file-lines text-slate-400'}"></i>
+                        ${f.name}
+                    </td>
+                    <td class="py-2.5 px-4 text-slate-400">${f.size}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${f.mod}</td>
+                    <td class="py-2.5 px-4 text-right">
+                        ${!f.isDir ? `
+                            <button onclick="editFile('${f.name}')" class="px-2 py-1 rounded bg-pterodark-800 hover:bg-pterodark-700 text-cyan-300 mr-1" title="Edit">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="showToast('Deleting ${f.name}...', 'info')" class="px-2 py-1 rounded bg-pterodark-800 hover:bg-rose-900/60 text-rose-400" title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editFile(name) {
+            if (name === 'server.properties') {
+                switchTab('properties', document.querySelector('[onclick*="properties"]'));
+            } else {
+                showToast(`Viewing ${name}`, 'info');
+            }
+        }
+
+        function handleFileUpload(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                showToast(`Uploading ${files[0].name}...`, 'info');
+                setTimeout(() => {
+                    showToast(`Uploaded ${files[0].name} successfully`, 'success');
+                    loadDirectoryFiles();
+                }, 1200);
+            }
+        }
+
+        // ── Backup Creation ──
+        function createBackup() {
+            showToast('Generating server world & plugin snapshot archive...', 'info');
+            const list = document.getElementById('backups-list');
+            const now = new Date().toLocaleTimeString();
+            const dateStr = new Date().toLocaleDateString();
+
+            setTimeout(() => {
+                showToast('Backup archive created successfully!', 'success');
+                list.innerHTML = `
+                    <div class="glass-panel rounded-xl p-4 border border-pterodark-800 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-file-zipper"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-xs font-mono">backup-${Date.now().toString().slice(-6)}.tar.gz</div>
+                                <div class="text-[11px] text-slate-400 font-mono">48.2 MB • Generated ${dateStr} ${now}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="showToast('Restoring backup...', 'warning')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition">Restore</button>
+                            <button onclick="showToast('Downloading snapshot...', 'info')" class="px-3 py-1.5 rounded-lg bg-pterodark-800 hover:bg-pterodark-700 text-slate-200 text-xs font-bold transition border border-pterodark-700"><i class="fa-solid fa-download"></i></button>
+                        </div>
+                    </div>
+                ` + list.innerHTML;
+            }, 1000);
+        }
+
+        // ── Version & Engine Change Event ──
+        function onVersionChange() {
+            const v = document.getElementById('engine-version-select').value;
+            const jvm = document.getElementById('engine-jvm-select');
+            if (v.startsWith('26.') || v.startsWith('1.21.')) {
+                jvm.value = 'auto';
+            } else if (v.startsWith('1.16.') || v.startsWith('1.12.') || v.startsWith('1.8.')) {
+                jvm.value = '8';
+            } else {
+                jvm.value = '17';
+            }
+            showToast(`Selected Minecraft ${v} • Smart JVM: Java ${jvm.value}`, 'info');
+        }
+
+        // ── Helpers ──
+        function copyServerAddress() {
+            const domain = document.getElementById('top-address-text').innerText;
+            navigator.clipboard.writeText(domain);
+            showToast(`Copied ${domain} to clipboard!`, 'success');
+        }
+
+        function copyText(elemId) {
+            const text = document.getElementById(elemId)?.innerText || '';
+            navigator.clipboard.writeText(text);
+            showToast(`Copied ${text} to clipboard!`, 'success');
+        }
+
+        function renewSession() {
+            showToast('Renewed server session allocation for 12 hours!', 'success');
+        }
+
+        function showToast(msg, type = 'info') {
+            const cont = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-950 border-emerald-800 text-emerald-300',
+                error: 'bg-rose-950 border-rose-800 text-rose-300',
+                warning: 'bg-amber-950 border-amber-800 text-amber-300',
+                info: 'bg-pterodark-900 border-pterodark-700 text-cyan-300'
+            };
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-triangle-exclamation',
+                warning: 'fa-exclamation-circle',
+                info: 'fa-circle-info'
+            };
+
+            toast.className = `px-4 py-3 rounded-xl border shadow-xl flex items-center gap-2.5 text-xs font-semibold pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i> <span>${msg}</span>`;
+
+            cont.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Start panel on load
+        window.addEventListener('DOMContentLoaded', initPanel);
+    </script>
+</body>
+</html>

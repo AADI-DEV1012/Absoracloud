@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbsoraCloud | Sliced Cloud Compute, GPU Workstations & Edge Infrastructure</title>
+    <meta name="description" content="Next-generation cloud infrastructure: sliced isolated VPS compute, hardware-accelerated Dual GPU workstations, zero cold-start edge functions, Git-connected web hosting, and multi-zone secure cloud storage.">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              surface: "#fdf8f8",
+              "surface-container": "#f7f3f2",
+              "surface-container-high": "#f1edec",
+              primary: "#1A1A1A",
+              secondary: "#5f5e5b",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #fdf8f8;
+        --s1: #ffffff;
+        --s2: #f1edec;
+        --s3: #ebe7e6;
+        --primary: #1A1A1A;
+        --dim: #8C8984;
+        --border: #E5E1DA;
+        --green: #16a34a;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--primary);
+        font-family: 'Inter', sans-serif;
+      }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      
+      #landing-hero {
+        position: relative;
+        background: radial-gradient(ellipse 90% 60% at 50% -5%, rgba(28,27,27,0.05) 0%, transparent 65%);
+      }
+      #landing-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgba(28,27,27,0.03) 1px, transparent 1px),
+                         linear-gradient(90deg, rgba(28,27,27,0.03) 1px, transparent 1px);
+        background-size: 44px 44px;
+      }
+      .badge {
+        background: #f1edec;
+        border: 1px solid var(--border);
+        color: var(--primary);
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        padding: 5px 14px;
+        border-radius: 100px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .bdot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,.4); }
+        50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); }
+      }
+      .hero-title {
+        font-family: 'Sora', sans-serif;
+        font-size: clamp(2.3rem, 4.8vw, 3.8rem);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -.03em;
+        color: #1A1A1A;
+      }
+      .grad { color: #8C8984; }
+      .hero-sub {
+        color: #8C8984;
+        font-size: 1rem;
+        max-width: 580px;
+        line-height: 1.65;
+        margin: 16px auto 32px auto;
+      }
+      .specs-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin: 0 auto 32px auto;
+        max-width: 640px;
+        width: 100%;
+      }
+      .spec-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        padding: 18px;
+        border-radius: 12px;
+        text-align: center;
+        transition: all .22s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: default;
+        box-shadow: 0 2px 6px -1px rgba(0,0,0,0.03);
+      }
+      .spec-card:hover {
+        border-color: #8C8984;
+        transform: translateY(-2px);
+      }
+      .spec-icon {
+        font-size: 20px;
+        color: #1A1A1A;
+        margin-bottom: 8px;
+      }
+      .spec-val {
+        font-size: 1.05rem;
+        font-weight: 700;
+        font-family: 'Sora', sans-serif;
+      }
+      .spec-label {
+        color: #8C8984;
+        font-size: .78rem;
+        margin-top: 3px;
+      }
+      .cta-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+      }
+      .cta-btn {
+        background: #1A1A1A;
+        color: #fff;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-size: .88rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        transition: all .22s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Inter', sans-serif;
+      }
+      .cta-btn:hover {
+        background: #404040;
+        transform: translateY(-1px);
+      }
+      .outline-btn {
+        background: #ffffff;
+        color: #1A1A1A;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: .88rem;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all .2s;
+        font-family: 'Inter', sans-serif;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .outline-btn:hover {
+        background: #f1edec;
+        border-color: #747878;
+      }
+      .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 960px) {
+        .plans-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 640px) {
+        .specs-grid { grid-template-columns: 1fr; }
+        .plans-grid { grid-template-columns: 1fr; }
+        .cta-row { flex-direction: column; width: 100%; }
+        .cta-btn, .outline-btn { width: 100%; justify-content: center; }
+      }
+      .plan-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: .22s;
+        position: relative;
+        overflow: hidden;
+      }
+      .plan-card:hover { transform: translateY(-3px); }
+      .plan-card.current {
+        border-color: #1A1A1A;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      }
+      .plan-name { font-size: 1.15rem; font-weight: 800; font-family: 'Sora', sans-serif; }
+      .plan-price { font-size: 1.8rem; font-weight: 800; font-family: 'Sora', sans-serif; line-height: 1; }
+      .plan-price span { font-size: .85rem; font-weight: 400; color: #8C8984; font-family: 'Inter', sans-serif; }
+      .plan-features { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+      .plan-features li { font-size: .8rem; color: #8C8984; display: flex; align-items: center; gap: 8px; }
+      .plan-features li i { color: #16a34a; font-size: .75rem; }
+      .popular-tag {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #1A1A1A;
+        color: #fff;
+        font-size: .62rem;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 100px;
+      }
+      .glass-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+      }
+      .glass-card-hover {
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .glass-card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.07);
+      }
+      .nav-tab.active {
+        background-color: #1A1A1A;
+        color: #ffffff;
+      }
+      .nav-tab.active i {
+        color: #ffffff;
+      }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-neutral-900 selection:text-white">
+
+    <!-- Global Top Navigation Bar -->
+    <header class="glass-card sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between border-b backdrop-blur-md bg-white/95">
+        <div class="flex items-center gap-6">
+            <a href="javascript:void(0)" onclick="navigateTo('landing')" class="flex items-center gap-2.5 group">
+                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs font-heading shadow-sm group-hover:scale-105 transition">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <span class="font-heading font-extrabold text-base text-primary tracking-tight">AbsoraCloud</span>
+            </a>
+
+            <!-- Landing Navigation Links -->
+            <nav id="landing-nav-links" class="hidden md:flex items-center gap-6 text-xs font-semibold text-neutral-600">
+                <a href="#services" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-layer-group text-neutral-400"></i> Services
+                </a>
+                <a href="#features" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-cubes-stacked text-neutral-400"></i> Features
+                </a>
+                <a href="#pricing" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-tags text-neutral-400"></i> Plans
+                </a>
+                <a href="javascript:void(0)" onclick="navigateTo('terms')" class="hover:text-primary transition">Terms</a>
+                <a href="javascript:void(0)" onclick="navigateTo('refund')" class="hover:text-primary transition">Refund Policy</a>
+                <a href="https://github.com/lunarhost520/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 text-neutral-700">
+                    <i class="fa-brands fa-github text-sm"></i> GitHub
+                </a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Platform Status Pill -->
+            <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-[11px] font-semibold text-neutral-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Edge Infrastructure Online</span>
+            </div>
+
+            <!-- Auth / Console Navigation Area -->
+            <div id="nav-auth-area" class="flex items-center gap-2">
+                <button onclick="navigateTo('auth', 'login')" class="outline-btn text-xs" style="padding: 7px 16px;">
+                    Sign In
+                </button>
+                <button onclick="navigateTo('auth', 'register')" class="cta-btn text-xs" style="padding: 7px 18px;">
+                    Get Started Free
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW 1: LANDING PAGE -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-landing" class="flex-1 flex flex-col">
+        <!-- Hero Section -->
+        <section id="landing-hero" class="pt-20 pb-20 px-6 max-w-6xl mx-auto w-full text-center">
+            <div class="badge">
+                <div class="bdot"></div>
+                <span>Unified Cloud Ecosystem — Free Community Tier Available</span>
+            </div>
+
+            <h1 class="hero-title mt-4">
+                <span class="grad">AbsoraCloud</span><br>Instant Cloud Compute & Workstations
+            </h1>
+
+            <p class="hero-sub">
+                Deploy sliced isolated VPS containers, hardware-accelerated Dual GPU workstations, sub-millisecond edge serverless functions, automated web hosting, and multi-zone secure cloud storage.
+            </p>
+
+            <div class="specs-grid">
+                <div class="spec-card">
+                    <i class="fa-solid fa-microchip spec-icon"></i>
+                    <div class="spec-val">AMD EPYC™</div>
+                    <div class="spec-label">Up to 4 Sliced Cores</div>
+                </div>
+                <div class="spec-card">
+                    <i class="fa-solid fa-bolt spec-icon text-purple-600"></i>
+                    <div class="spec-val">Dual GPU 32GB</div>
+                    <div class="spec-label">Nvidia Tesla T4 Workstation</div>
+                </div>
+                <div class="spec-card">
+                    <i class="fa-solid fa-network-wired spec-icon"></i>
+                    <div class="spec-val">10 Gbps Edge</div>
+                    <div class="spec-label">Global Low-Latency Ingress</div>
+                </div>
+            </div>
+
+            <div class="cta-row">
+                <button class="cta-btn" onclick="navigateTo('auth', 'register')">
+                    <i class="fa-solid fa-rocket"></i> Get Started Free
+                </button>
+                <button class="outline-btn" onclick="navigateTo('dashboard')">
+                    <i class="fa-solid fa-terminal"></i> Open Cloud Console
+                </button>
+                <a href="https://github.com/lunarhost520/Absoracloud" target="_blank" rel="noopener noreferrer" class="outline-btn">
+                    <i class="fa-brands fa-github text-sm"></i> Star on GitHub
+                </a>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="py-16 px-6 max-w-6xl mx-auto w-full border-t border-neutral-200">
+            <div class="text-center max-w-xl mx-auto mb-12">
+                <span class="badge" style="margin-bottom:8px">Services</span>
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary mt-1">Unified Cloud Services</h2>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Every service is isolated with dedicated hardware resources, guaranteed cgroup quotas, and automated edge routing.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- VPS Hosting -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-primary text-base mb-4">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">VPS Cloud Compute</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            Hardened isolated compute containers sliced via kernel cgroups. Includes full interactive web terminal, dedicated CPU/RAM, and secure reverse edge networking.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">0.5 - 4.0 vCPU</span>
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">2GB - 16GB RAM</span>
+                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Web Shell</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'vps')" class="mt-6 text-xs font-bold text-primary hover:underline flex items-center gap-1.5">
+                        Launch VPS Instance <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Serverless Functions -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-base mb-4 border border-amber-200">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">AbsoraEdge Functions</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            Zero-cold-start serverless micro-functions deployed instantaneously across 300+ global edge locations. Ideal for JSON APIs, webhooks, and proxies.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">0ms Cold Starts</span>
+                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">Global Edge PoPs</span>
+                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">ESM / JS Runtime</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'serverless')" class="mt-6 text-xs font-bold text-amber-700 hover:underline flex items-center gap-1.5">
+                        Deploy Edge Function <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- DevBox GPU -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-700 text-base mb-4 border border-purple-200">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">DevBox GPU Workstations</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            Accelerated compute for machine learning, inference, and CUDA development. Equipped with Dual Nvidia Tesla T4 GPUs (32GB pooled VRAM) and JupyterLab.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">2× Tesla T4</span>
+                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">32GB VRAM</span>
+                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">JupyterLab IDE</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'devbox')" class="mt-6 text-xs font-bold text-purple-700 hover:underline flex items-center gap-1.5">
+                        Request GPU Slot <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Cloud Web Hosting -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-base mb-4 border border-indigo-200">
+                            <i class="fa-solid fa-globe"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">Edge Web Hosting</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            High-speed website hosting connected directly to your public Git repositories. Automated global SSL, instant edge distribution, and continuous updates.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Global Edge CDN</span>
+                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Automated SSL</span>
+                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Git Linked</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'webhost')" class="mt-6 text-xs font-bold text-indigo-700 hover:underline flex items-center gap-1.5">
+                        Deploy Website <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Cloud Storage -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-base mb-4 border border-blue-200">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">Multi-Zone Cloud Storage</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            Ultra-fast, secure object storage for backups, datasets, media, and build artifacts. Generates direct CDN download URLs with quota management.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">5GB - 200GB Quota</span>
+                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Direct CDN Links</span>
+                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Instant Streaming</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'storage')" class="mt-6 text-xs font-bold text-blue-700 hover:underline flex items-center gap-1.5">
+                        Open File Manager <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Realtime WebSocket Gateway -->
+                <div class="spec-card text-left p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-base mb-4 border border-emerald-200">
+                            <i class="fa-solid fa-tower-broadcast"></i>
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-primary">Realtime WebSocket Channels</h3>
+                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            Ultra-low latency pub/sub event broadcasting cluster with automatic multi-provider failover. Supports 500+ concurrent channel connections, live presence, and event streaming.
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
+                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">500+ Concurrents</span>
+                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">&lt;10ms Latency</span>
+                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">Edge Failover</span>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('dashboard', 'realtime')" class="mt-6 text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1.5">
+                        Open WebSocket Gateway <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features / Platform Pillars Section -->
+        <section id="features" class="py-16 px-6 max-w-6xl mx-auto w-full border-t border-neutral-200">
+            <div class="text-center max-w-xl mx-auto mb-12">
+                <span class="badge" style="margin-bottom:8px">Architecture & Capabilities</span>
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary mt-1">Engineered for Performance & Reliability</h2>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Built from the ground up for low-latency edge compute, hardware-isolated execution, and effortless management.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-primary mb-3"><i class="fa-solid fa-shield-halved"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Hardened Sandboxes</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Kernel-enforced cgroups and namespace isolation prevent noisy neighbors and secure user workloads with zero leakages.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-amber-600 mb-3"><i class="fa-solid fa-bolt"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Zero Cold-Start Edge</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">AbsoraEdge Functions initialize in under a millisecond, handling bursts effortlessly across global points of presence.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-purple-600 mb-3"><i class="fa-solid fa-microchip"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Dual GPU Acceleration</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Accelerated machine learning development with 32GB pooled VRAM across two Nvidia Tesla T4 enterprise accelerators.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-indigo-600 mb-3"><i class="fa-solid fa-network-wired"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Automated Edge SSL</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Full automated SSL termination, edge reverse proxy caching, and instant DNS routing for all deployed web projects.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-blue-600 mb-3"><i class="fa-solid fa-database"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Multi-Zone Storage</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">High-performance object storage with automated SHA-256 cryptographic integrity verification and public CDN links.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-neutral-800 mb-3"><i class="fa-solid fa-terminal"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">In-Browser Terminal</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Interact with your compute instances directly from your web browser with live streaming logs and zero local client setup.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-emerald-600 mb-3"><i class="fa-solid fa-heart-pulse"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">99.9% Uptime SLA</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Automated watchdogs continuously monitor runner nodes, automatically recycling unhealthy sessions to preserve uptime.</p>
+                </div>
+                <div class="spec-card text-left p-5">
+                    <div class="text-base text-teal-600 mb-3"><i class="fa-solid fa-lock"></i></div>
+                    <h4 class="font-heading font-bold text-sm text-primary">Bank-Grade Encryption</h4>
+                    <p class="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">Strict AES-256 encryption at rest and TLS 1.3 in transit guarantee total confidentiality of all stored credentials and code.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing" class="py-16 px-6 max-w-6xl mx-auto w-full border-t border-neutral-200">
+            <div class="text-center max-w-xl mx-auto mb-12">
+                <span class="badge" style="margin-bottom:8px">Plans & Pricing</span>
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary mt-1">Predictable, Sliced Cloud Compute Plans</h2>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Get started free forever or upgrade for dedicated priority queues and expanded resource capacity.</p>
+            </div>
+
+            <div class="plans-grid">
+                <!-- Free -->
+                <div class="plan-card">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Community</span>
+                        <div class="plan-name mt-1">Free</div>
+                        <div class="plan-price my-3">$0 <span>/ forever</span></div>
+                        <ul class="plan-features text-xs">
+                            <li><i class="fa-solid fa-check"></i> 4h/week VPS (0.5 vCPU, 2GB)</li>
+                            <li><i class="fa-solid fa-check"></i> 1 AbsoraEdge Function (128 KB)</li>
+                            <li><i class="fa-solid fa-check"></i> 30m GPU DevBox / week</li>
+                            <li><i class="fa-solid fa-check"></i> 1 Hosted Edge Website</li>
+                            <li><i class="fa-solid fa-check"></i> 5 GB Multi-Zone Storage</li>
+                        </ul>
+                    </div>
+                    <button onclick="navigateTo('auth', 'register')" class="w-full py-2.5 rounded-lg border border-neutral-300 text-xs font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 transition mt-4">Get Started Free</button>
+                </div>
+
+                <!-- Basic -->
+                <div class="plan-card">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Starter</span>
+                        <div class="plan-name mt-1">Basic</div>
+                        <div class="plan-price my-3">₹99 <span>/ mo</span></div>
+                        <ul class="plan-features text-xs">
+                            <li><i class="fa-solid fa-check"></i> 10h/week VPS (1 vCPU, 4GB)</li>
+                            <li><i class="fa-solid fa-check"></i> 5 AbsoraEdge Functions (512 KB)</li>
+                            <li><i class="fa-solid fa-check"></i> 120m GPU DevBox (Priority 1)</li>
+                            <li><i class="fa-solid fa-check"></i> 3 Hosted Edge Websites</li>
+                            <li><i class="fa-solid fa-check"></i> 25 GB Multi-Zone Storage</li>
+                        </ul>
+                    </div>
+                    <button onclick="navigateTo('auth', 'register')" class="w-full py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-4">Select Basic</button>
+                </div>
+
+                <!-- Pro -->
+                <div class="plan-card current">
+                    <span class="popular-tag">Recommended</span>
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Pro Compute</span>
+                        <div class="plan-name mt-1">Pro</div>
+                        <div class="plan-price my-3">₹299 <span>/ mo</span></div>
+                        <ul class="plan-features text-xs">
+                            <li><i class="fa-solid fa-check"></i> 20h/week VPS (2 vCPU, 8GB)</li>
+                            <li><i class="fa-solid fa-check"></i> 15 AbsoraEdge Functions (1 MB)</li>
+                            <li><i class="fa-solid fa-check"></i> 240m GPU DevBox (Priority 2)</li>
+                            <li><i class="fa-solid fa-check"></i> 5 Hosted Edge Websites</li>
+                            <li><i class="fa-solid fa-check"></i> 75 GB Multi-Zone Storage</li>
+                        </ul>
+                    </div>
+                    <button onclick="navigateTo('auth', 'register')" class="w-full py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-4">Select Pro</button>
+                </div>
+
+                <!-- Enterprise -->
+                <div class="plan-card">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Maximum</span>
+                        <div class="plan-name mt-1">Enterprise</div>
+                        <div class="plan-price my-3">₹799 <span>/ mo</span></div>
+                        <ul class="plan-features text-xs">
+                            <li><i class="fa-solid fa-check"></i> 40h/week VPS (4 vCPU, 16GB)</li>
+                            <li><i class="fa-solid fa-check"></i> 50 AbsoraEdge Functions (4 MB)</li>
+                            <li><i class="fa-solid fa-check"></i> 480m GPU DevBox (VIP Queue)</li>
+                            <li><i class="fa-solid fa-check"></i> 10 Hosted Edge Websites</li>
+                            <li><i class="fa-solid fa-check"></i> 200 GB Multi-Zone Storage</li>
+                        </ul>
+                    </div>
+                    <button onclick="navigateTo('auth', 'register')" class="w-full py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-4">Select Enterprise</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-auto border-t border-neutral-200 py-10 px-6 text-xs text-neutral-500 bg-white">
+            <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-2 font-heading font-bold text-primary text-sm">
+                    <div class="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                    <span>AbsoraCloud V3</span>
+                </div>
+                <div class="flex flex-wrap items-center justify-center gap-6 font-medium">
+                    <a href="#services" class="hover:text-primary transition">Services</a>
+                    <a href="#features" class="hover:text-primary transition">Features</a>
+                    <a href="#pricing" class="hover:text-primary transition">Plans</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('terms')" class="hover:text-primary transition">Terms & Conditions</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('refund')" class="hover:text-primary transition">Refund Policy</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('privacy')" class="hover:text-primary transition">Privacy Policy</a>
+                    <a href="https://github.com/lunarhost520/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 font-bold">
+                        <i class="fa-brands fa-github text-sm"></i> GitHub Repo
+                    </a>
+                </div>
+                <div class="text-neutral-400 text-[11px]">
+                    &copy; 2026 AbsoraCloud Inc. All rights reserved.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: TERMS AND CONDITIONS -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-terms" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </button>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Legal Agreement</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Terms and Conditions</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Please read these Terms and Conditions carefully before provisioning or using any services provided by AbsoraCloud.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Acceptance of Terms</h3>
+                    <p>By registering for an account, accessing the AbsoraCloud web dashboard, or using our API endpoints, you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to these terms, you must not use or access any AbsoraCloud services.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Description of Cloud Services</h3>
+                    <p>AbsoraCloud provides high-performance computing infrastructure including multi-tenant sliced VPS cloud containers, hardware-accelerated Dual GPU DevBox workstations, AbsoraEdge serverless micro-functions, automated web hosting, and multi-zone secure cloud storage. All services are governed by resource quotas based on your subscription tier.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Acceptable Use Policy (AUP)</h3>
+                    <p>You agree to use AbsoraCloud infrastructure exclusively for lawful development, testing, and operational purposes. The following activities are strictly prohibited and will result in immediate permanent account termination without refund:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
+                        <li>Cryptocurrency mining of any kind on CPU or GPU instances.</li>
+                        <li>Launching Denial-of-Service (DoS/DDoS) attacks, port scanning, or vulnerability exploits.</li>
+                        <li>Hosting or distributing malicious software, viruses, ransomware, or botnets.</li>
+                        <li>Hosting or transmitting unsolicited commercial bulk email (spam) or phishing pages.</li>
+                        <li>Distribution of pirated or copyright-infringing content without authorization.</li>
+                        <li>Attempting to bypass kernel sandbox cgroups or compromise host virtualization security.</li>
+                    </ul>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Fair-Share Resource Quotas & Scheduling</h3>
+                    <p>To preserve performance integrity for all users, compute instances are subject to maximum continuous session caps, weekly runtime limits, and storage boundaries as defined in your active plan. We reserve the right to throttle or suspend workloads that exceed their allocated hardware boundaries or degrade shared system capacity.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">5. Account Security & Credentials</h3>
+                    <p>You are solely responsible for safeguarding your login credentials, API authorization tokens, and private cryptographic keys. You must immediately notify AbsoraCloud of any unauthorized account activity. AbsoraCloud will not be liable for any loss resulting from compromised access keys.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">6. Service Availability & Maintenance</h3>
+                    <p>AbsoraCloud targets a 99.9% uptime availability across all core edge systems. Scheduled maintenance windows will be communicated via the dashboard status indicator. Ephemeral compute instances should not be treated as permanent persistent servers; users must maintain independent backups of critical data.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">7. Intellectual Property & Customer Data</h3>
+                    <p>You retain full and exclusive ownership of all software code, data models, and content deployed onto our platform. AbsoraCloud claims no ownership rights over your intellectual property.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">8. Disclaimers & Limitation of Liability</h3>
+                    <p>AbsoraCloud services are provided on an "AS IS" and "AS AVAILABLE" basis. To the maximum extent permitted by applicable law, AbsoraCloud disclaims all warranties, express or implied. Under no circumstances will AbsoraCloud be liable for indirect, incidental, punitive, or consequential damages arising from service interruptions or data loss.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">9. Modifications to Terms</h3>
+                    <p>We reserve the right to modify these Terms at any time. Continued use of the platform after updates are posted constitutes acceptance of the revised Terms.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">10. Contact Information</h3>
+                    <p>For questions regarding these Terms and Conditions, please contact us via our official repository at <a href="https://github.com/lunarhost520/Absoracloud" target="_blank" class="text-primary font-bold underline">https://github.com/lunarhost520/Absoracloud</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: REFUND POLICY -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-refund" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </button>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Consumer Guarantee</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Refund & Cancellation Policy</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">We strive to ensure complete customer satisfaction with our compute infrastructure. Review our transparent refund terms below.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. 7-Day Money-Back Guarantee</h3>
+                    <p>All paid subscription plans (Basic, Pro, and Enterprise) are eligible for a 100% money-back refund within seven (7) calendar days from the initial payment date if you are unsatisfied with service performance or infrastructure reliability.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Eligibility Criteria</h3>
+                    <p>To qualify for a refund under our 7-Day Money-Back Guarantee:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
+                        <li>The request must be submitted within 7 days of the transaction timestamp.</li>
+                        <li>Your account must be in good standing without any violations of our Acceptable Use Policy.</li>
+                        <li>Accounts suspended for cryptocurrency mining, abuse, or unauthorized traffic are strictly ineligible for refunds.</li>
+                    </ul>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Non-Refundable Items & Services</h3>
+                    <p>The following items are consumable and strictly non-refundable:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
+                        <li>Consumed GPU burst compute hours that have already been allocated and executed.</li>
+                        <li>Over-quota bandwidth or custom dedicated domain registration fees paid to third-party registries.</li>
+                        <li>Subscription renewals beyond the initial 7-day purchase window.</li>
+                    </ul>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Subscription Cancellations</h3>
+                    <p>You can cancel your recurring plan at any time through the Cloud Console under the Plans tab. Upon cancellation, your account will remain active at the paid tier until the conclusion of the current billing cycle, with no subsequent charges incurred.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">5. How to Request a Refund</h3>
+                    <p>To initiate a refund, please open an inquiry with your account username, transaction reference number, and reason for the refund via our official support repository at <a href="https://github.com/lunarhost520/Absoracloud" target="_blank" class="text-primary font-bold underline">https://github.com/lunarhost520/Absoracloud</a>. Approved refunds are credited back to the original payment method within 3 to 5 business days.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">6. Chargeback Protection</h3>
+                    <p>If you encounter any billing discrepancy, we ask that you contact our support team first to resolve the matter promptly before filing a payment dispute or chargeback with your financial institution.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: PRIVACY POLICY -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-privacy" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </button>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Data Privacy</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Privacy Policy</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Your privacy is fundamental to our architecture. Learn how AbsoraCloud manages and protects your data.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Information We Collect</h3>
+                    <p>We only collect information strictly required to authenticate and deliver compute services: your username, email address, hashed credentials, and telemetry related to instance execution and quota usage.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Zero Data Selling Guarantee</h3>
+                    <p>AbsoraCloud does not sell, license, or monetize your personal information, source code, uploaded files, or compute workloads to any third-party advertisers or data brokers under any circumstances.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Storage & Encryption</h3>
+                    <p>All authentication tokens use cryptographically signed JSON Web Tokens (JWT). File assets stored in Multi-Zone Cloud Storage are partitioned by user ID and encrypted with modern cryptographic standards.</p>
+                </div>
+
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Account Deletion</h3>
+                    <p>You may request permanent deletion of your account, active compute sessions, and stored cloud files at any time by contacting support via our GitHub repository.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW 2: DEDICATED AUTH PAGE (LOGIN & REGISTER) -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-auth" class="hidden flex-1 flex items-center justify-center p-6 relative">
+        <div class="absolute w-80 h-80 bg-neutral-200/50 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 max-w-md w-full shadow-2xl border border-neutral-200">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-2xl mx-auto font-heading mb-3 shadow-sm">
+                    ☁️
+                </div>
+                <h2 id="auth-page-title" class="font-heading font-extrabold text-2xl text-primary">Welcome Back</h2>
+                <p id="auth-page-subtitle" class="text-xs text-neutral-500 mt-1">Sign in to your AbsoraCloud account to manage compute.</p>
+            </div>
+
+            <!-- Auth Mode Switcher -->
+            <div class="flex p-1 bg-neutral-100 rounded-xl mb-6">
+                <button id="tab-btn-login" onclick="setAuthTab('login')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary">
+                    Sign In
+                </button>
+                <button id="tab-btn-register" onclick="setAuthTab('register')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary">
+                    Create Account
+                </button>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div id="field-username-wrapper" class="hidden">
+                    <label class="font-semibold text-neutral-700 block mb-1">Username</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-username" type="text" pattern="[a-zA-Z0-9_]{3,20}" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="cloud_user">
+                    </div>
+                </div>
+
+                <div>
+                    <label id="label-email" class="font-semibold text-neutral-700 block mb-1">Email / Username</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-login-input" type="text" required class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.com">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-semibold text-neutral-700">Password</label>
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-password-input" type="password" required minlength="6" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Error Toast / Alert -->
+                <div id="auth-error-box" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                <button id="auth-submit-btn" type="submit" class="w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-neutral-800 transition shadow-sm flex items-center justify-center gap-2">
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <div class="text-center mt-6">
+                <button onclick="navigateTo('landing')" class="text-xs text-neutral-400 hover:text-neutral-700 transition">
+                    ← Back to AbsoraCloud Website
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW 3: CLOUD DASHBOARD / CONSOLE -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-dashboard" class="hidden flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-neutral-200 p-4 flex flex-col gap-1.5 shrink-0 bg-white">
+            <div class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase px-3 mb-2">Cloud Services</div>
+            
+            <button onclick="switchDashboardTab('vps')" class="nav-tab active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="vps">
+                <i class="fa-solid fa-server text-sm w-4"></i>
+                <span>VPS Hosting</span>
+                <span class="ml-auto text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">Compute</span>
+            </button>
+
+            <button onclick="switchDashboardTab('devbox')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="devbox">
+                <i class="fa-solid fa-microchip text-sm w-4 text-purple-600"></i>
+                <span>DevBox (GPU)</span>
+                <span class="ml-auto text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">Dual GPU</span>
+            </button>
+
+            <button onclick="switchDashboardTab('webhost')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="webhost">
+                <i class="fa-solid fa-globe text-sm w-4 text-indigo-600"></i>
+                <span>Web Hosting</span>
+                <span class="ml-auto text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">Edge CDN</span>
+            </button>
+
+            <button onclick="switchDashboardTab('serverless')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="serverless">
+                <i class="fa-solid fa-bolt text-sm w-4 text-amber-500"></i>
+                <span>Edge Functions</span>
+                <span class="ml-auto text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">Serverless</span>
+            </button>
+
+            <button onclick="switchDashboardTab('storage')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="storage">
+                <i class="fa-solid fa-cloud-arrow-up text-sm w-4 text-blue-500"></i>
+                <span>Cloud Storage</span>
+                <span class="ml-auto text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">Multi-Zone</span>
+            </button>
+
+            <button onclick="switchDashboardTab('realtime')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="realtime">
+                <i class="fa-solid fa-tower-broadcast text-sm w-4 text-emerald-500"></i>
+                <span>Realtime Sockets</span>
+                <span class="ml-auto text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">PubSub</span>
+            </button>
+
+            <div class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase px-3 mt-6 mb-2">Account & Quotas</div>
+
+            <button onclick="switchDashboardTab('plans')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="plans">
+                <i class="fa-solid fa-credit-card text-sm w-4"></i>
+                <span>Plans & Limits</span>
+            </button>
+
+            <!-- User Plan Widget in Sidebar -->
+            <div class="mt-auto p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200">
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                    <span class="font-medium text-neutral-500">Active Tier:</span>
+                    <span id="user-plan-badge" class="font-bold text-primary uppercase">Free Community</span>
+                </div>
+                <div class="w-full bg-neutral-200 h-1.5 rounded-full overflow-hidden mb-2">
+                    <div id="quota-progress-bar" class="bg-primary h-full w-1/4 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-500 flex justify-between">
+                    <span>VPS Quota</span>
+                    <span id="quota-text" class="font-semibold text-neutral-700">4h / week</span>
+                </div>
+                <button onclick="switchDashboardTab('plans')" class="mt-3 w-full py-1.5 rounded-lg bg-white border border-neutral-200 text-[11px] font-bold text-neutral-700 hover:bg-neutral-100 transition shadow-xs">
+                    Upgrade Limits
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 overflow-y-auto p-8 bg-[#faf8f8]">
+            <!-- Dynamic Notification / Status Toast Banner -->
+            <div id="dashboard-toast" class="hidden mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border">
+                <div class="flex items-center gap-3">
+                    <span id="dashboard-toast-icon" class="text-base"></span>
+                    <span id="dashboard-toast-msg" class="font-medium"></span>
+                </div>
+                <button onclick="hideToast()" class="text-neutral-400 hover:text-neutral-700 ml-4 font-bold">✕</button>
+            </div>
+
+            <!-- 1. VPS Tab -->
+            <section id="panel-vps" class="tab-panel space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">VPS Cloud Compute</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant runner sliced by plan: dedicated CPU & RAM limits with web terminal.</p>
+                    </div>
+                    <button onclick="launchVPS()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-play"></i> Launch VPS
+                    </button>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active VPS Sessions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Session Key</th>
+                                    <th class="pb-3">Resources (CPUs / RAM)</th>
+                                    <th class="pb-3">Web Terminal</th>
+                                    <th class="pb-3">Time Remaining</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vps-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. DevBox GPU Tab -->
+            <section id="panel-devbox" class="tab-panel hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">DevBox GPU Workstations</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Interactive accelerated compute with dynamic CPU / 2× Nvidia Tesla T4 GPU switching & web terminal.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="inline-flex rounded-xl p-1 bg-neutral-100 border border-neutral-200">
+                            <button id="devbox-rt-gpu" onclick="selectDevboxRuntime('gpu')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt text-purple-600"></i> Dual Tesla T4 GPU
+                            </button>
+                            <button id="devbox-rt-cpu" onclick="selectDevboxRuntime('cpu')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5">
+                                <i class="fa-solid fa-microchip text-neutral-400"></i> Standard CPU
+                            </button>
+                        </div>
+                        <button onclick="launchDevBoxWithSelectedRuntime()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-play"></i> Start Session
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Hardware Spec</div>
+                        <div class="font-heading font-bold text-lg text-primary mt-1">2× Nvidia Tesla T4</div>
+                        <div class="text-xs text-purple-700 mt-1 font-semibold">32 GB Pooled VRAM</div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Active Slots</div>
+                        <div class="font-heading font-bold text-lg text-primary mt-1">High-Priority Queue</div>
+                        <div class="text-xs text-emerald-600 mt-1">Dynamic GPU Slot Allocation</div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <div class="text-xs text-neutral-400 font-medium">Session Quota</div>
+                        <div class="font-heading font-bold text-lg text-primary mt-1">30m (Free) - 480m (Ent)</div>
+                        <div class="text-xs text-neutral-500 mt-1">Fair-share scheduling</div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active GPU Sessions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Session Key</th>
+                                    <th class="pb-3">Hardware Spec</th>
+                                    <th class="pb-3">Access Endpoint</th>
+                                    <th class="pb-3">Session Timeout</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devbox-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Select runtime and click "Start Session".</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. WebHost Tab -->
+            <section id="panel-webhost" class="tab-panel hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Edge Web Hosting</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant high-speed hosting cluster with automated global SSL & edge routing.</p>
+                    </div>
+                    <button onclick="openDeploySiteModal()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Deploy Website
+                    </button>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Deployed Websites</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Site Name</th>
+                                    <th class="pb-3">Repository</th>
+                                    <th class="pb-3">Public Edge URL</th>
+                                    <th class="pb-3">Auto-Timeout</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="webhost-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No websites deployed. Click "Deploy Website" to link a Git repository.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Serverless Functions Tab -->
+            <section id="panel-serverless" class="tab-panel hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">AbsoraEdge Serverless Functions</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Zero-cold-start micro-workers running on global edge nodes with instant ESM deployments.</p>
+                    </div>
+                </div>
+
+                <!-- Deploy Function Card -->
+                <div class="glass-card rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+                        <h3 class="font-heading font-bold text-base text-primary">Create & Deploy Edge Function</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-neutral-400 font-medium">Template:</span>
+                            <select id="fn-template-select" onchange="applyServerlessTemplate()" class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold bg-neutral-50 focus:outline-none focus:border-primary">
+                                <option value="hello">Hello World (JSON)</option>
+                                <option value="api">Dynamic REST Router</option>
+                                <option value="proxy">Low-Latency CORS Proxy</option>
+                                <option value="html">HTML Micro-Site</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-neutral-700 mb-1">Function Subdomain Identifier</label>
+                            <input id="fn-name-input" type="text" pattern="[a-z0-9-]{2,30}" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none" placeholder="api-auth">
+                            <span class="text-[10px] text-neutral-400">Letters, numbers, hyphens (e.g. hello-world)</span>
+                        </div>
+                        <div class="flex items-end justify-end">
+                            <button id="fn-deploy-btn" onclick="deployServerlessFunction()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                                <i class="fa-solid fa-bolt text-amber-400"></i> Deploy to Edge
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-bold text-neutral-700">Function Logic (JavaScript / ESM)</label>
+                            <span class="text-[11px] text-neutral-400 font-mono">export default { fetch(request, env) }</span>
+                        </div>
+                        <textarea id="fn-code-editor" rows="9" class="w-full rounded-xl border border-neutral-300 p-3.5 text-xs font-mono bg-neutral-900 text-emerald-400 focus:outline-none focus:border-primary leading-relaxed" spellcheck="false"></textarea>
+                    </div>
+                </div>
+
+                <!-- Active Functions List -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active Edge Functions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Function Name</th>
+                                    <th class="pb-3">Session Key</th>
+                                    <th class="pb-3">Live Edge Endpoint</th>
+                                    <th class="pb-3">Created</th>
+                                    <th class="pb-3">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="serverless-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active serverless functions. Write code above and click "Deploy to Edge".</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Cloud Storage Tab -->
+            <section id="panel-storage" class="tab-panel hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Multi-Zone Cloud Storage</h1>
+                        <p class="text-sm text-neutral-500 mt-1">High-speed persistent object engine with instant public CDN links and quota management.</p>
+                    </div>
+                </div>
+
+                <!-- Storage Quota Meter & Upload Bar -->
+                <div class="glass-card rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-neutral-700">Storage Capacity Utilization</div>
+                            <div id="storage-quota-text" class="text-xs text-neutral-500 mt-0.5">0.00 MB used of 5.00 GB</div>
+                        </div>
+                        <span id="storage-plan-pill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Free Tier</span>
+                    </div>
+                    <div class="w-full bg-neutral-200 h-2.5 rounded-full overflow-hidden">
+                        <div id="storage-quota-bar" class="bg-blue-600 h-full w-0 transition-all duration-300"></div>
+                    </div>
+
+                    <!-- Upload Controls -->
+                    <div class="pt-2 border-t border-neutral-100 flex flex-col sm:flex-row items-center gap-3">
+                        <input type="file" id="storage-file-input" class="w-full sm:flex-1 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200 cursor-pointer">
+                        <button id="storage-upload-btn" onclick="uploadStorageFile()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stored Files List -->
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-heading font-semibold text-base text-primary">Your Cloud Files</h2>
+                        <button onclick="refreshActiveTab('storage')" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Filename</th>
+                                    <th class="pb-3">Size</th>
+                                    <th class="pb-3">Type</th>
+                                    <th class="pb-3">Uploaded</th>
+                                    <th class="pb-3">Direct Edge Link</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storage-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-neutral-400">No files uploaded yet. Select a file above and click "Upload File".</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Realtime WebSocket Sockets Tab -->
+            <section id="panel-realtime" class="tab-panel hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="font-heading font-bold text-2xl text-primary">Realtime WebSocket Channels</h1>
+                        <p class="text-sm text-neutral-500 mt-1">Ultra-low latency pub/sub event broadcasting, live state synchronization, and connection streams.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="rt-gateway-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> AbsoraEdge Realtime Online
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Event Dispatcher Bar -->
+                <div class="glass-card rounded-2xl p-6 space-y-4">
+                    <div class="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-emerald-500"></i> Dispatch Live Realtime Event
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Target Channel</label>
+                            <input type="text" id="rt-channel-input" value="notifications" placeholder="e.g. alerts, chat-room-1" class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Event Name</label>
+                            <input type="text" id="rt-event-input" value="system_alert" placeholder="e.g. user_joined, update" class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Payload (JSON or Text)</label>
+                            <input type="text" id="rt-payload-input" value='{"message": "Hello from AbsoraCloud Realtime Gateway!"}' placeholder='{"status": "ok"}' class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button id="rt-broadcast-btn" onclick="broadcastRealtimeMessage()" class="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-paper-plane"></i> Broadcast Event
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Stream Feed Table -->
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="font-heading font-semibold text-base text-primary">Live Event Log</h2>
+                            <p class="text-xs text-neutral-500">History of dispatched realtime events recorded on the edge mesh.</p>
+                        </div>
+                        <button onclick="refreshActiveTab('realtime')" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b text-neutral-400 font-medium">
+                                    <th class="pb-3">Channel</th>
+                                    <th class="pb-3">Event Name</th>
+                                    <th class="pb-3">Payload Data</th>
+                                    <th class="pb-3">Timestamp</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="realtime-events-list" class="divide-y divide-neutral-100">
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-neutral-400">Loading live realtime events...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Developer Connection Quickstart -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="font-heading font-semibold text-base text-primary mb-1">Developer Connection Quickstart</h2>
+                    <p class="text-xs text-neutral-500 mb-4">Connect any frontend client or edge microservice to listen for realtime events over secure WebSockets.</p>
+                    
+                    <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
+                        <span class="text-neutral-500">// Connect to AbsoraCloud Realtime WebSocket Gateway</span><br>
+                        <span class="text-purple-400">const</span> socket = <span class="text-purple-400">new</span> <span class="text-amber-400">WebSocket</span>(<span class="text-emerald-400">'wss://realtime.absoracloud.com/app/' + clientKey</span>);<br>
+                        socket.<span class="text-blue-400">onmessage</span> = (event) => {<br>
+                        &nbsp;&nbsp;<span class="text-purple-400">const</span> data = <span class="text-amber-400">JSON</span>.<span class="text-blue-400">parse</span>(event.data);<br>
+                        &nbsp;&nbsp;<span class="text-blue-400">console</span>.<span class="text-blue-400">log</span>(<span class="text-emerald-400">'[Realtime Event Received]:'</span>, data);<br>
+                        };
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Dashboard Plans Tab -->
+            <section id="panel-plans" class="tab-panel hidden space-y-6">
+                <div class="text-center max-w-xl mx-auto mb-8">
+                    <h1 class="font-heading font-bold text-3xl text-primary">Predictable, Sliced Cloud Compute</h1>
+                    <p class="text-sm text-neutral-500 mt-2">Every plan enforces automated resource limits, multi-tenant container slicing, and guaranteed runtimes.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border-2 border-neutral-200">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Community</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Free</h3>
+                            <div class="text-3xl font-extrabold font-heading text-primary my-4">$0 <span class="text-xs text-neutral-400 font-normal">/ forever</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 4h/week VPS (0.5 vCPU, 2GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1 Edge Function (128 KB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 30m GPU DevBox / week</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1 Hosted Edge Website</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 GB Cloud Storage</li>
+                            </ul>
+                        </div>
+                        <button class="w-full py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 bg-neutral-100" disabled>Current Tier</button>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Starter</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Basic</h3>
+                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹99 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10h/week VPS (1 vCPU, 4GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 Edge Functions (512 KB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 120m GPU DevBox (Priority 1)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 3 Hosted Edge Websites</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 25 GB Cloud Storage</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('basic')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Basic</button>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border-2 border-primary relative shadow-md">
+                        <div class="absolute -top-3 right-6 bg-primary text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Power Compute</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Pro</h3>
+                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹299 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 20h/week VPS (2 vCPU, 8GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 15 Edge Functions (1 MB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 240m GPU DevBox (Priority 2)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 Hosted Edge Websites</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 75 GB Cloud Storage</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('pro')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Pro</button>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Maximum</span>
+                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Enterprise</h3>
+                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹799 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
+                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 40h/week VPS (4 vCPU, 16GB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 50 Edge Functions (4 MB)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 480m GPU DevBox (VIP Priority)</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10 Hosted Edge Websites</li>
+                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 200 GB Cloud Storage</li>
+                            </ul>
+                        </div>
+                        <button onclick="upgradePlan('enterprise')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Enterprise</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Deploy Site Modal -->
+    <div id="deploy-modal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl p-8 max-w-md w-full space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="font-heading font-bold text-xl text-primary">Deploy Website</h3>
+                <button onclick="closeDeployModal()" class="text-neutral-400 hover:text-neutral-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleDeploySubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">Site Subdomain / Name</label>
+                    <input id="deploy-site-name" type="text" required pattern="[a-z0-9-]{3,30}" class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-awesome-site">
+                    <span class="text-[10px] text-neutral-400">Lowercase letters, numbers, and hyphens only</span>
+                </div>
+                <div>
+                    <label class="font-semibold text-neutral-700 block mb-1">Git Repository URL (Public)</label>
+                    <input id="deploy-repo-url" type="url" required class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="https://github.com/user/my-repo">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-neutral-800 transition shadow-sm">
+                    Deploy to Edge Network
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client-side Router & State Controller -->
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud.onrender.com';
+        let authToken = localStorage.getItem('absora_token');
+        let currentUser = null;
+        let currentAuthTab = 'login';
+
+        // ── Starter Templates for Serverless Functions ──
+        const SERVERLESS_TEMPLATES = {
+            hello: `export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    return new Response(JSON.stringify({
+      message: "Hello from AbsoraEdge Serverless!",
+      path: url.pathname,
+      timestamp: new Date().toISOString()
+    }, null, 2), {
+      headers: { "content-type": "application/json; charset=utf-8" }
+    });
+  }
+};`,
+            api: `export default {
+  async fetch(request, env) {
+    const { pathname } = new URL(request.url);
+    
+    if (pathname === '/api/health') {
+      return new Response(JSON.stringify({ status: "healthy", latency_ms: 0.8 }), {
+        headers: { "content-type": "application/json" }
+      });
+    }
+
+    if (request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      return new Response(JSON.stringify({ received: body, status: "processed" }), {
+        headers: { "content-type": "application/json" }
+      });
+    }
+
+    return new Response("AbsoraEdge REST API active. Endpoints: /api/health, POST /", { status: 200 });
+  }
+};`,
+            proxy: `export default {
+  async fetch(request, env) {
+    // Low-Latency CORS Proxy
+    const origin = request.headers.get("Origin") || "*";
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "*"
+        }
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, message: "Proxied through AbsoraEdge CDN" }), {
+      headers: {
+        "content-type": "application/json",
+        "Access-Control-Allow-Origin": origin
+      }
+    });
+  }
+};`,
+            html: `export default {
+  async fetch(request, env) {
+    const html = \`<!DOCTYPE html>
+<html>
+<head><title>AbsoraEdge Powered Site</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:50px;background:#f9f9fb;">
+  <h1>🚀 Powered by AbsoraEdge Functions</h1>
+  <p>Rendered dynamically with zero cold start on our global edge network.</p>
+</body>
+</html>\`;
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }
+};`
+        };
+
+        // ── View Navigation Controller ──
+        function navigateTo(viewId, subParam = null) {
+            document.getElementById('view-landing').classList.add('hidden');
+            document.getElementById('view-terms').classList.add('hidden');
+            document.getElementById('view-refund').classList.add('hidden');
+            document.getElementById('view-privacy').classList.add('hidden');
+            document.getElementById('view-auth').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+
+            const landingNav = document.getElementById('landing-nav-links');
+
+            if (viewId === 'landing') {
+                document.getElementById('view-landing').classList.remove('hidden');
+                landingNav.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewId === 'terms') {
+                document.getElementById('view-terms').classList.remove('hidden');
+                landingNav.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewId === 'refund') {
+                document.getElementById('view-refund').classList.remove('hidden');
+                landingNav.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewId === 'privacy') {
+                document.getElementById('view-privacy').classList.remove('hidden');
+                landingNav.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewId === 'auth') {
+                document.getElementById('view-auth').classList.remove('hidden');
+                landingNav.classList.add('hidden');
+                setAuthTab(subParam || 'login');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewId === 'dashboard') {
+                if (!authToken) {
+                    navigateTo('auth', 'login');
+                    return;
+                }
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                landingNav.classList.add('hidden');
+                if (subParam) switchDashboardTab(subParam);
+            }
+            updateNavbar();
+        }
+
+        // ── Auth Tab Switcher ──
+        function setAuthTab(tab) {
+            currentAuthTab = tab;
+            const errBox = document.getElementById('auth-error-box');
+            errBox.classList.add('hidden');
+
+            const title = document.getElementById('auth-page-title');
+            const subtitle = document.getElementById('auth-page-subtitle');
+            const btnLogin = document.getElementById('tab-btn-login');
+            const btnRegister = document.getElementById('tab-btn-register');
+            const userWrapper = document.getElementById('field-username-wrapper');
+            const submitText = document.querySelector('#auth-submit-btn span');
+
+            if (tab === 'login') {
+                title.innerText = "Welcome Back";
+                subtitle.innerText = "Sign in to your AbsoraCloud account to manage compute.";
+                btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
+                btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
+                userWrapper.classList.add('hidden');
+                submitText.innerText = "Sign In";
+            } else {
+                title.innerText = "Create Account";
+                subtitle.innerText = "Start deploying free sliced cloud instances in seconds.";
+                btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
+                btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
+                userWrapper.classList.remove('hidden');
+                submitText.innerText = "Create Free Account";
+            }
+        }
+
+        // ── Handle Auth Submission ──
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const errBox = document.getElementById('auth-error-box');
+            errBox.classList.add('hidden');
+
+            const loginVal = document.getElementById('auth-login-input').value.trim();
+            const passVal = document.getElementById('auth-password-input').value;
+            const userVal = document.getElementById('auth-username').value.trim();
+
+            const isRegister = currentAuthTab === 'register';
+            const endpoint = isRegister ? '/auth/register' : '/auth/login';
+
+            const payload = isRegister ? {
+                username: userVal || loginVal.split('@')[0],
+                email: loginVal.includes('@') ? loginVal : `${userVal}@absoracloud.user`,
+                password: passVal
+            } : {
+                login: loginVal,
+                username: loginVal,
+                email: loginVal,
+                password: passVal
+            };
+
+            const submitBtn = document.getElementById('auth-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70');
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('absora_token', authToken);
+                    currentUser = data.user;
+                    navigateTo('dashboard');
+                } else {
+                    errBox.innerText = data.msg || 'Authentication failed. Please check credentials.';
+                    errBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                errBox.innerText = 'Unable to connect to API Gateway. Ensure Render is live.';
+                errBox.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70');
+            }
+        }
+
+        // ── Navbar Status & Links ──
+        function updateNavbar() {
+            const area = document.getElementById('nav-auth-area');
+            if (authToken) {
+                area.innerHTML = `
+                    <button onclick="navigateTo('dashboard')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-neutral-100 hover:bg-neutral-200 transition text-primary flex items-center gap-1.5">
+                        <i class="fa-solid fa-terminal text-[10px]"></i> Console
+                    </button>
+                    <div class="flex items-center gap-2 pl-2">
+                        <span class="text-xs font-bold text-neutral-800">${currentUser?.username || 'User'}</span>
+                        <button onclick="logout()" class="text-xs text-neutral-400 hover:text-red-600 transition" title="Sign Out">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                area.innerHTML = `
+                    <button onclick="navigateTo('auth', 'login')" class="px-4 py-2 text-xs font-semibold rounded-xl border border-neutral-300 hover:bg-neutral-100 transition">
+                        Sign In
+                    </button>
+                    <button onclick="navigateTo('auth', 'register')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-white hover:bg-neutral-800 transition shadow-sm">
+                        Get Started Free
+                    </button>
+                `;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('absora_token');
+            authToken = null;
+            currentUser = null;
+            navigateTo('landing');
+        }
+
+        // ── Dashboard Controller ──
+        function switchDashboardTab(tabId) {
+            document.querySelectorAll('#view-dashboard .tab-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('#view-dashboard .nav-tab').forEach(b => {
+                b.classList.remove('active');
+                if (b.getAttribute('data-tab') === tabId) b.classList.add('active');
+            });
+
+            const target = document.getElementById(`panel-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            if (authToken) refreshActiveTab(tabId);
+        }
+
+        function openDeploySiteModal() {
+            document.getElementById('deploy-modal').classList.remove('hidden');
+        }
+
+        function closeDeployModal() {
+            document.getElementById('deploy-modal').classList.add('hidden');
+        }
+
+        // ── Toast Banner Utilities ──
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('dashboard-toast');
+            const msgEl = document.getElementById('dashboard-toast-msg');
+            const iconEl = document.getElementById('dashboard-toast-icon');
+            if (!toast) return;
+
+            msgEl.innerText = msg;
+            toast.className = 'mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border ';
+            if (type === 'error') {
+                toast.className += 'bg-red-50 text-red-800 border-red-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i>';
+            } else if (type === 'success') {
+                toast.className += 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+            } else {
+                toast.className += 'bg-blue-50 text-blue-800 border-blue-200';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-info text-blue-500"></i>';
+            }
+            toast.classList.remove('hidden');
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('dashboard-toast');
+            if (toast) toast.classList.add('hidden');
+        }
+
+        // ── Status Badges ──
+        function renderStatusBadge(status) {
+            if (status === 'active') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Active</span>`;
+            } else if (status === 'pending' || status === 'deploying') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin"></span>Starting...</span>`;
+            } else if (status === 'disconnected') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">⚠ Disconnected</span>`;
+            } else if (status === 'failed') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">✕ Failed</span>`;
+            } else if (status === 'stopped') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">■ Stopped</span>`;
+            } else if (status === 'expired') {
+                return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">⏱ Expired</span>`;
+            }
+            return `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">${status || 'Unknown'}</span>`;
+        }
+
+        function copyToClipboard(text, label = 'link') {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Copied ${label} to clipboard!`, 'success');
+            }).catch(() => {
+                prompt(`Copy ${label}:`, text);
+            });
+        }
+
+        // ── Instance Action Controls ──
+        function renderActions(service, inst) {
+            const key = inst.session_key;
+            if (inst.status === 'active') {
+                let actionBtn = '';
+                if (service === 'devbox' && inst.public_url) {
+                    actionBtn = `
+                        <a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">JupyterLab ↗</a>
+                    `;
+                } else if (inst.public_url) {
+                    actionBtn = `<a href="${inst.public_url}" target="_blank" class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition inline-flex items-center gap-1">Connect ↗</a>`;
+                }
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        ${actionBtn}
+                        <button onclick="relaunchInstance('${service}', '${key}')" class="px-2 py-1 text-xs text-neutral-500 hover:text-primary transition" title="Restart / Reconnect">↻</button>
+                        <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition">Stop</button>
+                    </div>
+                `;
+            } else if (inst.status === 'pending' || inst.status === 'deploying') {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        <span class="text-xs text-amber-600 font-medium animate-pulse">Provisioning...</span>
+                        <button onclick="stopInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-rose-600 rounded-lg transition">Cancel</button>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick="relaunchInstance('${service}', '${key}')" class="px-3 py-1 rounded-lg bg-neutral-800 text-white text-xs font-semibold hover:bg-neutral-700 transition inline-flex items-center gap-1">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Re-launch
+                        </button>
+                        <button onclick="dismissInstance('${service}', '${key}')" class="px-2 py-1 text-xs font-medium text-neutral-400 hover:text-neutral-700 rounded-lg transition" title="Dismiss">
+                            Dismiss
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // ── Service Launchers ──
+        async function launchVPS() {
+            showToast('Requesting VPS instance...', 'info');
+            try {
+                const res = await fetch(`${API_BASE}/vps/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing instance?`)) {
+                        return relaunchInstance('vps', data.session_key);
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to launch VPS', 'error');
+                    return;
+                }
+                showToast(data.msg || 'VPS launching... setting up container', 'success');
+                refreshActiveTab('vps');
+                if (data.session_key) startPolling('vps', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
+        }
+
+        let selectedDevboxRuntime = 'gpu';
+        function selectDevboxRuntime(rt) {
+            selectedDevboxRuntime = rt;
+            const gpuBtn = document.getElementById('devbox-rt-gpu');
+            const cpuBtn = document.getElementById('devbox-rt-cpu');
+            if (gpuBtn && cpuBtn) {
+                if (rt === 'gpu') {
+                    gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5";
+                    cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                } else {
+                    cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5";
+                    gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                }
+            }
+        }
+
+        function launchDevBoxWithSelectedRuntime() {
+            launchDevBox(selectedDevboxRuntime);
+        }
+
+        async function launchDevBox(runtime = selectedDevboxRuntime) {
+            showToast(`Requesting ${runtime === 'gpu' ? 'Dual GPU' : 'CPU'} DevBox session...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/devbox/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ runtime })
+                });
+                const data = await res.json();
+                if (res.status === 409 && data.can_relaunch) {
+                    if (confirm(`${data.msg}\n\nWould you like to re-launch to replace your existing DevBox session?`)) {
+                        return relaunchInstance('devbox', data.session_key, runtime);
+                    }
+                    return;
+                }
+                if (!res.ok) {
+                    showToast(data.msg || 'Failed to launch DevBox', 'error');
+                    return;
+                }
+                showToast(data.msg || 'DevBox session requested', 'success');
+                refreshActiveTab('devbox');
+                if (data.session_key) startPolling('devbox', data.session_key);
+            } catch(e) {
+                showToast('Unable to reach AbsoraCloud API', 'error');
+            }
+        }
+
+        async function relaunchInstance(service, session_key, extra = selectedDevboxRuntime) {
+            showToast(`Re-launching ${service.toUpperCase()}...`, 'info');
+            try {
+                const body = typeof extra === 'object' ? { session_key, ...extra } : { session_key, runtime: extra };
+                const res = await fetch(`${API_BASE}/${service}/relaunch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || `${service.toUpperCase()} re-launch triggered!`, 'success');
+                    if (data.session_key) startPolling(service, data.session_key);
+                } else {
+                    showToast(data.msg || 'Re-launch failed', 'error');
+                }
+                refreshActiveTab(service);
+            } catch(e) {
+                showToast('Failed to connect to API', 'error');
+            }
+        }
+
+        async function dismissInstance(service, session_key) {
+            try {
+                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/instance/' + session_key}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                showToast('Instance removed from list', 'info');
+                refreshActiveTab(service);
+            } catch(e) {
+                showToast('Failed to dismiss instance', 'error');
+            }
+        }
+
+        async function stopInstance(service, session_key) {
+            if (!confirm('Are you sure you want to stop this instance?')) return;
+            try {
+                await fetch(`${API_BASE}/${service === 'webhost' ? 'webhost/remove' : service + '/stop'}`, {
+                    method: service === 'webhost' ? 'DELETE' : 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key })
+                });
+                showToast('Stop signal sent', 'info');
+                refreshActiveTab(service);
+            } catch(e) { showToast('Stop failed', 'error'); }
+        }
+
+        async function handleDeploySubmit(e) {
+            e.preventDefault();
+            const site_name = document.getElementById('deploy-site-name').value;
+            const repo_url = document.getElementById('deploy-repo-url').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/webhost/deploy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ site_name, repo_url })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || 'Site dispatched to edge web hosting cluster!', 'success');
+                    closeDeployModal();
+                    refreshActiveTab('webhost');
+                    if (data.session_key) startPolling('webhost', data.session_key);
+                } else {
+                    showToast(data.msg || 'Deployment failed', 'error');
+                }
+            } catch(e) { showToast('Deployment failed', 'error'); }
+        }
+
+        // ── Serverless Functions Logic ──
+        function applyServerlessTemplate() {
+            const tpl = document.getElementById('fn-template-select')?.value || 'hello';
+            const editor = document.getElementById('fn-code-editor');
+            if (editor && SERVERLESS_TEMPLATES[tpl]) {
+                editor.value = SERVERLESS_TEMPLATES[tpl];
+            }
+        }
+
+        async function deployServerlessFunction() {
+            const nameInput = document.getElementById('fn-name-input');
+            const codeEditor = document.getElementById('fn-code-editor');
+            const btn = document.getElementById('fn-deploy-btn');
+            
+            const func_name = nameInput?.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+            const code = codeEditor?.value;
+
+            if (!func_name) {
+                showToast('Please specify a function subdomain identifier', 'error');
+                return;
+            }
+            if (!code || code.length < 20) {
+                showToast('Please provide valid function code', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Deploying...`;
+            showToast(`Deploying function "${func_name}" to global edge...`, 'info');
+
+            try {
+                const res = await fetch(`${API_BASE}/serverless/deploy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ func_name, code })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || `Function "${func_name}" deployed successfully!`, 'success');
+                    nameInput.value = '';
+                    refreshActiveTab('serverless');
+                } else {
+                    showToast(data.msg || 'Failed to deploy function', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to connect to edge function runtime', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-bolt text-amber-400"></i> Deploy to Edge`;
+            }
+        }
+
+        async function deleteServerlessFunction(funcName) {
+            if (!confirm(`Are you sure you want to delete function "${funcName}"?`)) return;
+            showToast(`Deleting function "${funcName}"...`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/serverless/${encodeURIComponent(funcName)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || `Function "${funcName}" deleted`, 'success');
+                    refreshActiveTab('serverless');
+                } else {
+                    showToast(data.msg || 'Failed to delete function', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to delete function', 'error');
+            }
+        }
+
+        // ── Cloud Storage Logic ──
+        async function uploadStorageFile() {
+            const fileInput = document.getElementById('storage-file-input');
+            const btn = document.getElementById('storage-upload-btn');
+            const file = fileInput?.files?.[0];
+
+            if (!file) {
+                showToast('Please select a file to upload', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Uploading...`;
+            showToast(`Reading and uploading "${file.name}"...`, 'info');
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                try {
+                    const base64Data = reader.result.split(',')[1];
+                    const res = await fetch(`${API_BASE}/storage/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            content_base64: base64Data,
+                            mime_type: file.type || 'application/octet-stream'
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast(`Uploaded "${file.name}" successfully!`, 'success');
+                        fileInput.value = '';
+                        refreshActiveTab('storage');
+                    } else {
+                        showToast(data.msg || 'Upload failed', 'error');
+                    }
+                } catch(err) {
+                    showToast('Failed to transmit file to storage server', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload File`;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function deleteStorageFile(fileId) {
+            if (!confirm('Are you sure you want to delete this file from Cloud Storage?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/storage/file/${fileId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || 'File deleted from storage', 'success');
+                    refreshActiveTab('storage');
+                } else {
+                    showToast(data.msg || 'Failed to delete file', 'error');
+                }
+            } catch(e) {
+                showToast('Failed to delete file', 'error');
+            }
+        }
+
+        async function broadcastRealtimeMessage() {
+            const channelInput = document.getElementById('rt-channel-input');
+            const eventInput = document.getElementById('rt-event-input');
+            const payloadInput = document.getElementById('rt-payload-input');
+            const btn = document.getElementById('rt-broadcast-btn');
+
+            const channel = channelInput ? channelInput.value.trim() : '';
+            const event_name = eventInput ? eventInput.value.trim() : '';
+            const payload = payloadInput ? payloadInput.value.trim() : '';
+
+            if (!channel || !event_name) {
+                showToast('Please specify a Channel and Event Name', 'error');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Broadcasting...`;
+            }
+
+            try {
+                let parsedPayload = payload;
+                try {
+                    parsedPayload = JSON.parse(payload);
+                } catch(e) {
+                    parsedPayload = { message: payload };
+                }
+
+                const res = await fetch(`${API_BASE}/realtime/publish`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        channel,
+                        event_name,
+                        data: parsedPayload
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`Event broadcasted to "${channel}"!`, 'success');
+                    refreshActiveTab('realtime');
+                } else {
+                    showToast(data.msg || 'Failed to broadcast event', 'error');
+                }
+            } catch(e) {
+                showToast('Realtime network error', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Broadcast Event`;
+                }
+            }
+        }
+
+        function upgradePlan(planKey) {
+            showToast(`Upgrading to ${planKey.toUpperCase()} tier... Contact support on GitHub for enterprise billing.`, 'info');
+            window.open('https://github.com/lunarhost520/Absoracloud', '_blank');
+        }
+
+        // ── Active Polling Loop ──
+        let activePollTimer = null;
+        function startPolling(service, session_key) {
+            if (activePollTimer) clearInterval(activePollTimer);
+            let attempts = 0;
+            activePollTimer = setInterval(async () => {
+                attempts++;
+                if (attempts > 30) {
+                    clearInterval(activePollTimer);
+                    return;
+                }
+                try {
+                    const r = await fetch(`${API_BASE}/${service}/check_session?${service === 'webhost' ? 'session_key=' : 'session_id='}${session_key}&_t=${Date.now()}`, {
+                        cache: 'no-store',
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    if (r.status === 304) return;
+                    const d = await r.json();
+                    if (d.status === 'active') {
+                        clearInterval(activePollTimer);
+                        showToast(`🎉 ${service.toUpperCase()} instance is live! Connection ready.`, 'success');
+                        refreshActiveTab(service);
+                    } else if (d.status === 'failed' || d.status === 'disconnected') {
+                        clearInterval(activePollTimer);
+                        showToast(`⚠️ ${d.msg || `${service.toUpperCase()} instance failed or disconnected.`} Click Re-launch to retry.`, 'error');
+                        refreshActiveTab(service);
+                    } else {
+                        refreshActiveTab(service);
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        // ── Refresh Dashboard Tab Data ──
+        async function refreshActiveTab(tabId) {
+            if (!authToken) return;
+            try {
+                if (tabId === 'vps') {
+                    const r = await fetch(`${API_BASE}/vps/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('vps-list');
+                    if (d.instances && d.instances.length > 0) {
+                        list.innerHTML = d.instances.map(inst => `
+                            <tr>
+                                <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                                <td class="py-3 text-neutral-500">Sliced Cloud Compute</td>
+                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">Web Terminal ↗</a>` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Tunnel offline</span>' : '<span class="text-neutral-400 animate-pulse">Tunnel building...</span>'))}</td>
+                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '4h limit'}</td>
+                                <td class="py-3">${renderStatusBadge(inst.status)}</td>
+                                <td class="py-3 text-right">${renderActions('vps', inst)}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td></tr>`;
+                    }
+                } else if (tabId === 'devbox') {
+                    const r = await fetch(`${API_BASE}/devbox/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('devbox-list');
+                    if (d.instances && d.instances.length > 0) {
+                        list.innerHTML = d.instances.map(inst => {
+                            const cfg = JSON.parse(inst.config || '{}');
+                            const isGpu = cfg.runtime !== 'cpu' && cfg.gpu !== false;
+                            return `
+                            <tr>
+                                <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                                <td class="py-3">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${isGpu ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-neutral-100 text-neutral-700'}">
+                                        <i class="fa-solid ${isGpu ? 'fa-bolt text-purple-600' : 'fa-microchip text-neutral-400'}"></i> ${isGpu ? 'Dual Tesla T4 GPU (32GB)' : 'Standard CPU'}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    ${inst.public_url ? `
+                                        <div class="flex items-center gap-2">
+                                            <a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 flex items-center gap-1 transition">
+                                                <i class="fa-solid fa-book-open"></i> JupyterLab ↗
+                                            </a>
+                                            <a href="${inst.public_url}/terminals/1" target="_blank" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 flex items-center gap-1 transition font-mono">
+                                                <i class="fa-solid fa-terminal"></i> Terminal ↗
+                                            </a>
+                                        </div>
+                                    ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Allocation failed</span>' : '<span class="text-neutral-400 animate-pulse">Allocating slot...</span>')}
+                                </td>
+                                <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '30m cap'}</td>
+                                <td class="py-3">${renderStatusBadge(inst.status)}</td>
+                                <td class="py-3 text-right">${renderActions('devbox', inst)}</td>
+                            </tr>
+                        `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Select runtime and click "Start Session" to begin.</td></tr>`;
+                    }
+                } else if (tabId === 'webhost') {
+                    const r = await fetch(`${API_BASE}/webhost/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('webhost-list');
+                    if (d.sites && d.sites.length > 0) {
+                        list.innerHTML = d.sites.map(s => {
+                            const cfg = JSON.parse(s.config || '{}');
+                            return `
+                                <tr>
+                                    <td class="py-3 font-semibold text-primary">${cfg.site_name || s.session_key}</td>
+                                    <td class="py-3 text-neutral-400 font-mono">${cfg.repo_url || '-'}</td>
+                                    <td class="py-3">${s.public_url ? `<a href="${s.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">${s.public_url} ↗</a>` : (s.status === 'failed' ? '<span class="text-rose-500 font-medium">Build failed</span>' : '<span class="text-neutral-400 animate-pulse">Building Edge Route...</span>')}</td>
+                                    <td class="py-3 font-mono text-neutral-500">${s.expires_at ? s.expires_at.slice(0, 10) : '24h limit'}</td>
+                                    <td class="py-3">${renderStatusBadge(s.status)}</td>
+                                    <td class="py-3 text-right">${renderActions('webhost', s)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No deployed websites. Click "Deploy Website" to link a Git repository.</td></tr>`;
+                    }
+                } else if (tabId === 'serverless') {
+                    const r = await fetch(`${API_BASE}/serverless/status?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    const list = document.getElementById('serverless-list');
+                    if (d.functions && d.functions.length > 0) {
+                        list.innerHTML = d.functions.map(fn => {
+                            const cfg = JSON.parse(fn.config || '{}');
+                            const name = cfg.func_name || fn.session_key;
+                            return `
+                                <tr>
+                                    <td class="py-3 font-bold text-primary">${name}</td>
+                                    <td class="py-3 font-mono text-neutral-400 text-xs">${fn.session_key}</td>
+                                    <td class="py-3">
+                                        ${fn.public_url ? `
+                                            <div class="flex items-center gap-1.5">
+                                                <a href="${fn.public_url}" target="_blank" class="text-amber-700 font-semibold hover:underline">${fn.public_url} ↗</a>
+                                                <button onclick="copyToClipboard('${fn.public_url}', 'endpoint URL')" class="text-neutral-400 hover:text-neutral-700 ml-1" title="Copy URL">
+                                                    <i class="fa-regular fa-copy"></i>
+                                                </button>
+                                            </div>
+                                        ` : '<span class="text-amber-600 animate-pulse">Deploying to edge...</span>'}
+                                    </td>
+                                    <td class="py-3 text-neutral-500">${fn.created_at ? fn.created_at.slice(0, 10) : '-'}</td>
+                                    <td class="py-3">${renderStatusBadge(fn.status)}</td>
+                                    <td class="py-3 text-right">
+                                        <button onclick="deleteServerlessFunction('${name}')" class="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No active serverless functions. Write code above and click "Deploy to Edge".</td></tr>`;
+                    }
+                } else if (tabId === 'storage') {
+                    const r = await fetch(`${API_BASE}/storage/files?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const d = await r.json();
+                    
+                    // Update storage progress bar & text
+                    const used = d.used_bytes || 0;
+                    const max = d.max_bytes || (5 * 1024 * 1024 * 1024);
+                    const pct = Math.min(100, (used / Math.max(1, max)) * 100).toFixed(1);
+                    const usedMB = (used / (1024 * 1024)).toFixed(2);
+                    const maxGB = (max / (1024 * 1024 * 1024)).toFixed(1);
+
+                    const qText = document.getElementById('storage-quota-text');
+                    const qBar = document.getElementById('storage-quota-bar');
+                    const pPill = document.getElementById('storage-plan-pill');
+                    if (qText) qText.innerText = `${usedMB} MB used of ${maxGB} GB (${pct}%)`;
+                    if (qBar) qBar.style.width = `${pct}%`;
+                    if (pPill && d.plan_name) pPill.innerText = `${d.plan_name} Plan`;
+
+                    const list = document.getElementById('storage-list');
+                    if (d.files && d.files.length > 0) {
+                        list.innerHTML = d.files.map(f => {
+                            const sizeKb = (f.file_size / 1024).toFixed(1);
+                            const sizeDisplay = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(2)} MB` : `${sizeKb} KB`;
+                            const fileUrl = f.public_url || `${API_BASE}/storage/file/${f.id}/${encodeURIComponent(f.filename)}`;
+                            return `
+                                <tr>
+                                    <td class="py-3 font-semibold text-primary flex items-center gap-2">
+                                        <i class="fa-solid fa-file text-neutral-400"></i> ${f.filename}
+                                    </td>
+                                    <td class="py-3 font-mono text-neutral-600">${sizeDisplay}</td>
+                                    <td class="py-3 text-neutral-400">${f.mime_type || 'binary'}</td>
+                                    <td class="py-3 text-neutral-500">${f.created_at ? f.created_at.slice(0, 10) : '-'}</td>
+                                    <td class="py-3">
+                                        <div class="flex items-center gap-1.5">
+                                            <a href="${fileUrl}" target="_blank" class="text-blue-600 hover:underline font-medium">Direct Link ↗</a>
+                                            <button onclick="copyToClipboard('${fileUrl}', 'file link')" class="text-neutral-400 hover:text-neutral-700" title="Copy Link">
+                                                <i class="fa-regular fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 text-right">
+                                        <button onclick="deleteStorageFile('${f.id}')" class="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        list.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-400">No files uploaded yet. Select a file above and click "Upload File".</td></tr>`;
+                    }
+                } else if (tabId === 'realtime') {
+                    try {
+                        const r = await fetch(`${API_BASE}/realtime/events?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                        const d = await r.json();
+                        const list = document.getElementById('realtime-events-list');
+                        if (d.events && d.events.length > 0) {
+                            list.innerHTML = d.events.map(ev => {
+                                let payloadPretty = ev.payload;
+                                try {
+                                    const parsed = JSON.parse(ev.payload);
+                                    payloadPretty = JSON.stringify(parsed);
+                                } catch(e) {}
+                                return `
+                                    <tr>
+                                        <td class="py-3 font-semibold text-primary flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <span class="font-mono text-emerald-700">${ev.channel}</span>
+                                        </td>
+                                        <td class="py-3 font-mono font-medium text-neutral-800">${ev.event_name}</td>
+                                        <td class="py-3 font-mono text-[11px] text-neutral-600 max-w-xs truncate" title="${ev.payload ? ev.payload.replace(/"/g, '&quot;') : ''}">
+                                            ${payloadPretty}
+                                        </td>
+                                        <td class="py-3 text-[11px] text-neutral-400 font-mono">${ev.created_at ? ev.created_at.slice(11, 19) : '-'}</td>
+                                        <td class="py-3 text-right">
+                                            <button onclick="copyToClipboard('${(ev.payload || '').replace(/'/g, "\\'")}', 'payload')" class="px-2 py-1 text-xs text-neutral-500 hover:text-primary transition" title="Copy Payload">
+                                                <i class="fa-regular fa-copy"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        } else {
+                            list.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-neutral-400">No events broadcasted yet. Send an event above to stream in realtime.</td></tr>`;
+                        }
+
+                        const cfgRes = await fetch(`${API_BASE}/realtime/config`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                        const cfgData = await cfgRes.json();
+                        if (cfgData.status === 'success') {
+                            const badge = document.getElementById('rt-gateway-status');
+                            if (badge) badge.innerText = `${cfgData.provider || 'AbsoraEdge'} Gateway Online`;
+                        }
+                    } catch(e) {}
+                } else if (tabId === 'plans') {
+                    // Update user's quotas from /api/plans/quotas
+                    try {
+                        const r = await fetch(`${API_BASE}/plans/quotas?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `Bearer ${authToken}` } });
+                        const d = await r.json();
+                        if (d.status === 'success' && d.plan_details) {
+                            const badge = document.getElementById('user-plan-badge');
+                            if (badge) badge.innerText = `${d.plan_details.name} Tier`;
+                        }
+                    } catch(e) {}
+                }
+            } catch(e) {}
+        }
+
+        // ── Auto-login verification on startup ──
+        async function init() {
+            // Apply default serverless template
+            applyServerlessTemplate();
+
+            // Hash router listener for direct links (#terms, #refund, #pricing, etc.)
+            window.addEventListener('hashchange', () => {
+                const hash = window.location.hash.replace('#', '');
+                if (hash === 'terms') navigateTo('terms');
+                else if (hash === 'refund') navigateTo('refund');
+                else if (hash === 'privacy') navigateTo('privacy');
+                else if (hash === 'services' || hash === 'features' || hash === 'pricing') navigateTo('landing');
+            });
+
+            if (window.location.hash === '#terms') navigateTo('terms');
+            else if (window.location.hash === '#refund') navigateTo('refund');
+            else if (window.location.hash === '#privacy') navigateTo('privacy');
+
+            if (authToken) {
+                try {
+                    const res = await fetch(`${API_BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    const data = await res.json();
+                    if (data.user) {
+                        currentUser = data.user;
+                        document.getElementById('user-plan-badge').innerText = `${currentUser.plan} Tier`;
+                    } else {
+                        localStorage.removeItem('absora_token');
+                        authToken = null;
+                    }
+                } catch(e) {}
+            }
+            updateNavbar();
+        }
+
+        init();
+    </script>
+</body>
+</html>
