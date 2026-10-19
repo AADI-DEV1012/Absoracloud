@@ -7,7 +7,6 @@
   "author": "lunarhost520",
   "license": "MIT",
   "main": "server.js",
-  "packageManager": "npm@10.0.0",
   "scripts": {
     "start": "node server.js"
   },
