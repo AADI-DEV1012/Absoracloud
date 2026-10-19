@@ -3,16 +3,23 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
-// Auto-heal missing dependencies if build manager did not link them
+// Verify and heal express dependency
+let expressAvailable = false;
 try {
-  const expressPkg = path.resolve('./node_modules/express/package.json');
-  if (!fs.existsSync(expressPkg)) {
-    console.log('⚡ [AbsoraCloud] express not found in node_modules, running npm install...');
-    execSync('npm install --prefer-offline --no-audit', { stdio: 'inherit' });
+  await import('express');
+  expressAvailable = true;
+} catch (err) {
+  expressAvailable = false;
+}
+
+if (!expressAvailable) {
+  console.log('⚡ [AbsoraCloud] express is not available, executing npm install...');
+  try {
+    execSync('npm install --prefer-online --no-audit --force', { stdio: 'inherit' });
     console.log('✅ [AbsoraCloud] Dependencies installed successfully');
+  } catch (e) {
+    console.warn('⚠️ [AbsoraCloud] npm install error:', e.message);
   }
-} catch (e) {
-  console.warn('⚠️ [AbsoraCloud] Auto-install notice:', e.message);
 }
 
 // Auto-load .env / .env.V3 from current directory

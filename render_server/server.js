@@ -1,6 +1,26 @@
 // ── Render Server Entrypoint ──
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
+
+// Verify and heal express dependency
+let expressAvailable = false;
+try {
+  await import('express');
+  expressAvailable = true;
+} catch (err) {
+  expressAvailable = false;
+}
+
+if (!expressAvailable) {
+  console.log('⚡ [AbsoraCloud] express is not available, executing npm install...');
+  try {
+    execSync('npm install --prefer-online --no-audit --force', { stdio: 'inherit' });
+    console.log('✅ [AbsoraCloud] Dependencies installed successfully');
+  } catch (e) {
+    console.warn('⚠️ [AbsoraCloud] npm install error:', e.message);
+  }
+}
 
 function loadEnvFile(filePath) {
   try {
@@ -33,35 +53,27 @@ loadEnvFile(path.resolve('../.env'));
 loadEnvFile(path.resolve('../../.env'));
 
 // ── Map env aliases for backward compatibility ──
-// D1: primary DB ID
 if (!process.env.D1_DB_ID && process.env.D1_DB_1_ID) {
   process.env.D1_DB_ID = process.env.D1_DB_1_ID;
 }
 
-// Redis: auto-select from Redis A or Redis B
 if (!process.env.UPSTASH_REDIS_URL) {
   if (process.env.UPSTASH_REDIS_A_URL) {
     process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_A_URL;
     process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_A_TOKEN;
-  } else if (process.env.UPSTASH_REDIS_B_URL) {
-    process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_B_URL;
-    process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_B_TOKEN;
   }
 }
 
-// Worker secret: ensure default if not set
 if (!process.env.WORKER_SECRET) {
   process.env.WORKER_SECRET = 'absoracloud_worker_secret_2026';
 }
 
-// JWT secret: ensure default
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'absoracloud_jwt_secret_production_2026_key';
 }
 
-// GitHub: repo reference only — no runners used in V3
 if (!process.env.GITHUB_OWNER) process.env.GITHUB_OWNER = 'lunarhost520';
 if (!process.env.GITHUB_REPO)  process.env.GITHUB_REPO  = 'Absoracloud';
 
 // Boot AbsoraCloud API Gateway
-import '../apps/api/src/index.js';
+await import('../apps/api/src/index.js');

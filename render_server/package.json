@@ -4,6 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "postinstall": "npm install --prefer-online || true",
+    "prestart": "npm install || true",
     "start": "node server.js"
   },
   "dependencies": {
