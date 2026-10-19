@@ -8,8 +8,14 @@
   "license": "MIT",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "echo 'Build OK'"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "render_server"
+  ],
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
