@@ -1,19 +1,16 @@
 {
-  "name": "absoracloud-v2",
-  "version": "2.0.0",
+  "name": "absoracloud",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "AbsoraCloud V3 — Cloud platform: VPS (Kaggle CPU), DevBox (Kaggle GPU), Web Hosting (CF Workers), Serverless Functions (CF Workers), Cloud Storage",
+  "description": "AbsoraCloud V3 — Cloud Compute, GPU Workstations, Edge Infrastructure & Realtime WebSocket Gateway",
   "author": "lunarhost520",
   "license": "MIT",
+  "main": "server.js",
   "scripts": {
-    "start": "node apps/api/src/index.js",
-    "build": "echo 'Build OK'"
+    "start": "node server.js",
+    "build": "npm install"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
