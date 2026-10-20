@@ -45,30 +45,40 @@ function formatUptime(seconds) {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
-// Send Telegram Message via native fetch
+// Send Telegram Message via native fetch (with automatic retry for network drops)
 export async function sendTelegramMessage(text, options = {}) {
-  if (!BOT_TOKEN || !CHAT_ID) return null;
+  const token = process.env.TELEGRAM_BOT_TOKEN || BOT_TOKEN;
+  const defaultChat = process.env.TELEGRAM_CHAT_ID || CHAT_ID;
+  if (!token || (!defaultChat && !options.chatId)) return null;
 
-  try {
-    const payload = {
-      chat_id: options.chatId || CHAT_ID,
-      text,
-      parse_mode: 'HTML',
-      disable_notification: Boolean(options.disableNotification),
-      disable_web_page_preview: true
-    };
+  const payload = {
+    chat_id: options.chatId || defaultChat,
+    text,
+    parse_mode: 'HTML',
+    disable_notification: Boolean(options.disableNotification),
+    disable_web_page_preview: true
+  };
 
-    const res = await fetch(`${TELEGRAM_API}/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    return await res.json().catch(() => ({}));
-  } catch (err) {
-    console.error('[MonitorBot] Telegram send error:', err.message);
-    return null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Connection': 'close'
+        },
+        body: JSON.stringify(payload)
+      });
+      return await res.json().catch(() => ({}));
+    } catch (err) {
+      if (attempt === 2) {
+        console.error('[MonitorBot] Telegram send error:', err.message);
+      } else {
+        await new Promise(r => setTimeout(r, 600));
+      }
+    }
   }
+  return null;
 }
 
 // Call NVIDIA Nemotron API with strict prompt & sanitization
