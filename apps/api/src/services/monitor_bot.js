@@ -6,7 +6,7 @@
 import { performance } from 'perf_hooks';
 import { queryD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd, redisPipeline } from '../../../../packages/shared/redis.js';
-import { getLogDiskUsage } from './run_logger.js';
+import { getLogDiskUsage, getRunLog } from './run_logger.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -870,7 +870,127 @@ async function runSystemDiagnostics(targetRaw, chatId) {
   await sendTelegramMessage(msg, { chatId });
 }
 
-// ── Telegram Webhook Handler (/status, /test, /mute) ──
+// ── Active Runners Check (/runner active or /runners) ──
+async function runRunnersCheck(chatId) {
+  try {
+    const res = await queryD1(
+      'SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners ORDER BY last_heartbeat DESC LIMIT 20'
+    );
+    const runners = res?.results || [];
+    const now = Date.now();
+
+    const activeRunners = runners.filter(r => {
+      if (r.status === 'ready' || r.status === 'active') {
+        const hbTime = new Date(r.last_heartbeat + 'Z').getTime();
+        return (now - hbTime) <= 10 * 60 * 1000;
+      }
+      return false;
+    });
+
+    if (activeRunners.length > 0) {
+      let msg = `⚡ <b>Active Runners (${activeRunners.length})</b> • ${getIstTime()}\n\n`;
+      activeRunners.forEach(r => {
+        const typeTag = r.type === 'kaggle_gpu' ? 'GPU T4×2' : (r.type === 'kaggle_cpu' ? 'CPU' : r.type);
+        msg += `• <code>${r.id}</code>\n`;
+        msg += `  Service: <b>${(r.service || '').toUpperCase()}</b> [${typeTag}]\n`;
+        msg += `  Status: 🟢 <b>${r.status}</b> | Load: ${r.active_count || 0}/${r.capacity || 1}\n`;
+        msg += `  Last Heartbeat: <code>${r.last_heartbeat}</code>\n`;
+        msg += `  <i>Tail logs:</i> <code>/logs ${r.id}</code>\n\n`;
+      });
+      await sendTelegramMessage(msg, { chatId });
+      return;
+    }
+
+    let msg = `⚡ <b>Active Runners</b> • ${getIstTime()}\n\n`;
+    msg += `ℹ️ <b>No runners currently active or ready.</b>\n`;
+    msg += `<i>(Runners spin up on Kaggle on-demand when users launch a VPS or DevBox session)</i>\n\n`;
+    if (runners.length > 0) {
+      msg += `<b>Recent Runners in Database:</b>\n`;
+      runners.slice(0, 6).forEach(r => {
+        msg += `• <code>${r.id}</code> [${r.service}] - <i>${r.status}</i>\n`;
+      });
+      msg += `\n<i>To inspect logs for any runner, send:</i>\n<code>/logs &lt;runner_id&gt;</code>\n`;
+    }
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Runners check error:', err.message);
+    await sendTelegramMessage(`⚠️ Error querying runners: ${err.message}`, { chatId });
+  }
+}
+
+// ── Runner / Session Logs Tail (/logs <runner_id>) ──
+async function runRunnerLogsCheck(rawTargetId, chatId) {
+  const targetId = (rawTargetId || '').trim();
+  if (!targetId) {
+    await sendTelegramMessage('⚠️ Please specify a runner ID or session key: <code>/logs &lt;runner_id&gt;</code>', { chatId });
+    return;
+  }
+
+  try {
+    // 1. Fetch runner metadata and attached instances from D1
+    const [runnerRes, instRes, tunnelUrl] = await Promise.all([
+      queryD1('SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners WHERE id = ? LIMIT 1', [targetId]).catch(() => ({ results: [] })),
+      queryD1('SELECT session_key, service, status, public_url, created_at FROM instances WHERE runner_id = ? OR session_key = ? ORDER BY id DESC LIMIT 5', [targetId, targetId]).catch(() => ({ results: [] })),
+      redisCmd('HGET', `runner:${targetId}`, 'tunnel_url').catch(() => null)
+    ]);
+
+    const runner = runnerRes?.results?.[0];
+    const attachedInstances = instRes?.results || [];
+
+    // 2. Search for disk logs across all services
+    const services = ['devbox', 'vps', 'serverless', 'webhost'];
+    let logData = null;
+
+    if (runner?.service && services.includes(runner.service)) {
+      logData = getRunLog(runner.service, targetId);
+    }
+    if (!logData || !logData.exists) {
+      for (const s of services) {
+        const check = getRunLog(s, targetId);
+        if (check && check.exists) {
+          logData = check;
+          break;
+        }
+      }
+    }
+
+    let msg = `📜 <b>Log Report: ${targetId}</b> • ${getIstTime()}\n`;
+    if (runner) {
+      msg += `<b>Service:</b> ${(runner.service || '').toUpperCase()} | <b>Type:</b> ${runner.type} | <b>Status:</b> ${runner.status}\n`;
+      msg += `<b>Load:</b> ${runner.active_count || 0}/${runner.capacity || 1} | <b>Last Seen:</b> <code>${runner.last_heartbeat}</code>\n`;
+      if (tunnelUrl) {
+        msg += `<b>Tunnel:</b> <code>${tunnelUrl}</code>\n`;
+      }
+    }
+
+    if (attachedInstances.length > 0) {
+      msg += `<b>Associated Instances:</b>\n`;
+      attachedInstances.forEach(inst => {
+        msg += ` • <code>${inst.session_key}</code> [${inst.status}]\n`;
+      });
+    }
+
+    msg += `\n`;
+
+    if (logData && logData.exists && logData.content) {
+      const rawContent = logData.content.trim();
+      const lines = rawContent.split('\n');
+      const tailLines = lines.slice(-25).join('\n');
+      const safeSnippet = tailLines.replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(-2500);
+      msg += `<b>Log Tail (${logData.sizeKB} KB):</b>\n<pre>${safeSnippet}</pre>`;
+    } else {
+      msg += `ℹ️ <i>No disk log file generated yet for [${targetId}].</i>\n`;
+      msg += `<i>Disk logs are created when workloads run commands or report events to <code>/worker/session_update</code>.</i>`;
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Logs check error:', err.message);
+    await sendTelegramMessage(`⚠️ Error reading runner logs for <b>${targetId}</b>: ${err.message}`, { chatId });
+  }
+}
+
+// ── Telegram Webhook Handler (/status, /test, /runner, /logs, /mute) ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
   const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
@@ -908,6 +1028,22 @@ export async function handleTelegramWebhook(req, res) {
     }
     res.json({ status: 'ok', msg: 'Dispatching status' });
     await runMonitoringCycle(true, senderChatId);
+    return;
+  }
+
+  // Command: /runner active, /runners active, /runners, /runner
+  if (text.startsWith('/runner') || text.startsWith('/runners')) {
+    res.json({ status: 'ok', msg: 'Querying runners' });
+    await runRunnersCheck(senderChatId);
+    return;
+  }
+
+  // Command: /logs <runner_id> or /log <runner_id>
+  if (text.startsWith('/logs') || text.startsWith('/log')) {
+    const parts = text.split(/\s+/);
+    const targetId = parts[1];
+    res.json({ status: 'ok', msg: 'Fetching runner logs' });
+    await runRunnerLogsCheck(targetId, senderChatId);
     return;
   }
 
@@ -954,6 +1090,8 @@ export async function handleTelegramWebhook(req, res) {
 <b>Telemetry & Status:</b>
 • <code>/status</code> - Platform health & overall telemetry
 • <code>/status &lt;username&gt;</code> - Specific user workloads, storage & quota
+• <code>/runner active</code> - List all active compute runners & capacity
+• <code>/logs &lt;runner_id&gt;</code> - Tail real-time logs for a specific runner
 
 <b>System Diagnostics:</b>
 • <code>/test all</code> - Comprehensive infrastructure health audit
