@@ -64,8 +64,32 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       });
     }
 
-    // Check GPU pool availability via Redis if GPU runtime requested
+    // Strict GPU Plan & Quota checks if GPU runtime requested
+    let timeoutSeconds = 3600;
+
     if (runtime === 'gpu') {
+      if (!plan.gpu_allowed || (plan.gpu_hours || 0) <= 0) {
+        return res.status(403).json({
+          status: 'error',
+          msg: 'GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan or switch to standard CPU.',
+          upgrade_required: true,
+        });
+      }
+
+      const maxGpuSeconds = (plan.devbox_gpu_min || plan.gpu_hours * 60) * 60;
+      const usedGpuSeconds = parseInt(await redisCmd('GET', `quota:${userId}:devbox_gpu`) || '0', 10);
+      if (usedGpuSeconds >= maxGpuSeconds) {
+        return res.status(403).json({
+          status: 'error',
+          msg: `Strict GPU limit reached for your ${plan.name} plan (${plan.gpu_hours}h limit). Upgrade your plan or switch to standard CPU.`,
+          used_hours: (usedGpuSeconds / 3600).toFixed(2),
+          limit_hours: plan.gpu_hours,
+        });
+      }
+
+      const remainingGpuSeconds = Math.max(60, maxGpuSeconds - usedGpuSeconds);
+      timeoutSeconds = Math.min(remainingGpuSeconds, (plan.gpu_hours || 1) * 3600);
+
       const activeGPU = await redisCmd('SCARD', 'gpu:active');
       const gpuCapacity = 4;
 
@@ -76,9 +100,10 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
         });
       }
       await redisCmd('SADD', 'gpu:active', sessionKey);
+    } else {
+      timeoutSeconds = (plan.devbox_cpu_min || 60) * 60;
     }
 
-    const timeoutSeconds = plan.devbox_gpu_min * 60;
     const termPass = crypto.randomBytes(6).toString('hex');
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
     const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
@@ -184,10 +209,30 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
 
     const plan = getPlan(req.user.plan);
     const newSessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
+    let timeoutSeconds = 3600;
+
     if (runtime === 'gpu') {
+      if (!plan.gpu_allowed || (plan.gpu_hours || 0) <= 0) {
+        return res.status(403).json({
+          status: 'error',
+          msg: 'GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan or switch to standard CPU.',
+          upgrade_required: true,
+        });
+      }
+      const maxGpuSeconds = (plan.devbox_gpu_min || plan.gpu_hours * 60) * 60;
+      const usedGpuSeconds = parseInt(await redisCmd('GET', `quota:${userId}:devbox_gpu`) || '0', 10);
+      if (usedGpuSeconds >= maxGpuSeconds) {
+        return res.status(403).json({
+          status: 'error',
+          msg: `Strict GPU limit reached for your ${plan.name} plan (${plan.gpu_hours}h limit). Upgrade your plan or switch to standard CPU.`,
+        });
+      }
+      timeoutSeconds = Math.min(Math.max(60, maxGpuSeconds - usedGpuSeconds), (plan.gpu_hours || 1) * 3600);
       await redisCmd('SADD', 'gpu:active', newSessionKey);
+    } else {
+      timeoutSeconds = (plan.devbox_cpu_min || 60) * 60;
     }
-    const timeoutSeconds = plan.devbox_gpu_min * 60;
+
     const termPass = crypto.randomBytes(6).toString('hex');
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
     const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
@@ -345,13 +390,22 @@ devboxRouter.post('/stop', requireAuth, async (req, res) => {
     if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
 
     const inst = await d1QueryOne(
-      "SELECT id, created_at, status, runner_id FROM instances WHERE session_key = ? AND user_id = ?",
+      "SELECT id, created_at, status, runner_id, config FROM instances WHERE session_key = ? AND user_id = ?",
       [session_key, req.user.sub]
     );
     if (!inst) return res.status(404).json({ status: 'error', msg: 'Instance not found or access denied' });
 
     const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(inst.created_at).getTime()) / 1000));
     await consumeQuota(redisCmd, req.user.sub, 'devbox', durationSeconds).catch(() => {});
+
+    try {
+      const cfg = JSON.parse(inst.config || '{}');
+      if (cfg.gpu) {
+        await redisCmd('INCRBY', `quota:${req.user.sub}:devbox_gpu`, String(durationSeconds)).catch(() => {});
+      } else {
+        await redisCmd('INCRBY', `quota:${req.user.sub}:devbox_cpu`, String(durationSeconds)).catch(() => {});
+      }
+    } catch (_) {}
 
     await executeD1(
       "UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?",

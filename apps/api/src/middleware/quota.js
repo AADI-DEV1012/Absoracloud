@@ -1,4 +1,4 @@
-﻿// ── Quota Enforcement Middleware ──
+// ── Quota Enforcement Middleware ──
 import { checkQuota }       from '../../../../packages/shared/plans.js';
 import { redisCmd }         from '../../../../packages/shared/redis.js';
 
@@ -6,11 +6,12 @@ import { redisCmd }         from '../../../../packages/shared/redis.js';
 export function requireQuota(service) {
   return async (req, res, next) => {
     try {
-      const quota = await checkQuota(redisCmd, req.user.sub, service, req.user.plan);
+      const runtime = (req.body?.runtime || 'gpu').toLowerCase();
+      const quota = await checkQuota(redisCmd, req.user.sub, service, req.user.plan, runtime);
       if (!quota.allowed) {
         return res.status(403).json({
           status: 'error',
-          msg: `Weekly ${service} quota exhausted. Upgrade your plan for more time.`,
+          msg: quota.msg || `Weekly ${service} quota exhausted. Upgrade your plan for more time.`,
           used: quota.used,
           max: quota.max,
         });

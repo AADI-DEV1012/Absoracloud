@@ -96,9 +96,10 @@ authRouter.get('/me', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ status: 'error', msg: 'User not found' });
 
     const plan = getPlan(user.plan || 'free');
-    const [vps, devbox, serverless, webhost, storageRows] = await Promise.all([
+    const [vps, devbox, devboxGpu, serverless, webhost, storageRows] = await Promise.all([
       redisCmd('GET', `quota:${user.id}:vps`).catch(() => '0'),
       redisCmd('GET', `quota:${user.id}:devbox`).catch(() => '0'),
+      redisCmd('GET', `quota:${user.id}:devbox_gpu`).catch(() => '0'),
       queryD1("SELECT COUNT(*) as cnt FROM instances WHERE user_id = ? AND service = 'serverless' AND status != 'dismissed'", [user.id]).catch(() => [{ cnt: 0 }]),
       queryD1("SELECT COUNT(*) as cnt FROM instances WHERE user_id = ? AND service = 'webhost' AND status != 'dismissed'", [user.id]).catch(() => [{ cnt: 0 }]),
       queryD1("SELECT COALESCE(SUM(file_size), 0) as total_bytes, COUNT(*) as cnt FROM cloud_files WHERE user_id = ?", [user.id]).catch(() => [{ total_bytes: 0, cnt: 0 }])
@@ -106,10 +107,14 @@ authRouter.get('/me', requireAuth, async (req, res) => {
 
     const vpsSec = parseInt(vps || '0', 10);
     const devboxSec = parseInt(devbox || '0', 10);
+    const devboxGpuSec = parseInt(devboxGpu || '0', 10);
     const srvCount = serverless?.[0]?.cnt || 0;
     const webCount = webhost?.[0]?.cnt || 0;
     const storeBytes = storageRows?.[0]?.total_bytes || 0;
     const storeCount = storageRows?.[0]?.cnt || 0;
+
+    const reservedLogsMb = plan.logs_reserved_mb || 200;
+    const usableStorageBytes = Math.max(0, (plan.storage_gb * 1024 - reservedLogsMb) * 1024 * 1024);
 
     const quotas = {
       plan: user.plan || 'free',
@@ -122,11 +127,17 @@ authRouter.get('/me', requireAuth, async (req, res) => {
         percent: Math.min(100, Math.round((vpsSec / (plan.vps_hours_week * 3600)) * 100))
       },
       devbox: {
+        gpu_allowed: !!plan.gpu_allowed,
+        gpu_hours_max: plan.gpu_hours || 0,
+        gpu_used_seconds: devboxGpuSec,
+        gpu_max_seconds: (plan.devbox_gpu_min || 0) * 60,
+        gpu_minutes_used: Math.round(devboxGpuSec / 60),
+        gpu_minutes_max: plan.devbox_gpu_min || 0,
+        percent: plan.devbox_gpu_min > 0 
+          ? Math.min(100, Math.round((devboxGpuSec / (plan.devbox_gpu_min * 60)) * 100))
+          : 0,
         used_seconds: devboxSec,
-        max_seconds: plan.devbox_gpu_min * 60,
-        minutes_used: Math.round(devboxSec / 60),
-        minutes_max: plan.devbox_gpu_min,
-        percent: Math.min(100, Math.round((devboxSec / (plan.devbox_gpu_min * 60)) * 100))
+        cpu_minutes_max: plan.devbox_cpu_min || 60,
       },
       serverless: {
         used_count: srvCount,
@@ -140,11 +151,15 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       },
       storage: {
         used_bytes: storeBytes,
-        max_bytes: plan.storage_gb * 1024 * 1024 * 1024,
+        usable_bytes: usableStorageBytes,
+        max_bytes: usableStorageBytes,
+        total_disk_bytes: plan.storage_gb * 1024 * 1024 * 1024,
+        reserved_logs_mb: reservedLogsMb,
         used_mb: (storeBytes / (1024 * 1024)).toFixed(2),
+        usable_gb: ((plan.storage_gb * 1024 - reservedLogsMb) / 1024).toFixed(2),
         max_gb: plan.storage_gb,
         file_count: storeCount,
-        percent: Math.min(100, Math.round((storeBytes / (plan.storage_gb * 1024 * 1024 * 1024)) * 100))
+        percent: Math.min(100, Math.round((storeBytes / Math.max(1, usableStorageBytes)) * 100))
       }
     };
 

@@ -162,7 +162,15 @@
         const authToken = localStorage.getItem('auth_token');
         let selectedRuntime = 'gpu';
 
+        let currentUserPlan = 'free';
+        let isGpuAllowed = false;
+
         function setRuntime(rt) {
+            if (rt === 'gpu' && currentUserPlan === 'free') {
+                showToast('Dual GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan to unlock GPU.', 'error');
+                return;
+            }
+
             selectedRuntime = rt;
             const gpuBtn = document.getElementById('rt-gpu-btn');
             const cpuBtn = document.getElementById('rt-cpu-btn');
@@ -206,14 +214,24 @@
                     document.getElementById('login-link-btn').classList.add('hidden');
                     document.getElementById('user-profile-bar').classList.remove('hidden');
                     document.getElementById('user-name').innerText = data.user.username;
-                    document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+                    currentUserPlan = (data.user.plan || 'free').toLowerCase();
+                    document.getElementById('user-plan-badge').innerText = currentUserPlan.toUpperCase();
 
                     // Update Real Quotas
                     if (data.quotas && data.quotas.devbox) {
                         const d = data.quotas.devbox;
-                        document.getElementById('devbox-quota-mins').innerText = `${d.minutes_used} / ${d.minutes_max} mins`;
-                        document.getElementById('devbox-quota-percent').innerText = `${d.percent}%`;
-                        document.getElementById('devbox-quota-bar').style.width = `${d.percent}%`;
+                        isGpuAllowed = !!d.gpu_allowed;
+
+                        if (!isGpuAllowed) {
+                            document.getElementById('devbox-quota-mins').innerText = `CPU Only (0h GPU)`;
+                            document.getElementById('devbox-quota-percent').innerText = `Free Plan`;
+                            document.getElementById('devbox-quota-bar').style.width = `0%`;
+                            setRuntime('cpu');
+                        } else {
+                            document.getElementById('devbox-quota-mins').innerText = `${d.gpu_minutes_used} / ${d.gpu_minutes_max} mins GPU (${d.gpu_hours_max}h limit)`;
+                            document.getElementById('devbox-quota-percent').innerText = `${d.percent}%`;
+                            document.getElementById('devbox-quota-bar').style.width = `${d.percent}%`;
+                        }
                     }
                     return true;
                 }

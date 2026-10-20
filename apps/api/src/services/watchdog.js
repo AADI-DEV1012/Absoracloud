@@ -68,6 +68,16 @@ async function reapExpiredInstances() {
       if (inst.service === 'vps' || inst.service === 'devbox') {
         const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(inst.created_at).getTime()) / 1000));
         await consumeQuota(redisCmd, inst.user_id, inst.service, durationSeconds).catch(() => {});
+        if (inst.service === 'devbox') {
+          try {
+            const cfg = JSON.parse(inst.config || '{}');
+            if (cfg.gpu) {
+              await redisCmd('INCRBY', `quota:${inst.user_id}:devbox_gpu`, String(durationSeconds)).catch(() => {});
+            } else {
+              await redisCmd('INCRBY', `quota:${inst.user_id}:devbox_cpu`, String(durationSeconds)).catch(() => {});
+            }
+          } catch (_) {}
+        }
       }
 
       // Tear down Cloudflare Workers for expired webhost & serverless sites
