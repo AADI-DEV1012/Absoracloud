@@ -1,4 +1,4 @@
-﻿// ── Web Hosting Routes (Cloudflare Workers) ──
+// ── Web Hosting Routes (Cloudflare Workers) ──
 // POST /webhost/deploy, GET /webhost/status, GET /webhost/check_session,
 // DELETE /webhost/remove, POST /webhost/relaunch
 
@@ -34,6 +34,12 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
     if (!repo_url || !site_name) {
       return res.status(400).json({ status: 'error', msg: 'repo_url and site_name required' });
     }
+
+    const GITHUB_REPO_REGEX = /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(\/)?$/;
+    if (!GITHUB_REPO_REGEX.test(repo_url)) {
+      return res.status(400).json({ status: 'error', msg: 'Invalid GitHub repository URL. Must be in format https://github.com/owner/repo' });
+    }
+
     if (!/^[a-z0-9-]{3,30}$/.test(site_name)) {
       return res.status(400).json({ status: 'error', msg: 'site_name: 3-30 chars, lowercase letters/numbers/hyphens only' });
     }
@@ -78,19 +84,27 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
     // Deploy directly to Cloudflare Workers (async — don't block response)
     deployWebsite({ siteName: site_name, repoUrl: repo_url, sessionKey, userId, plan: req.user.plan })
       .then(async ({ publicUrl }) => {
-        await executeD1(
-          "UPDATE instances SET status = 'active', public_url = ? WHERE session_key = ?",
-          [publicUrl, sessionKey]
-        );
-        await redisCmd('HSET', `session:${sessionKey}`, 'status', 'active', 'tunnel_url', publicUrl);
-        console.log(`✅ WebHost deployed: ${site_name} → ${publicUrl}`);
+        try {
+          await executeD1(
+            "UPDATE instances SET status = 'active', public_url = ? WHERE session_key = ?",
+            [publicUrl, sessionKey]
+          );
+          await redisCmd('HSET', `session:${sessionKey}`, 'status', 'active', 'tunnel_url', publicUrl);
+          console.log(`✅ WebHost deployed: ${site_name} → ${publicUrl}`);
+        } catch (dbErr) {
+          console.error('WebHost status DB update error:', dbErr.message);
+        }
       })
       .catch(async (err) => {
-        await executeD1(
-          "UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?",
-          [sessionKey]
-        );
-        await redisCmd('HSET', `session:${sessionKey}`, 'status', 'failed', 'error', err.message);
+        try {
+          await executeD1(
+            "UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?",
+            [sessionKey]
+          );
+          await redisCmd('HSET', `session:${sessionKey}`, 'status', 'failed', 'error', err.message);
+        } catch (dbErr) {
+          console.error('WebHost fail DB update error:', dbErr.message);
+        }
         console.error(`❌ WebHost deploy failed for ${site_name}:`, err.message);
       });
 
@@ -136,12 +150,20 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
 
     deployWebsite({ siteName: cfg.site_name, repoUrl: cfg.repo_url, sessionKey: newSessionKey, userId: req.user.sub, plan: req.user.plan })
       .then(async ({ publicUrl }) => {
-        await executeD1("UPDATE instances SET status = 'active', public_url = ? WHERE session_key = ?", [publicUrl, newSessionKey]);
-        await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'active', 'tunnel_url', publicUrl);
+        try {
+          await executeD1("UPDATE instances SET status = 'active', public_url = ? WHERE session_key = ?", [publicUrl, newSessionKey]);
+          await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'active', 'tunnel_url', publicUrl);
+        } catch (dbErr) {
+          console.error('WebHost relaunch DB update error:', dbErr.message);
+        }
       })
       .catch(async (err) => {
-        await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
-        await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', err.message);
+        try {
+          await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
+          await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', err.message);
+        } catch (dbErr) {
+          console.error('WebHost relaunch fail DB update error:', dbErr.message);
+        }
       });
 
     res.json({ status: 'deploying', session_key: newSessionKey, msg: 'Re-deploying to Cloudflare Workers...' });
@@ -157,20 +179,23 @@ webhostRouter.get('/check_session', requireAuth, async (req, res) => {
     const session_key = req.query.session_key || req.query.session_id;
     if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
 
+    // Enforce ownership check
+    const inst = await d1QueryOne("SELECT * FROM instances WHERE session_key = ?", [session_key]);
+    if (!inst) return res.status(404).json({ status: 'not_found' });
+    if (inst.user_id !== req.user.sub && req.user.role !== 'admin') {
+      return res.status(403).json({ status: 'forbidden', msg: 'Access denied' });
+    }
+
     // 1. Redis first (fastest)
     const data = redisParseHash(await redisCmd('HGETALL', `session:${session_key}`));
     if (data && data.status) {
       return res.json({
         status: data.status,
-        url: data.tunnel_url || null,
-        expires_at: data.expires_at || null,
+        url: data.tunnel_url || inst.public_url || null,
+        expires_at: data.expires_at || inst.expires_at || null,
         error: data.error || null,
       });
     }
-
-    // 2. D1 fallback
-    const inst = await d1QueryOne("SELECT * FROM instances WHERE session_key = ?", [session_key]);
-    if (!inst) return res.status(404).json({ status: 'not_found' });
 
     if (inst.status === 'deploying') {
       const createdTime = new Date(inst.created_at).getTime();

@@ -1,4 +1,4 @@
-﻿// ── Realtime WebSocket Routes ──
+// ── Realtime WebSocket Routes ──
 // POST /realtime/publish, GET /realtime/config, GET /realtime/events, GET /realtime/status
 
 import { Router } from 'express';
@@ -69,8 +69,8 @@ realtimeRouter.get('/events', requireAuth, async (req, res) => {
     let events = [];
     if (channel) {
       events = await queryD1(
-        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE channel = ? ORDER BY id DESC LIMIT 50',
-        [channel]
+        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE channel = ? AND user_id = ? ORDER BY id DESC LIMIT 50',
+        [channel, userId]
       );
     } else {
       events = await queryD1(

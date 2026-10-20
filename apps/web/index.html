@@ -2191,7 +2191,21 @@
                             <tr>
                                 <td class="py-3 font-mono font-medium">${inst.session_key}</td>
                                 <td class="py-3 text-neutral-500">Sliced Cloud Compute</td>
-                                <td class="py-3">${inst.public_url ? `<a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline">Web Terminal ↗</a>` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Tunnel offline</span>' : '<span class="text-neutral-400 animate-pulse">Tunnel building...</span>'))}</td>
+                                <td class="py-3">
+                                    ${inst.public_url ? `
+                                        <div class="flex flex-col gap-1">
+                                            <a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1">
+                                                Web Terminal ↗
+                                            </a>
+                                            ${inst.term_pass ? `
+                                                <div class="text-[11px] font-mono text-neutral-500 flex items-center gap-1.5 bg-neutral-100 px-1.5 py-0.5 rounded w-fit">
+                                                    <span>user: <b class="text-neutral-800">admin</b> | pass: <b class="text-neutral-800">${inst.term_pass}</b></span>
+                                                    <button type="button" onclick="navigator.clipboard.writeText('${inst.term_pass}'); this.innerText='copied!'; setTimeout(()=>this.innerText='copy', 1500);" class="text-blue-600 hover:underline text-[10px] font-sans cursor-pointer">copy</button>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Tunnel offline</span>' : '<span class="text-neutral-400 animate-pulse">Tunnel building...</span>'))}
+                                </td>
                                 <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '4h limit'}</td>
                                 <td class="py-3">${renderStatusBadge(inst.status)}</td>
                                 <td class="py-3 text-right">${renderActions('vps', inst)}</td>
@@ -2218,13 +2232,21 @@
                                 </td>
                                 <td class="py-3">
                                     ${inst.public_url ? `
-                                        <div class="flex items-center gap-2">
-                                            <a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 flex items-center gap-1 transition">
-                                                <i class="fa-solid fa-book-open"></i> JupyterLab ↗
-                                            </a>
-                                            <a href="${inst.public_url}/terminals/1" target="_blank" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 flex items-center gap-1 transition font-mono">
-                                                <i class="fa-solid fa-terminal"></i> Terminal ↗
-                                            </a>
+                                        <div class="flex flex-col gap-1">
+                                            <div class="flex items-center gap-2">
+                                                <a href="${inst.public_url}/lab/tree/welcome.ipynb" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 flex items-center gap-1 transition">
+                                                    <i class="fa-solid fa-book-open"></i> JupyterLab ↗
+                                                </a>
+                                                <a href="${inst.public_url}/terminals/1" target="_blank" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 flex items-center gap-1 transition font-mono">
+                                                    <i class="fa-solid fa-terminal"></i> Terminal ↗
+                                                </a>
+                                            </div>
+                                            ${inst.term_pass ? `
+                                                <div class="text-[11px] font-mono text-neutral-500 flex items-center gap-1.5 bg-neutral-100 px-1.5 py-0.5 rounded w-fit">
+                                                    <span>user: <b class="text-neutral-800">admin</b> | pass: <b class="text-neutral-800">${inst.term_pass}</b></span>
+                                                    <button type="button" onclick="navigator.clipboard.writeText('${inst.term_pass}'); this.innerText='copied!'; setTimeout(()=>this.innerText='copy', 1500);" class="text-purple-600 hover:underline text-[10px] font-sans cursor-pointer">copy</button>
+                                                </div>
+                                            ` : ''}
                                         </div>
                                     ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Allocation failed</span>' : '<span class="text-neutral-400 animate-pulse">Allocating slot...</span>')}
                                 </td>

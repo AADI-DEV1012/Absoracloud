@@ -17,12 +17,18 @@ services:
         sync: false
       - key: WORKER_SECRET
         sync: false
+      - key: CLOUDFLARE_EMAIL
+        sync: false
+      - key: CLOUDFLARE_GLOBAL_API_KEY
+        sync: false
       - key: CLOUDFLARE_API_TOKEN
         sync: false
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_DOMAIN
         value: astrocore.qzz.io
+      - key: CF_WORKERS_SUBDOMAIN
+        value: aadibabaji12345
       - key: D1_DB_ID
         sync: false
       - key: D1_DB_1_ID

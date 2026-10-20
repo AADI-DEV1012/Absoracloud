@@ -4,7 +4,9 @@
 import jwt from 'jsonwebtoken';
 
 const SECRET = () => {
-  return process.env.JWT_SECRET || 'absoracloud_jwt_secret_production_2026_key';
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error('JWT_SECRET environment variable is not configured.');
+  return s;
 };
 
 export function signToken(payload, expiresIn = '24h') {

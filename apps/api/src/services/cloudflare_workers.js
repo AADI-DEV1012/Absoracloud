@@ -9,12 +9,103 @@ function getCfApi() {
 }
 
 function cfHeaders(contentType = 'application/json') {
+  const email = process.env.CLOUDFLARE_EMAIL;
+  const key   = process.env.CLOUDFLARE_GLOBAL_API_KEY;
   const token = process.env.CLOUDFLARE_API_TOKEN;
-  if (!token) throw new Error('Missing CLOUDFLARE_API_TOKEN in environment');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': contentType,
-  };
+
+  const headers = {};
+  if (contentType) headers['Content-Type'] = contentType;
+
+  if (email && key) {
+    headers['X-Auth-Email'] = email;
+    headers['X-Auth-Key']   = key;
+  } else if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    throw new Error('Missing Cloudflare credentials (CLOUDFLARE_API_TOKEN or CLOUDFLARE_EMAIL + CLOUDFLARE_GLOBAL_API_KEY)');
+  }
+  return headers;
+}
+
+let cachedSubdomain = process.env.CF_WORKERS_SUBDOMAIN || null;
+
+/**
+ * Gets real workers.dev subdomain for the account.
+ */
+export async function getWorkersSubdomain() {
+  if (cachedSubdomain && cachedSubdomain !== 'absoracloud') return cachedSubdomain;
+  try {
+    const res = await fetch(`${getCfApi()}/workers/subdomain`, {
+      headers: cfHeaders('application/json'),
+    });
+    const data = await res.json();
+    if (data.success && data.result?.subdomain) {
+      cachedSubdomain = data.result.subdomain;
+      return cachedSubdomain;
+    }
+  } catch (e) {
+    console.warn('Could not query workers.dev subdomain:', e.message);
+  }
+  return process.env.CF_WORKERS_SUBDOMAIN || 'aadibabaji12345';
+}
+
+/**
+ * Enables the workers.dev subdomain route for a script.
+ */
+export async function enableWorkerSubdomain(workerName) {
+  try {
+    const res = await fetch(`${getCfApi()}/workers/scripts/${workerName}/subdomain`, {
+      method: 'POST',
+      headers: cfHeaders('application/json'),
+      body: JSON.stringify({ enabled: true }),
+    });
+    const data = await res.json();
+    return data.success;
+  } catch (e) {
+    console.warn(`Failed to enable subdomain route for ${workerName}:`, e.message);
+    return false;
+  }
+}
+
+/**
+ * Uploads a Worker script supporting both ES Module and Service Worker formats.
+ */
+async function uploadWorkerScript(workerName, scriptText) {
+  const isModule = scriptText.includes('export default') || scriptText.includes('export const');
+
+  if (isModule) {
+    const formData = new FormData();
+    const metadata = {
+      main_module: 'worker.js',
+      compatibility_date: '2024-09-23',
+    };
+    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }), 'metadata');
+    formData.append('worker.js', new Blob([scriptText], { type: 'application/javascript+module' }), 'worker.js');
+
+    const headers = cfHeaders(null);
+    const res = await fetch(`${getCfApi()}/workers/scripts/${workerName}`, {
+      method: 'PUT',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`CF Worker module deploy failed (${res.status}): ${err}`);
+    }
+    return await res.json();
+  } else {
+    const headers = cfHeaders('application/javascript');
+    const res = await fetch(`${getCfApi()}/workers/scripts/${workerName}`, {
+      method: 'PUT',
+      headers,
+      body: scriptText,
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`CF Worker deploy failed (${res.status}): ${err}`);
+    }
+    return await res.json();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,41 +114,18 @@ function cfHeaders(contentType = 'application/json') {
 
 /**
  * Creates or updates a Cloudflare Worker script for web hosting.
- * The script proxies to the user's GitHub repo content (static) or
- * wraps a simple fetch handler for the site.
- *
- * @param {object} opts
- * @param {string} opts.siteName   - URL-safe site slug (e.g. "my-blog")
- * @param {string} opts.repoUrl    - User's GitHub repo URL
- * @param {string} opts.sessionKey - Instance session key
- * @param {string} opts.userId     - User ID
- * @param {string} opts.plan       - User plan
  */
 export async function deployWebsite({ siteName, repoUrl, sessionKey, userId, plan }) {
   const workerName = `absohost-${siteName}`;
-
-  // Build a lightweight Worker script that serves the site
   const script = buildWebsiteWorkerScript({ siteName, repoUrl, userId, plan });
 
-  const res = await fetch(`${getCfApi()}/workers/scripts/${workerName}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
-      'Content-Type': 'application/javascript',
-    },
-    body: script,
-  });
+  const data = await uploadWorkerScript(workerName, script);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`CF Worker deploy failed (${res.status}): ${err}`);
-  }
+  // Enable the workers.dev subdomain route
+  await enableWorkerSubdomain(workerName);
 
-  const data = await res.json();
-
-  // Assign a workers.dev subdomain route or custom domain
-  const domain = process.env.CLOUDFLARE_DOMAIN || 'astrocore.qzz.io';
-  const publicUrl = `https://${workerName}.${process.env.CF_WORKERS_SUBDOMAIN || 'absoracloud'}.workers.dev`;
+  const subdomain = await getWorkersSubdomain();
+  const publicUrl = `https://${workerName}.${subdomain}.workers.dev`;
 
   return { workerName, publicUrl, data };
 }
@@ -90,30 +158,42 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
 
-  // Derive raw GitHub content URL from repo URL
-  const repoBase = '${repoUrl}'
-    .replace('https://github.com/', 'https://raw.githubusercontent.com/')
-    .replace(/\\.git$/, '') + '/main';
+  const repoPath = '${repoUrl}'
+    .replace('https://github.com/', '')
+    .replace(/\\.git$/, '');
 
-  try {
-    const upstream = await fetch(repoBase + pathname);
-    if (upstream.ok) {
-      const contentType = guessContentType(pathname);
-      return new Response(upstream.body, {
-        status: 200,
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=60',
-          'X-Powered-By': 'AbsoraCloud Web Hosting',
-        },
-      });
-    }
-    // Fallback to index.html for SPA routing
-    const index = await fetch(repoBase + '/index.html');
-    if (index.ok) return new Response(index.body, { status: 200, headers: { 'Content-Type': 'text/html' } });
-  } catch (e) {}
+  const branches = ['main', 'master'];
 
-  return new Response('404 — Site not found', { status: 404 });
+  for (const branch of branches) {
+    try {
+      const rawUrl = 'https://raw.githubusercontent.com/' + repoPath + '/' + branch + pathname;
+      const upstream = await fetch(rawUrl);
+      if (upstream.ok) {
+        const contentType = guessContentType(pathname);
+        return new Response(upstream.body, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=60',
+            'X-Powered-By': 'AbsoraCloud Web Hosting',
+          },
+        });
+      }
+    } catch (_) {}
+  }
+
+  // SPA fallback
+  for (const branch of branches) {
+    try {
+      const rawIndex = 'https://raw.githubusercontent.com/' + repoPath + '/' + branch + '/index.html';
+      const index = await fetch(rawIndex);
+      if (index.ok) {
+        return new Response(index.body, { status: 200, headers: { 'Content-Type': 'text/html' } });
+      }
+    } catch (_) {}
+  }
+
+  return new Response('404 — Site not found or branch not found', { status: 404 });
 }
 
 function guessContentType(path) {
@@ -137,35 +217,19 @@ function guessContentType(path) {
 
 /**
  * Deploys a user-written function as a Cloudflare Worker.
- *
- * @param {object} opts
- * @param {string} opts.funcName   - Function name slug (e.g. "my-api")
- * @param {string} opts.code       - User's JS worker code
- * @param {string} opts.userId     - User ID
- * @param {string} opts.plan       - User plan
- * @param {string} opts.sessionKey - Instance session key
  */
 export async function deployFunction({ funcName, code, userId, plan, sessionKey }) {
   const workerName = `abso-fn-${userId}-${funcName}`;
-
-  // Wrap user code in an isolated handler with plan-based limits
   const wrappedCode = wrapUserFunctionCode(code, { funcName, userId, plan });
 
-  const res = await fetch(`${getCfApi()}/workers/scripts/${workerName}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
-      'Content-Type': 'application/javascript',
-    },
-    body: wrappedCode,
-  });
+  await uploadWorkerScript(workerName, wrappedCode);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Serverless deploy failed (${res.status}): ${err}`);
-  }
+  // Enable the workers.dev subdomain route
+  await enableWorkerSubdomain(workerName);
 
-  const publicUrl = `https://${workerName}.${process.env.CF_WORKERS_SUBDOMAIN || 'absoracloud'}.workers.dev`;
+  const subdomain = await getWorkersSubdomain();
+  const publicUrl = `https://${workerName}.${subdomain}.workers.dev`;
+
   return { workerName, publicUrl };
 }
 
@@ -219,7 +283,7 @@ function wrapUserFunctionCode(userCode, { funcName, userId, plan }) {
   return `
 // AbsoraCloud Serverless Function — ${funcName}
 // User: ${userId} | Plan: ${plan}
-// ⚠️  Sandboxed: No Node.js APIs — Cloudflare Workers runtime only
+// ⚠️  Sandboxed: Cloudflare Workers runtime
 
 ${userCode}
 `.trim();

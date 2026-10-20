@@ -61,6 +61,12 @@ import { realtimeRouter }   from './routes/realtime.js';
 import { errorHandler }     from './middleware/error_handler.js';
 import { startWatchdog }    from './services/watchdog.js';
 
+// Process-level crash protection (log without crashing the server)
+process.on('unhandledRejection', e => console.error('Unhandled rejection:', e));
+process.on('uncaughtException',  e => console.error('Uncaught exception:', e));
+
+export { asyncHandler as wrap } from './middleware/async_handler.js';
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 

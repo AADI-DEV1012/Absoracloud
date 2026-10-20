@@ -65,15 +65,31 @@ export async function d1QueryOne(sql, params = []) {
 
 export async function ensureSchemaMigrations() {
   try {
-    const cols = await queryD1("PRAGMA table_info(instances);");
-    if (cols && !cols.some(c => c.name === 'runner_id')) {
+    // 1. Runners table with last_heartbeat
+    await executeD1(
+      "CREATE TABLE IF NOT EXISTS runners (id TEXT PRIMARY KEY, type TEXT, service TEXT, capacity INTEGER DEFAULT 1, active_count INTEGER DEFAULT 0, status TEXT DEFAULT 'ready', last_heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);"
+    );
+
+    // 2. Bans table
+    await executeD1(
+      "CREATE TABLE IF NOT EXISTS bans (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, service TEXT DEFAULT 'all', reason TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);"
+    );
+
+    // 3. Ensure runner_id on instances
+    const instCols = await queryD1("PRAGMA table_info(instances);");
+    if (instCols && !instCols.some(c => c.name === 'runner_id')) {
       await executeD1("ALTER TABLE instances ADD COLUMN runner_id TEXT;");
       console.log('✅ Auto-migration: Added runner_id column to instances table');
     }
-    await executeD1(
-      "CREATE TABLE IF NOT EXISTS runners (id TEXT PRIMARY KEY, type TEXT, service TEXT, capacity INTEGER DEFAULT 1, active_count INTEGER DEFAULT 0, status TEXT DEFAULT 'ready', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);"
-    );
+
+    // 4. Ensure provider on cloud_files
+    const fileCols = await queryD1("PRAGMA table_info(cloud_files);").catch(() => []);
+    if (fileCols && fileCols.length > 0 && !fileCols.some(c => c.name === 'provider')) {
+      await executeD1("ALTER TABLE cloud_files ADD COLUMN provider TEXT DEFAULT 'local';");
+      console.log('✅ Auto-migration: Added provider column to cloud_files table');
+    }
   } catch (err) {
-    console.warn('Auto-migration notice:', err.message);
+    console.error('❌ Database schema migration error:', err);
+    throw err;
   }
 }

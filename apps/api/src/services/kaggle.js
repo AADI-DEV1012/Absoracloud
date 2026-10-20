@@ -1,6 +1,6 @@
 // ── Kaggle API Integration ──
 // Powers both services:
-//   • DevBox  — Kaggle GPU kernels (T4×2)
+//   • DevBox  — Kaggle GPU kernels (T4×2) or CPU
 //   • VPS     — Kaggle CPU-only kernels (no GPU)
 
 const KAGGLE_API = 'https://www.kaggle.com/api/v1';
@@ -16,23 +16,25 @@ function getAuth() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DEVBOX — GPU Kernel (T4×2)
+// DEVBOX — GPU Kernel (T4×2) or CPU
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Triggers a Kaggle GPU kernel for a DevBox IDE session.
+ * Triggers a Kaggle GPU/CPU kernel for a DevBox IDE session.
  */
-export async function triggerKaggleKernel(sessionKey, userId, plan) {
+export async function triggerKaggleKernel(sessionKey, userId, plan, config = {}) {
   const { username, authHeader } = getAuth();
+  const kernelSlug = `absoracloud-devbox-${sessionKey.slice(-8)}`;
+  const isGpu = config.runtime !== 'cpu';
 
   const kernelPush = {
-    slug: `${username}/absoracloud-devbox`,
-    newTitle: 'AbsoraCloud DevBox',
-    text: buildDevBoxScript(sessionKey, userId, plan),
+    slug: `${username}/${kernelSlug}`,
+    newTitle: `AbsoraCloud DevBox — ${sessionKey}`,
+    text: buildDevBoxScript(sessionKey, userId, plan, config),
     language: 'python',
     kernelType: 'script',
     isPrivate: true,
-    enableGpu: true,      // GPU T4×2
+    enableGpu: isGpu,
     enableInternet: true,
   };
 
@@ -44,7 +46,7 @@ export async function triggerKaggleKernel(sessionKey, userId, plan) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Kaggle GPU kernel push failed (${res.status}): ${text}`);
+    throw new Error(`Kaggle kernel push failed (${res.status}): ${text}`);
   }
   return await res.json();
 }
@@ -55,12 +57,9 @@ export async function triggerKaggleKernel(sessionKey, userId, plan) {
 
 /**
  * Triggers a Kaggle CPU-only kernel for a VPS session.
- * CPU runtime is cheaper on quota and suited for terminal/shell workloads.
  */
 export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
   const { username, authHeader } = getAuth();
-
-  // Each VPS gets a unique kernel slug so they can run concurrently
   const kernelSlug = `absoracloud-vps-${sessionKey.slice(-8)}`;
 
   const kernelPush = {
@@ -70,7 +69,7 @@ export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
     language: 'python',
     kernelType: 'script',
     isPrivate: true,
-    enableGpu: false,     // CPU-only — no GPU requested
+    enableGpu: false,
     enableInternet: true,
   };
 
@@ -91,9 +90,6 @@ export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
 // STATUS CHECKS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Gets the current status of any Kaggle kernel by slug.
- */
 export async function getKernelStatus(kernelSlug) {
   const { username, authHeader } = getAuth();
   const res = await fetch(
@@ -103,17 +99,12 @@ export async function getKernelStatus(kernelSlug) {
   return await res.json();
 }
 
-/**
- * Gets GPU DevBox kernel status.
- */
-export async function getDevBoxKernelStatus() {
+export async function getDevBoxKernelStatus(sessionKey) {
   const { username } = getAuth();
-  return getKernelStatus(`${username}/absoracloud-devbox`);
+  const slug = sessionKey ? `absoracloud-devbox-${sessionKey.slice(-8)}` : 'absoracloud-devbox';
+  return getKernelStatus(`${username}/${slug}`);
 }
 
-/**
- * Gets VPS kernel status by session key.
- */
 export async function getVPSKernelStatus(sessionKey) {
   const { username } = getAuth();
   return getKernelStatus(`${username}/absoracloud-vps-${sessionKey.slice(-8)}`);
@@ -123,45 +114,49 @@ export async function getVPSKernelStatus(sessionKey) {
 // KERNEL SCRIPTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildDevBoxScript(sessionKey, userId, plan) {
+function buildDevBoxScript(sessionKey, userId, plan, config = {}) {
   const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
   const secret   = process.env.WORKER_SECRET || '';
-  const redisUrl = process.env.UPSTASH_REDIS_URL || '';
-  const redisTok = process.env.UPSTASH_REDIS_TOKEN || '';
+  const termPass = config.term_pass || '';
+  const passArg  = termPass ? `-c admin:${termPass}` : '';
+  const timeoutS = (config.timeout_seconds) || 7200;
 
   return `
-# AbsoraCloud DevBox — GPU Kernel Runner
+# AbsoraCloud DevBox Runner
 # Session: ${sessionKey} | User: ${userId} | Plan: ${plan}
-import subprocess, os, time, requests, json
+import subprocess, os, time, requests, re
 
-SESSION_KEY  = "${sessionKey}"
-API_URL      = "${apiUrl}"
+SESSION_KEY   = "${sessionKey}"
+API_URL       = "${apiUrl}"
 WORKER_SECRET = "${secret}"
-REDIS_URL    = "${redisUrl}"
-REDIS_TOKEN  = "${redisTok}"
-
-def redis_cmd(*args):
-    r = requests.post(REDIS_URL, json=list(args),
-        headers={"Authorization": f"Bearer {REDIS_TOKEN}", "Content-Type": "application/json"})
-    return r.json().get("result")
+TIMEOUT_SEC   = ${timeoutS}
 
 def report_url(url):
     try:
-        redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
-    except Exception as re:
-        print("redis error:", re)
-    try:
         requests.post(f"{API_URL}/api/worker/session_update",
             json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-            headers={"X-Worker-Secret": WORKER_SECRET})
-    except Exception as he:
-        print("api update error:", he)
+            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+    except Exception as e:
+        print("session_update error:", e)
 
-# Install ttyd for browser terminal (-W for writable terminal)
+def check_heartbeat():
+    try:
+        r = requests.post(f"{API_URL}/api/worker/heartbeat",
+            json={"session_key": SESSION_KEY, "status": "active"},
+            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+        data = r.json()
+        if data.get("kill"):
+            return False
+    except Exception as e:
+        print("heartbeat error:", e)
+    return True
+
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
+
+# Install ttyd for browser terminal
 subprocess.Popen(["bash", "-c",
     "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    "&& chmod +x /usr/local/bin/ttyd && ttyd -W -p 7860 bash"
+    f"&& chmod +x /usr/local/bin/ttyd && ttyd ${passArg} -W -p 7860 bash"
 ])
 
 # Install cloudflared for tunnel
@@ -171,13 +166,12 @@ subprocess.Popen(["bash", "-c",
     "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf.log"
 ])
 
-# Wait for tunnel URL and report (poll every 3s up to 60 times)
+# Poll for tunnel URL (poll every 3s up to 60 times)
 for _ in range(60):
     time.sleep(3)
     try:
         if os.path.exists("/tmp/cf.log"):
             log = open("/tmp/cf.log").read()
-            import re
             urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
             if urls:
                 report_url(urls[0])
@@ -186,13 +180,15 @@ for _ in range(60):
     except Exception as e:
         print("devbox poll error:", e)
 
-# Keep alive with heartbeats
+# Keep alive with heartbeats & check kill signals
+start = time.time()
 while True:
-    kill = redis_cmd("GET", f"kill:{SESSION_KEY}")
-    if kill:
+    if time.time() - start > TIMEOUT_SEC:
+        print("⏱️ DevBox session timeout reached. Shutting down.")
+        break
+    if not check_heartbeat():
         print("🛑 Kill signal received — shutting down DevBox.")
         break
-    redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active")
     time.sleep(30)
 `.trim();
 }
@@ -200,9 +196,8 @@ while True:
 function buildVPSScript(sessionKey, userId, plan, config = {}) {
   const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
   const secret   = process.env.WORKER_SECRET || '';
-  const redisUrl = process.env.UPSTASH_REDIS_URL || '';
-  const redisTok = process.env.UPSTASH_REDIS_TOKEN || '';
-  const ramMb    = config.ram_mb || 2048;
+  const termPass = config.term_pass || '';
+  const passArg  = termPass ? `-c admin:${termPass}` : '';
   const timeoutS = config.timeout_seconds || 14400;
 
   return `
@@ -210,36 +205,37 @@ function buildVPSScript(sessionKey, userId, plan, config = {}) {
 # Session: ${sessionKey} | User: ${userId} | Plan: ${plan}
 import subprocess, os, time, requests, re
 
-SESSION_KEY    = "${sessionKey}"
-API_URL        = "${apiUrl}"
-WORKER_SECRET  = "${secret}"
-REDIS_URL      = "${redisUrl}"
-REDIS_TOKEN    = "${redisTok}"
-TIMEOUT_SEC    = ${timeoutS}
-
-def redis_cmd(*args):
-    r = requests.post(REDIS_URL, json=list(args),
-        headers={"Authorization": f"Bearer {REDIS_TOKEN}", "Content-Type": "application/json"})
-    return r.json().get("result")
+SESSION_KEY   = "${sessionKey}"
+API_URL       = "${apiUrl}"
+WORKER_SECRET = "${secret}"
+TIMEOUT_SEC   = ${timeoutS}
 
 def report_url(url):
     try:
-        redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active", "tunnel_url", url)
-    except Exception as re:
-        print("redis error:", re)
-    try:
         requests.post(f"{API_URL}/api/worker/session_update",
             json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-            headers={"X-Worker-Secret": WORKER_SECRET})
-    except Exception as he:
-        print("api update error:", he)
+            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+    except Exception as e:
+        print("session_update error:", e)
+
+def check_heartbeat():
+    try:
+        r = requests.post(f"{API_URL}/api/worker/heartbeat",
+            json={"session_key": SESSION_KEY, "status": "active"},
+            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+        data = r.json()
+        if data.get("kill"):
+            return False
+    except Exception as e:
+        print("heartbeat error:", e)
+    return True
 
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
 
-# Install ttyd (browser terminal) on CPU runtime (-W for writable terminal)
+# Install ttyd on CPU runtime
 subprocess.Popen(["bash", "-c",
     "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    "&& chmod +x /usr/local/bin/ttyd && ttyd -W -p 7860 bash"
+    f"&& chmod +x /usr/local/bin/ttyd && ttyd ${passArg} -W -p 7860 bash"
 ])
 
 # Cloudflare tunnel
@@ -249,7 +245,7 @@ subprocess.Popen(["bash", "-c",
     "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf_vps.log"
 ])
 
-# Wait for tunnel URL and report (poll every 3s up to 60 times)
+# Poll for tunnel URL (every 3s up to 60 times)
 for _ in range(60):
     time.sleep(3)
     try:
@@ -263,17 +259,15 @@ for _ in range(60):
     except Exception as e:
         print("vps poll error:", e)
 
-# Keep alive with heartbeats, respect kill signal and timeout
+# Keep alive with heartbeats & check kill signals
 start = time.time()
 while True:
     if time.time() - start > TIMEOUT_SEC:
         print("⏱️ VPS session timeout reached. Shutting down.")
         break
-    kill = redis_cmd("GET", f"kill:{SESSION_KEY}")
-    if kill:
+    if not check_heartbeat():
         print("🛑 Kill signal received — shutting down VPS.")
         break
-    redis_cmd("HSET", f"session:{SESSION_KEY}", "status", "active")
     time.sleep(30)
 `.trim();
 }
