@@ -877,7 +877,7 @@
                     <label id="label-email" class="font-semibold text-neutral-700 block mb-1">Email / Username</label>
                     <div class="relative">
                         <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-neutral-400"></i>
-                        <input id="auth-login-input" type="text" required class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.com">
+                        <input id="auth-login-input" type="text" required class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.qzz.io">
                     </div>
                 </div>
 
@@ -1359,15 +1359,26 @@
                 <!-- Developer Connection Quickstart -->
                 <div class="glass-card rounded-2xl p-6">
                     <h2 class="font-heading font-semibold text-base text-primary mb-1">Developer Connection Quickstart</h2>
-                    <p class="text-xs text-neutral-500 mb-4">Connect any frontend client or edge microservice to listen for realtime events over secure WebSockets.</p>
+                    <p class="text-xs text-neutral-500 mb-4">Connect any frontend client or microservice to listen and dispatch realtime events over AbsoraCloud Gateway (absoracloud.qzz.io).</p>
                     
-                    <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
-                        <span class="text-neutral-500">// Connect to AbsoraCloud Realtime WebSocket Gateway</span><br>
-                        <span class="text-purple-400">const</span> socket = <span class="text-purple-400">new</span> <span class="text-amber-400">WebSocket</span>(<span class="text-emerald-400">'wss://realtime.absoracloud.com/app/' + clientKey</span>);<br>
-                        socket.<span class="text-blue-400">onmessage</span> = (event) => {<br>
-                        &nbsp;&nbsp;<span class="text-purple-400">const</span> data = <span class="text-amber-400">JSON</span>.<span class="text-blue-400">parse</span>(event.data);<br>
-                        &nbsp;&nbsp;<span class="text-blue-400">console</span>.<span class="text-blue-400">log</span>(<span class="text-emerald-400">'[Realtime Event Received]:'</span>, data);<br>
-                        };
+                    <div class="space-y-3">
+                        <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
+                            <span class="text-neutral-500">// 1. Listen for Realtime Events via WebSocket (Browser / Node.js)</span><br>
+                            <span class="text-purple-400">const</span> pusher = <span class="text-purple-400">new</span> <span class="text-amber-400">Pusher</span>(<span class="text-emerald-400">'4bd0a2c237188dac0245'</span>, { <span class="text-blue-400">cluster</span>: <span class="text-emerald-400">'ap2'</span>, <span class="text-blue-400">forceTLS</span>: <span class="text-purple-400">true</span> });<br>
+                            <span class="text-purple-400">const</span> channel = pusher.<span class="text-blue-400">subscribe</span>(<span class="text-emerald-400">'notifications'</span>);<br>
+                            channel.<span class="text-blue-400">bind</span>(<span class="text-emerald-400">'system_alert'</span>, (data) =&gt; {<br>
+                            &nbsp;&nbsp;<span class="text-blue-400">console</span>.<span class="text-blue-400">log</span>(<span class="text-emerald-400">'[Realtime Event Received]:'</span>, data);<br>
+                            });
+                        </div>
+
+                        <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
+                            <span class="text-neutral-500">// 2. Broadcast an Event to the Gateway Mesh (API / Backend)</span><br>
+                            <span class="text-purple-400">await</span> <span class="text-blue-400">fetch</span>(<span class="text-emerald-400">'https://absoracloud.qzz.io/api/realtime/publish'</span>, {<br>
+                            &nbsp;&nbsp;<span class="text-blue-400">method</span>: <span class="text-emerald-400">'POST'</span>,<br>
+                            &nbsp;&nbsp;<span class="text-blue-400">headers</span>: { <span class="text-emerald-400">'Content-Type'</span>: <span class="text-emerald-400">'application/json'</span> },<br>
+                            &nbsp;&nbsp;<span class="text-blue-400">body</span>: <span class="text-amber-400">JSON</span>.<span class="text-blue-400">stringify</span>({ <span class="text-blue-400">channel</span>: <span class="text-emerald-400">'notifications'</span>, <span class="text-blue-400">event</span>: <span class="text-emerald-400">'system_alert'</span>, <span class="text-blue-400">data</span>: { <span class="text-blue-400">msg</span>: <span class="text-emerald-400">'Hello from App'</span> } })<br>
+                            });
+                        </div>
                     </div>
                 </div>
             </section>
