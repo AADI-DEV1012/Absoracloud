@@ -42,46 +42,105 @@
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-neutral-800 selection:text-white">
+<body class="min-h-screen bg-[#F8F7F4] selection:bg-neutral-800 selection:text-white">
 
-    <!-- Global Admin Top Navigation -->
-    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-lg tracking-tight text-primary">
-                <span class="text-xl">⚡</span> AbsoraCloud
-                <span class="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200 uppercase tracking-wider ml-1">Admin Plane</span>
-            </a>
-
-            <!-- Dedicated Service Portals Quick Nav -->
-            <nav class="hidden lg:flex items-center gap-1 text-xs font-semibold text-neutral-600">
-                <a href="vps.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">VPS</a>
-                <a href="devbox.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">DevBox</a>
-                <a href="serverless.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Serverless</a>
-                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Web Hosting</a>
-                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Storage</a>
-                <a href="websocket.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Realtime</a>
-            </nav>
-        </div>
-
-        <div class="flex items-center gap-4">
-            <!-- Platform Heartbeat Pill -->
-            <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-800">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Control Plane Online</span>
-            </div>
-
-            <!-- Admin Profile / Auth Area -->
-            <div id="admin-user-bar" class="flex items-center gap-3">
-                <div class="flex items-center gap-2 text-xs font-semibold">
-                    <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold font-mono">A</span>
-                    <span id="admin-username" class="text-neutral-800">Administrator</span>
+    <!-- Master Admin Lock Gateway Screen -->
+    <div id="admin-gate-screen" class="min-h-screen flex items-center justify-center p-4 bg-[#0B0F19] text-white">
+        <div class="max-w-md w-full bg-[#111827] border border-neutral-800 rounded-3xl p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-2xl mb-2">
+                    <i class="fa-solid fa-shield-halved"></i>
                 </div>
-                <button onclick="logoutAdmin()" class="text-xs text-neutral-400 hover:text-rose-600 transition p-1" title="Sign Out">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <h1 class="font-heading font-extrabold text-2xl text-white tracking-tight">Admin Control Plane</h1>
+                <p class="text-xs text-neutral-400 leading-relaxed">
+                    Restricted Area. Master credentials and secret key required to access runner status, telemetry, and kill switches.
+                </p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="gate-error" class="hidden p-3.5 rounded-xl bg-red-950/80 border border-red-800/80 text-red-300 text-xs flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
+                <span id="gate-error-text">Authentication failed</span>
+            </div>
+
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-neutral-300 mb-1.5">Master Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-neutral-500">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </span>
+                        <input id="gate-user" type="text" required class="w-full bg-[#1F2937] border border-neutral-700 rounded-xl pl-10 pr-3.5 py-2.5 text-white placeholder-neutral-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-xs" placeholder="absoracloud" autocomplete="username">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-neutral-300 mb-1.5">Master Secret Key</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-neutral-500">
+                            <i class="fa-solid fa-key"></i>
+                        </span>
+                        <input id="gate-key" type="password" required class="w-full bg-[#1F2937] border border-neutral-700 rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-neutral-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-xs" placeholder="Enter secret key..." autocomplete="current-password">
+                        <button type="button" onclick="toggleSecretVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-500 hover:text-white transition">
+                            <i id="gate-eye" class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button id="gate-btn" type="submit" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-red-900/40">
+                    <i class="fa-solid fa-lock-open text-xs"></i> Unlock Control Plane
                 </button>
+            </form>
+
+            <div class="text-center text-[11px] text-neutral-500 pt-2 border-t border-neutral-800/80">
+                <a href="index.html" class="hover:underline hover:text-neutral-300 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left text-[10px]"></i> Return to Public Site
+                </a>
             </div>
         </div>
-    </header>
+    </div>
+
+    <!-- Authenticated Admin Main View (Hidden by default until unlocked) -->
+    <div id="admin-main-view" class="hidden min-h-screen flex flex-col">
+
+        <!-- Global Admin Top Navigation -->
+        <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-lg tracking-tight text-primary">
+                    <span class="text-xl">⚡</span> AbsoraCloud
+                    <span class="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200 uppercase tracking-wider ml-1">Admin Plane</span>
+                </a>
+
+                <!-- Dedicated Service Portals Quick Nav -->
+                <nav class="hidden lg:flex items-center gap-1 text-xs font-semibold text-neutral-600">
+                    <a href="vps.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">VPS</a>
+                    <a href="devbox.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">DevBox</a>
+                    <a href="serverless.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Serverless</a>
+                    <a href="webhosting.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Web Hosting</a>
+                    <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Storage</a>
+                    <a href="websocket.html" class="px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition">Realtime</a>
+                </nav>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Platform Heartbeat Pill -->
+                <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Control Plane Online</span>
+                </div>
+
+                <!-- Admin Profile & Lock Button -->
+                <div id="admin-user-bar" class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 text-xs font-semibold">
+                        <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold font-mono">A</span>
+                        <span id="admin-username" class="text-neutral-800">absoracloud</span>
+                    </div>
+                    <button onclick="lockAdminPlane('Admin Plane Locked')" class="px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs transition flex items-center gap-1.5" title="Lock & Sign Out">
+                        <i class="fa-solid fa-lock text-[10px]"></i> Lock Plane
+                    </button>
+                </div>
+            </div>
+        </header>
 
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
@@ -375,25 +434,41 @@
                 </div>
             </div>
         </section>
-
     </main>
 
-    <!-- Footer -->
     <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400 mt-auto">
         AbsoraCloud Admin Control Plane • High Performance Distributed Workload Orchestrator
     </footer>
+    </div><!-- End #admin-main-view -->
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 hidden px-4 py-3 rounded-2xl text-xs font-bold text-white shadow-xl transition-all z-50"></div>
 
     <script>
         const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud.onrender.com';
-        const authToken = localStorage.getItem('absora_token') || localStorage.getItem('auth_token');
+        
+        let adminToken = sessionStorage.getItem('absora_admin_token') || localStorage.getItem('absora_admin_token');
+        let adminKey = sessionStorage.getItem('absora_admin_key') || localStorage.getItem('absora_admin_key');
 
         let allRunsCache = [];
         let allLogFilesCache = [];
         let currentActiveLog = null;
         let currentTab = 'runners';
+
+        function getAdminHeaders() {
+            const h = { 'Content-Type': 'application/json' };
+            if (adminToken) h['Authorization'] = `Bearer ${adminToken}`;
+            if (adminKey) h['x-admin-key'] = adminKey;
+            h['x-admin-user'] = 'absoracloud';
+            return h;
+        }
+
+        function checkAuthResponse(res) {
+            if (res.status === 401 || res.status === 403) {
+                lockAdminPlane('Session expired or unauthorized. Master secret key required.');
+                return false;
+            }
+            return true;
+        }
 
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
@@ -401,6 +476,87 @@
             t.className = `fixed bottom-6 right-6 px-4 py-3 rounded-2xl text-xs font-bold text-white shadow-xl transition-all z-50 ${type === 'error' ? 'bg-rose-600' : 'bg-neutral-900'}`;
             t.classList.remove('hidden');
             setTimeout(() => t.classList.add('hidden'), 3500);
+        }
+
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('gate-user').value.trim();
+            const key = document.getElementById('gate-key').value.trim();
+            const btn = document.getElementById('gate-btn');
+            const err = document.getElementById('gate-error');
+            const errText = document.getElementById('gate-error-text');
+
+            err.classList.add('hidden');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i> Verifying...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, secret_key: key })
+                });
+                const d = await res.json();
+                if (res.ok && d.status === 'success') {
+                    adminToken = d.token;
+                    adminKey = key;
+                    sessionStorage.setItem('absora_admin_token', d.token);
+                    sessionStorage.setItem('absora_admin_key', key);
+                    localStorage.setItem('absora_admin_token', d.token);
+                    localStorage.setItem('absora_admin_key', key);
+                    unlockAdminPlane();
+                } else {
+                    errText.innerText = d.msg || 'Access Denied: Invalid username or secret key';
+                    err.classList.remove('hidden');
+                }
+            } catch (errNet) {
+                errText.innerText = 'Network error connecting to API server';
+                err.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-lock-open text-xs"></i> Unlock Control Plane`;
+            }
+        }
+
+        function unlockAdminPlane() {
+            document.getElementById('admin-gate-screen').classList.add('hidden');
+            document.getElementById('admin-main-view').classList.remove('hidden');
+            document.getElementById('admin-username').innerText = 'absoracloud';
+            showToast('Admin Plane Unlocked (absoracloud)');
+            refreshAll();
+        }
+
+        function lockAdminPlane(reason = '') {
+            adminToken = null;
+            adminKey = null;
+            sessionStorage.removeItem('absora_admin_token');
+            sessionStorage.removeItem('absora_admin_key');
+            localStorage.removeItem('absora_admin_token');
+            localStorage.removeItem('absora_admin_key');
+
+            document.getElementById('admin-main-view').classList.add('hidden');
+            document.getElementById('admin-gate-screen').classList.remove('hidden');
+
+            const err = document.getElementById('gate-error');
+            const errText = document.getElementById('gate-error-text');
+            if (reason) {
+                errText.innerText = reason;
+                err.classList.remove('hidden');
+            } else {
+                err.classList.add('hidden');
+            }
+        }
+
+        function toggleSecretVisibility() {
+            const inp = document.getElementById('gate-key');
+            const eye = document.getElementById('gate-eye');
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                eye.className = 'fa-solid fa-eye-slash text-xs';
+            } else {
+                inp.type = 'password';
+                eye.className = 'fa-solid fa-eye text-xs';
+            }
         }
 
         function switchTab(tabId) {
@@ -423,11 +579,11 @@
         }
 
         async function fetchStats() {
-            if (!authToken) return;
             try {
                 const res = await fetch(`${API_BASE}/admin/stats`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.status === 'success') {
                     document.getElementById('metric-runners-count').innerText = d.active_runners || 0;
@@ -450,12 +606,12 @@
         }
 
         async function fetchRunners() {
-            if (!authToken) return;
             const tbody = document.getElementById('runners-table-body');
             try {
                 const res = await fetch(`${API_BASE}/admin/runners`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.runners && d.runners.length > 0) {
                     tbody.innerHTML = d.runners.map(r => {
@@ -508,8 +664,9 @@
             try {
                 const res = await fetch(`${API_BASE}/admin/runners/${runnerId}/kill`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.status === 'success') {
                     showToast(d.msg || 'Runner terminated successfully');
@@ -524,12 +681,12 @@
         }
 
         async function fetchRuns() {
-            if (!authToken) return;
             const tbody = document.getElementById('runs-table-body');
             try {
                 const res = await fetch(`${API_BASE}/admin/runs?limit=100`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 allRunsCache = d.runs || [];
                 renderRuns(allRunsCache);
@@ -572,7 +729,7 @@
                     </td>
                     <td class="py-3 text-neutral-600 font-mono">UID #${r.user_id}</td>
                     <td class="py-3">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             r.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
                             r.status === 'pending' || r.status === 'deploying' ? 'bg-amber-100 text-amber-800 animate-pulse' :
                             r.status === 'stopped' ? 'bg-neutral-100 text-neutral-600' : 'bg-rose-100 text-rose-800'
@@ -592,11 +749,11 @@
         }
 
         async function fetchLogsSummary() {
-            if (!authToken) return;
             try {
                 const res = await fetch(`${API_BASE}/admin/logs`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.status === 'success') {
                     if (d.breakdown) {
@@ -651,8 +808,9 @@
 
             try {
                 const res = await fetch(`${API_BASE}/admin/logs/${service}/${runId}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.status === 'success' && d.log) {
                     contentEl.innerText = d.log.content || 'Log file is empty.';
@@ -687,9 +845,10 @@
             try {
                 const res = await fetch(`${API_BASE}/admin/logs/purge`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ service: 'all' })
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 showToast(`Purged ${d.purgedFiles || 0} run log files`);
                 fetchLogsSummary();
@@ -700,12 +859,12 @@
         }
 
         async function fetchUsers() {
-            if (!authToken) return;
             const tbody = document.getElementById('users-table-body');
             try {
                 const res = await fetch(`${API_BASE}/admin/users`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAdminHeaders()
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 if (d.users && d.users.length > 0) {
                     tbody.innerHTML = d.users.map(u => `
@@ -738,9 +897,10 @@
             try {
                 const res = await fetch(`${API_BASE}/admin/set_plan`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ username, plan })
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 showToast(d.msg || `Plan updated for ${username}`);
             } catch (e) {
@@ -753,9 +913,10 @@
             try {
                 const res = await fetch(`${API_BASE}/admin/ban`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ username, service: 'all', reason: 'Admin action' })
                 });
+                if (!checkAuthResponse(res)) return;
                 const d = await res.json();
                 showToast(d.msg || `User ${username} banned`);
                 fetchUsers();
@@ -773,36 +934,24 @@
             showToast('Refreshed control plane metrics');
         }
 
-        function logoutAdmin() {
-            localStorage.removeItem('absora_token');
-            localStorage.removeItem('auth_token');
-            window.location.href = 'index.html';
-        }
-
         async function init() {
-            if (!authToken) {
-                window.location.href = 'index.html?login=1';
+            if (!adminToken && !adminKey) {
+                lockAdminPlane('');
                 return;
             }
 
-            // Verify admin access
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                const res = await fetch(`${API_BASE}/admin/stats`, {
+                    headers: getAdminHeaders()
                 });
-                const d = await res.json();
-                if (d.user) {
-                    document.getElementById('admin-username').innerText = d.user.username;
-                    if (d.user.role !== 'admin' && d.user.id !== 1 && String(d.user.id) !== '1') {
-                        alert('Access restricted: You do not have administrator permissions.');
-                        window.location.href = 'index.html';
-                        return;
-                    }
+                if (res.ok) {
+                    unlockAdminPlane();
+                } else {
+                    lockAdminPlane('Master authentication required');
                 }
-            } catch (e) {}
-
-            fetchStats();
-            fetchRunners();
+            } catch (e) {
+                lockAdminPlane('');
+            }
         }
 
         init();

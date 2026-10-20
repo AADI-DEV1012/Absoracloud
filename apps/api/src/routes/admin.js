@@ -1,15 +1,45 @@
-// ── Admin Routes ──
 import { Router } from 'express';
-import { requireAuth }   from '../middleware/auth.js';
-import { requireAdmin }  from '../middleware/admin_auth.js';
+import { requireAdmin, ADMIN_USERNAME, ADMIN_SECRET_KEY }  from '../middleware/admin_auth.js';
 import { asyncHandler }  from '../middleware/async_handler.js';
+import { signToken }     from '../../../../packages/shared/jwt.js';
 import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd }           from '../../../../packages/shared/redis.js';
 import { PLANS }              from '../../../../packages/shared/plans.js';
 import { getLogDiskUsage, getRunLog, purgeLogs, appendRunLog } from '../services/run_logger.js';
 
 export const adminRouter = Router();
-adminRouter.use(requireAuth, requireAdmin);
+
+// ── POST /admin/login — Verify Admin Credentials & Issue Token ──
+adminRouter.post('/login', asyncHandler(async (req, res) => {
+  const { username, secret_key } = req.body || {};
+  if (!username || !secret_key) {
+    return res.status(400).json({ status: 'error', msg: 'Admin username and secret key are required' });
+  }
+
+  if (
+    username.trim().toLowerCase() !== ADMIN_USERNAME.toLowerCase() ||
+    secret_key.trim() !== ADMIN_SECRET_KEY
+  ) {
+    return res.status(401).json({ status: 'error', msg: 'Invalid admin username or secret key' });
+  }
+
+  const token = signToken({
+    sub: 'admin-absoracloud',
+    username: ADMIN_USERNAME,
+    role: 'admin',
+    is_admin_plane: true
+  }, '24h');
+
+  res.json({
+    status: 'success',
+    msg: 'Admin Plane authenticated successfully',
+    token,
+    username: ADMIN_USERNAME
+  });
+}));
+
+// Protect all remaining routes with requireAdmin
+adminRouter.use(requireAdmin);
 
 // ── GET /admin/users ──
 adminRouter.get('/users', asyncHandler(async (req, res) => {

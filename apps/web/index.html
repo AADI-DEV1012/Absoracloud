@@ -1684,7 +1684,7 @@
         function updateNavbar() {
             const area = document.getElementById('nav-auth-area');
             if (authToken) {
-                const isAdmin = currentUser?.role === 'admin' || currentUser?.id === 1 || String(currentUser?.id) === '1';
+                const isAdmin = (currentUser?.role === 'admin' && currentUser?.username?.toLowerCase() === 'absoracloud') || !!localStorage.getItem('absora_admin_token');
                 area.innerHTML = `
                     <button onclick="navigateTo('dashboard')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-neutral-100 hover:bg-neutral-200 transition text-primary flex items-center gap-1.5">
                         <i class="fa-solid fa-terminal text-[10px]"></i> Console
