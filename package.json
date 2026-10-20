@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "AbsoraCloud V3 — Cloud Compute, GPU Workstations, Edge Infrastructure & Realtime WebSocket Gateway",
-  "author": "lunarhost520",
+  "author": "AADI-DEV1012",
   "license": "MIT",
   "main": "server.js",
   "scripts": {

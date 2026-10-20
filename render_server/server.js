@@ -44,7 +44,7 @@ if (!process.env.WORKER_SECRET) {
   console.error('FATAL: WORKER_SECRET environment variable is missing. Server cannot start securely.');
   process.exit(1);
 }
-if (!process.env.GITHUB_OWNER)  process.env.GITHUB_OWNER  = 'lunarhost520';
+if (!process.env.GITHUB_OWNER)  process.env.GITHUB_OWNER  = 'AADI-DEV1012';
 if (!process.env.GITHUB_REPO)   process.env.GITHUB_REPO   = 'Absoracloud';
 
 // Boot AbsoraCloud API Gateway

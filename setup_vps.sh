@@ -108,11 +108,11 @@ echo "[6/7] Setting up AbsoraCloud in $INSTALL_DIR..."
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo "[+] Updating existing repository..."
     cd "$INSTALL_DIR"
-    git remote set-url origin https://github.com/lunarhost520/Absoracloud.git || true
+    git remote set-url origin https://github.com/AADI-DEV1012/Absoracloud.git || true
     git pull origin main || true
 else
     echo "[+] Cloning AbsoraCloud repository..."
-    git clone https://github.com/lunarhost520/Absoracloud.git "$INSTALL_DIR"
+    git clone https://github.com/AADI-DEV1012/Absoracloud.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 

@@ -1,7 +1,7 @@
 # ☁️ AbsoraCloud V3
 > High-Performance Cloud Compute, GPU Workstations, Edge Functions & Distributed Storage
 
-**Repository:** [https://github.com/lunarhost520/Absoracloud](https://github.com/lunarhost520/Absoracloud)  
+**Repository:** [https://github.com/AADI-DEV1012/Absoracloud](https://github.com/AADI-DEV1012/Absoracloud)  
 **Production Platform:** [absoracloud.qzz.io](https://absoracloud.qzz.io)
 
 ---

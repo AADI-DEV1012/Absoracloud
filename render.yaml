@@ -78,6 +78,6 @@ services:
       - key: IMAGEKIT_URL_ENDPOINT
         sync: false
       - key: GITHUB_OWNER
-        value: lunarhost520
+        value: AADI-DEV1012
       - key: GITHUB_REPO
         value: Absoracloud

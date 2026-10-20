@@ -40,6 +40,6 @@ services:
       - key: KAGGLE_KEY
         sync: false
       - key: GITHUB_OWNER
-        value: lunarhost520
+        value: AADI-DEV1012
       - key: GITHUB_REPO
         value: Absoracloud
