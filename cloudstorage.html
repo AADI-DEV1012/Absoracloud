@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Storage | AbsoraCloud</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { background-color: #fdf8f8; color: #1A1A1A; font-family: 'Inter', sans-serif; }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Global Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-lg tracking-tight text-primary">
+                <span class="text-xl">☁️</span> AbsoraCloud
+            </a>
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
+                <a href="vps.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">VPS</a>
+                <a href="devbox.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">DevBox</a>
+                <a href="serverless.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Edge Functions</a>
+                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Web Hosting</a>
+                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">Storage</a>
+                <a href="websocket.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Realtime</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="hidden flex items-center gap-2.5">
+                <span id="user-plan-badge" class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">FREE</span>
+                <span id="user-name" class="text-xs font-semibold text-neutral-800">user</span>
+                <button onclick="logout()" class="text-xs text-neutral-400 hover:text-rose-600 transition ml-1" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+            <a id="login-link-btn" href="index.html?login=1" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+        </div>
+    </header>
+
+    <!-- Main View -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
+        
+        <!-- Service Title -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Multi-Zone Cloud Storage</h1>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">High-speed persistent object engine with direct CDN download URLs and quota management.</p>
+            </div>
+        </div>
+
+        <!-- Real Quota Metrics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 mb-1.5">
+                    <span>Storage Capacity</span>
+                    <span id="storage-quota-text" class="font-mono text-primary font-bold">0.00 MB / 5.00 GB</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+                    <div id="storage-quota-bar" class="bg-blue-600 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-2 flex justify-between">
+                    <span>Persistent object storage</span>
+                    <span id="storage-quota-percent" class="font-mono font-bold text-neutral-700">0%</span>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Stored Files</div>
+                <div id="storage-files-count" class="font-heading font-bold text-lg text-primary mt-1">0 Files Stored</div>
+                <div class="text-[11px] text-neutral-400 mt-1">Direct CDN streaming links enabled</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Data Integrity</div>
+                <div class="font-heading font-bold text-lg text-primary mt-1">Direct Object Delivery</div>
+                <div class="text-[11px] text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Public CDN Endpoints Active
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Toast -->
+        <div id="toast-banner" class="hidden p-4 rounded-xl text-xs flex items-center justify-between border"></div>
+
+        <!-- Upload Bar Card -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <h2 class="font-heading font-bold text-base text-primary border-b border-neutral-100 pb-3">Upload New File</h2>
+
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+                <input type="file" id="file-input" class="w-full sm:flex-1 text-xs file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200 cursor-pointer">
+                <button id="upload-btn" onclick="uploadFile()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Upload File
+                </button>
+            </div>
+        </div>
+
+        <!-- Stored Files List Table -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading font-bold text-base text-primary">Your Cloud Files</h2>
+                <button onclick="fetchFiles()" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-neutral-100 text-neutral-400 font-medium">
+                            <th class="pb-3">Filename</th>
+                            <th class="pb-3">Size</th>
+                            <th class="pb-3">MIME Type</th>
+                            <th class="pb-3">Upload Date</th>
+                            <th class="pb-3">Direct CDN URL</th>
+                            <th class="pb-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-table-body" class="divide-y divide-neutral-100">
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-neutral-400">Loading stored files...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400">
+        AbsoraCloud Sliced Cloud Compute & Infrastructure • <a href="index.html" class="hover:underline text-neutral-600">Home</a>
+    </footer>
+
+    <script>
+        const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
+        const authToken = localStorage.getItem('auth_token');
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showToast(msg, type = 'info') {
+            const b = document.getElementById('toast-banner');
+            b.className = `p-4 rounded-xl text-xs flex items-center justify-between border ${
+                type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                type === 'success' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
+            }`;
+            b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
+            b.classList.remove('hidden');
+        }
+
+        async function initAuth() {
+            if (!authToken) {
+                document.getElementById('login-link-btn').classList.remove('hidden');
+                document.getElementById('user-profile-bar').classList.add('hidden');
+                document.getElementById('files-table-body').innerHTML = `<tr><td colspan="6" class="py-8 text-center text-neutral-400">Please <a href="index.html?login=1" class="text-primary font-bold underline">Sign In</a> to manage Cloud Storage.</td></tr>`;
+                return false;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (data.status === 'success' && data.user) {
+                    document.getElementById('login-link-btn').classList.add('hidden');
+                    document.getElementById('user-profile-bar').classList.remove('hidden');
+                    document.getElementById('user-name').innerText = data.user.username;
+                    document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+
+                    // Update Real Quotas
+                    if (data.quotas && data.quotas.storage) {
+                        const s = data.quotas.storage;
+                        document.getElementById('storage-quota-text').innerText = `${s.used_mb} MB / ${s.max_gb}.00 GB`;
+                        document.getElementById('storage-quota-percent').innerText = `${s.percent}%`;
+                        document.getElementById('storage-quota-bar').style.width = `${s.percent}%`;
+                        document.getElementById('storage-files-count').innerText = `${s.file_count} Files Stored`;
+                    }
+                    return true;
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        async function fetchFiles() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/storage/files?_t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('files-table-body');
+
+                if (data.files && data.files.length > 0) {
+                    tbody.innerHTML = data.files.map(f => {
+                        const fileUrl = f.public_url || `${window.location.origin}/storage/file/${f.id}/${encodeURIComponent(f.filename)}`;
+                        return `
+                            <tr>
+                                <td class="py-3 font-medium text-neutral-800">${f.filename}</td>
+                                <td class="py-3 font-mono text-neutral-500">${formatBytes(f.file_size)}</td>
+                                <td class="py-3 text-neutral-400 font-mono text-[11px]">${f.mime_type || 'binary'}</td>
+                                <td class="py-3 text-neutral-500 font-mono">${f.created_at ? f.created_at.slice(0, 10) : 'Uploaded'}</td>
+                                <td class="py-3">
+                                    <div class="flex items-center gap-1.5">
+                                        <a href="${fileUrl}" target="_blank" class="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1">
+                                            Open URL ↗
+                                        </a>
+                                        <button onclick="navigator.clipboard.writeText('${fileUrl}'); showToast('URL copied!', 'success');" class="text-neutral-400 hover:text-neutral-700 ml-1" title="Copy URL">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <button onclick="deleteFile(${f.id})" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-neutral-400">No files uploaded yet. Select a file above to upload.</td></tr>`;
+                }
+            } catch(e) {}
+        }
+
+        async function uploadFile() {
+            if (!authToken) return window.location.href = 'index.html?login=1';
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            if (!file) return showToast('Please select a file to upload', 'error');
+
+            const btn = document.getElementById('upload-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading...`;
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const base64 = reader.result.split(',')[1];
+                try {
+                    const res = await fetch(`${API_BASE}/storage/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            content_base64: base64,
+                            mime_type: file.type
+                        })
+                    });
+                    const d = await res.json();
+                    if (d.status === 'success') {
+                        showToast('File uploaded successfully!', 'success');
+                        fileInput.value = '';
+                        fetchFiles();
+                        initAuth();
+                    } else {
+                        showToast(d.msg || 'Upload failed', 'error');
+                    }
+                } catch(e) {
+                    showToast('Network error during upload', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-blue-400"></i> Upload File`;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function deleteFile(id) {
+            if (!confirm('Permanently delete this file?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/storage/file/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const d = await res.json();
+                showToast(d.msg || 'File removed', d.status === 'success' ? 'success' : 'error');
+                fetchFiles();
+                initAuth();
+            } catch(e) {}
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authed = await initAuth();
+            if (authed) fetchFiles();
+        });
+    </script>
+</body>
+</html>

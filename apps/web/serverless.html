@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Edge Functions | AbsoraCloud</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { background-color: #fdf8f8; color: #1A1A1A; font-family: 'Inter', sans-serif; }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Global Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-lg tracking-tight text-primary">
+                <span class="text-xl">☁️</span> AbsoraCloud
+            </a>
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
+                <a href="vps.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">VPS</a>
+                <a href="devbox.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">DevBox</a>
+                <a href="serverless.html" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">Edge Functions</a>
+                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Web Hosting</a>
+                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Storage</a>
+                <a href="websocket.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Realtime</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="hidden flex items-center gap-2.5">
+                <span id="user-plan-badge" class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">FREE</span>
+                <span id="user-name" class="text-xs font-semibold text-neutral-800">user</span>
+                <button onclick="logout()" class="text-xs text-neutral-400 hover:text-rose-600 transition ml-1" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+            <a id="login-link-btn" href="index.html?login=1" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+        </div>
+    </header>
+
+    <!-- Main View -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
+        
+        <!-- Service Title -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">AbsoraEdge Serverless Functions</h1>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Zero-cold-start micro-workers running on global edge nodes with instant ES Module execution.</p>
+            </div>
+        </div>
+
+        <!-- Real Quota Metrics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 mb-1.5">
+                    <span>Active Functions Quota</span>
+                    <span id="fn-quota-count" class="font-mono text-primary font-bold">0 / 1 Active</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+                    <div id="fn-quota-bar" class="bg-amber-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-2 flex justify-between">
+                    <span>Concurrent active endpoints</span>
+                    <span id="fn-quota-percent" class="font-mono font-bold text-neutral-700">0%</span>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Edge Subdomain Root</div>
+                <div class="font-mono font-bold text-base text-primary mt-1">*.absoracloud.workers.dev</div>
+                <div class="text-[11px] text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Edge Route Mesh Active
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Execution Engine</div>
+                <div class="font-heading font-bold text-lg text-primary mt-1">V8 Isolate (ES Module)</div>
+                <div class="text-[11px] text-neutral-400 mt-1">Instant sub-millisecond cold starts</div>
+            </div>
+        </div>
+
+        <!-- Alert Toast -->
+        <div id="toast-banner" class="hidden p-4 rounded-xl text-xs flex items-center justify-between border"></div>
+
+        <!-- Code Editor & Deploy Card -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+                <h2 class="font-heading font-bold text-base text-primary">Deploy Edge Function</h2>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-neutral-400 font-medium">Starter Template:</span>
+                    <select id="template-select" onchange="applyTemplate()" class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold bg-neutral-50 focus:outline-none focus:border-primary">
+                        <option value="hello">JSON API Response</option>
+                        <option value="api">Dynamic REST Router</option>
+                        <option value="proxy">CORS Proxy</option>
+                        <option value="html">HTML Micro-Site</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-neutral-700 mb-1">Subdomain Identifier</label>
+                    <input id="func-name-input" type="text" pattern="[a-z0-9\-]{3,30}" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-api">
+                    <span class="text-[10px] text-neutral-400">Allowed: lowercase letters, numbers, hyphens (e.g. my-api)</span>
+                </div>
+                <div class="flex items-end justify-end">
+                    <button id="deploy-fn-btn" onclick="deployFunction()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> Deploy to Edge
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="text-xs font-bold text-neutral-700">Function Logic (JavaScript ESM)</label>
+                    <span class="text-[11px] text-neutral-400 font-mono">export default { async fetch(req, env) }</span>
+                </div>
+                <textarea id="code-editor" rows="10" class="w-full rounded-xl border border-neutral-300 p-3.5 text-xs font-mono bg-neutral-900 text-emerald-400 focus:outline-none focus:border-primary leading-relaxed" spellcheck="false"></textarea>
+            </div>
+        </div>
+
+        <!-- Deployed Functions List -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading font-bold text-base text-primary">Active Edge Functions</h2>
+                <button onclick="fetchFunctions()" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-neutral-100 text-neutral-400 font-medium">
+                            <th class="pb-3">Function Name</th>
+                            <th class="pb-3">Live Edge Endpoint</th>
+                            <th class="pb-3">Created</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="functions-table-body" class="divide-y divide-neutral-100">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-neutral-400">Loading active edge functions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400">
+        AbsoraCloud Sliced Cloud Compute & Infrastructure • <a href="index.html" class="hover:underline text-neutral-600">Home</a>
+    </footer>
+
+    <script>
+        const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
+        const authToken = localStorage.getItem('auth_token');
+
+        const TEMPLATES = {
+            hello: `export default {
+  async fetch(request, env) {
+    return new Response(JSON.stringify({
+      message: "Hello from AbsoraEdge Serverless Function!",
+      timestamp: new Date().toISOString(),
+      headers: Object.fromEntries(request.headers.entries())
+    }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  }
+};`,
+            api: `export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/health') {
+      return new Response(JSON.stringify({ status: 'ok', uptime: process.uptime?.() || 100 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(JSON.stringify({
+      route: url.pathname,
+      query: Object.fromEntries(url.searchParams.entries()),
+      method: request.method
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+};`,
+            proxy: `export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const target = url.searchParams.get('url');
+    if (!target) {
+      return new Response('Provide ?url=https://example.com', { status: 400 });
+    }
+    const response = await fetch(target, { headers: request.headers });
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Access-Control-Allow-Origin', '*');
+    return new Response(response.body, { status: response.status, headers: newHeaders });
+  }
+};`,
+            html: `export default {
+  async fetch(request, env) {
+    const html = \`<!DOCTYPE html>
+<html>
+<head><title>AbsoraEdge Micro-Site</title><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fafafa;">
+  <div style="background: white; padding: 40px; border-radius: 16px; border: 1px solid #eaeaea; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    <h1 style="margin: 0; font-size: 24px;">⚡ AbsoraEdge Micro-Site</h1>
+    <p style="color: #666; font-size: 14px; margin-top: 8px;">Deployed instantaneously across the global edge network.</p>
+  </div>
+</body>
+</html>\`;
+    return new Response(html, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+  }
+};`
+        };
+
+        function applyTemplate() {
+            const key = document.getElementById('template-select').value;
+            document.getElementById('code-editor').value = TEMPLATES[key] || TEMPLATES.hello;
+        }
+
+        function showToast(msg, type = 'info') {
+            const b = document.getElementById('toast-banner');
+            b.className = `p-4 rounded-xl text-xs flex items-center justify-between border ${
+                type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                type === 'success' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
+            }`;
+            b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
+            b.classList.remove('hidden');
+        }
+
+        async function initAuth() {
+            if (!authToken) {
+                document.getElementById('login-link-btn').classList.remove('hidden');
+                document.getElementById('user-profile-bar').classList.add('hidden');
+                document.getElementById('functions-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="index.html?login=1" class="text-primary font-bold underline">Sign In</a> to manage Edge Functions.</td></tr>`;
+                return false;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (data.status === 'success' && data.user) {
+                    document.getElementById('login-link-btn').classList.add('hidden');
+                    document.getElementById('user-profile-bar').classList.remove('hidden');
+                    document.getElementById('user-name').innerText = data.user.username;
+                    document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+
+                    // Update Real Quotas
+                    if (data.quotas && data.quotas.serverless) {
+                        const s = data.quotas.serverless;
+                        document.getElementById('fn-quota-count').innerText = `${s.used_count} / ${s.max_count} Active`;
+                        document.getElementById('fn-quota-percent').innerText = `${s.percent}%`;
+                        document.getElementById('fn-quota-bar').style.width = `${s.percent}%`;
+                    }
+                    return true;
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        async function fetchFunctions() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/serverless/status?_t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('functions-table-body');
+
+                if (data.functions && data.functions.length > 0) {
+                    tbody.innerHTML = data.functions.map(fn => `
+                        <tr>
+                            <td class="py-3 font-mono font-medium">${fn.func_name}</td>
+                            <td class="py-3">
+                                ${fn.public_url ? `
+                                    <div class="flex items-center gap-1.5">
+                                        <a href="${fn.public_url}" target="_blank" class="text-amber-700 font-semibold hover:underline inline-flex items-center gap-1">
+                                            ${fn.public_url} ↗
+                                        </a>
+                                        <button onclick="navigator.clipboard.writeText('${fn.public_url}'); showToast('URL copied!', 'success');" class="text-neutral-400 hover:text-neutral-700 ml-1" title="Copy URL">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </button>
+                                    </div>
+                                ` : '<span class="text-neutral-400 animate-pulse">Building edge route...</span>'}
+                            </td>
+                            <td class="py-3 font-mono text-neutral-500">${fn.created_at ? fn.created_at.slice(0, 10) : 'Active'}</td>
+                            <td class="py-3">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    fn.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'
+                                }">${(fn.status || 'ACTIVE').toUpperCase()}</span>
+                            </td>
+                            <td class="py-3 text-right">
+                                <button onclick="deleteFunction('${fn.func_name}')" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">No active serverless functions found. Write code above and click "Deploy to Edge".</td></tr>`;
+                }
+            } catch(e) {}
+        }
+
+        async function deployFunction() {
+            if (!authToken) return window.location.href = 'index.html?login=1';
+            const nameInput = document.getElementById('func-name-input');
+            const codeInput = document.getElementById('code-editor');
+            const funcName = nameInput.value.trim().toLowerCase();
+            const code = codeInput.value;
+
+            if (!funcName) return showToast('Please provide a function subdomain identifier', 'error');
+            if (!code) return showToast('Please enter function code', 'error');
+
+            const btn = document.getElementById('deploy-fn-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Deploying...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/serverless/deploy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ func_name: funcName, code })
+                });
+                const data = await res.json();
+                if (data.status === 'active') {
+                    showToast(data.msg || 'Function deployed live to edge!', 'success');
+                    fetchFunctions();
+                    initAuth();
+                } else {
+                    showToast(data.msg || 'Deployment failed', 'error');
+                }
+            } catch(e) {
+                showToast('Network error deploying function', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-bolt text-amber-400"></i> Deploy to Edge`;
+            }
+        }
+
+        async function deleteFunction(funcName) {
+            if (!confirm(`Delete serverless function "${funcName}"?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/serverless/${encodeURIComponent(funcName)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const d = await res.json();
+                showToast(d.msg || 'Function removed', d.status === 'success' ? 'success' : 'error');
+                fetchFunctions();
+                initAuth();
+            } catch(e) {}
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            applyTemplate();
+            const authed = await initAuth();
+            if (authed) fetchFunctions();
+        });
+    </script>
+</body>
+</html>

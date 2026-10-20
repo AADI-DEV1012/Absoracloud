@@ -113,7 +113,7 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
       session_key: sessionKey,
       site_name,
       expires_at: expiresAt,
-      msg: 'Deploying to Cloudflare Workers — your site will be live in seconds...',
+      msg: 'Deploying to AbsoraCloud Edge Mesh — your site will be live in seconds...',
     });
   } catch (e) {
     console.error('WebHost deploy error:', e);
@@ -166,7 +166,7 @@ webhostRouter.post('/relaunch', requireAuth, async (req, res) => {
         }
       });
 
-    res.json({ status: 'deploying', session_key: newSessionKey, msg: 'Re-deploying to Cloudflare Workers...' });
+    res.json({ status: 'deploying', session_key: newSessionKey, msg: 'Re-deploying to AbsoraCloud Edge Mesh...' });
   } catch (e) {
     console.error('WebHost relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-deploy site' });
@@ -201,7 +201,7 @@ webhostRouter.get('/check_session', requireAuth, async (req, res) => {
       const createdTime = new Date(inst.created_at).getTime();
       if (Date.now() - createdTime > 90000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_key]);
-        await redisCmd('HSET', `session:${session_key}`, 'status', 'failed', 'error', 'Cloudflare Worker deployment timed out.');
+        await redisCmd('HSET', `session:${session_key}`, 'status', 'failed', 'error', 'AbsoraCloud Edge deployment timed out.');
         return res.json({ status: 'failed', msg: 'Deployment timed out.' });
       }
     }
@@ -250,7 +250,7 @@ async function handleRemoveSite(req, res) {
     );
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
 
-    res.json({ status: 'success', msg: 'Site removed from Cloudflare Workers' });
+    res.json({ status: 'success', msg: 'Site removed from AbsoraCloud Edge Mesh' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to remove site' });
   }

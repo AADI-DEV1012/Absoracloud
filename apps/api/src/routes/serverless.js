@@ -97,7 +97,7 @@ serverlessRouter.post('/deploy', requireAuth, launchLimiter, async (req, res) =>
       session_key: sessionKey,
       func_name,
       endpoint: publicUrl,
-      msg: `Function "${func_name}" deployed to Cloudflare Workers edge network!`,
+      msg: `Function "${func_name}" deployed to AbsoraCloud Edge network!`,
     });
   } catch (e) {
     console.error('Serverless deploy error:', e);

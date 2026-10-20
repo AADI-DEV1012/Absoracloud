@@ -128,7 +128,7 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [sessionKey]);
         await executeD1("UPDATE runners SET status = 'failed' WHERE id = ?", [assignedRunnerId]);
         await redisCmd('HSET', `session:${sessionKey}`, 'status', 'failed', 'error', kErr.message);
-        return res.status(502).json({ status: 'error', msg: `Failed to provision Kaggle VPS runtime: ${kErr.message}` });
+        return res.status(502).json({ status: 'error', msg: `Failed to provision VPS runtime: ${kErr.message}` });
       }
     }
 
@@ -142,7 +142,7 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
       runner_id: assignedRunnerId,
       msg: reusedPool 
         ? 'Connected to active compute runner pool. Initializing terminal slot...' 
-        : 'VPS container initializing on Kaggle CPU runtime...'
+        : 'VPS container initializing on AbsoraCloud compute cluster...'
     });
   } catch (e) {
     console.error('VPS launch error:', e);
@@ -198,10 +198,10 @@ vpsRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       console.error('Kaggle VPS kernel relaunch error:', kErr.message);
       await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
       await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', kErr.message);
-      return res.status(502).json({ status: 'error', msg: `Failed to re-launch Kaggle VPS: ${kErr.message}` });
+      return res.status(502).json({ status: 'error', msg: `Failed to re-launch VPS: ${kErr.message}` });
     }
 
-    res.json({ status: 'queued', session_key: newSessionKey, term_pass: termPass, msg: 'Re-launching VPS on Kaggle CPU runtime...' });
+    res.json({ status: 'queued', session_key: newSessionKey, term_pass: termPass, msg: 'Re-launching VPS on AbsoraCloud compute cluster...' });
   } catch (e) {
     console.error('VPS relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-launch VPS' });

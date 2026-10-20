@@ -1,4 +1,4 @@
-﻿// ── Auth Routes ──
+// ── Auth Routes ──
 // POST /auth/login, /auth/register, /auth/logout, GET /auth/me
 
 import { Router } from 'express';
@@ -7,6 +7,8 @@ import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.j
 import { signToken }                      from '../../../../packages/shared/jwt.js';
 import { requireAuth }                    from '../middleware/auth.js';
 import { authLimiter }                    from '../middleware/abuse_guard.js';
+import { getPlan }                        from '../../../../packages/shared/plans.js';
+import { redisCmd }                       from '../../../../packages/shared/redis.js';
 
 export const authRouter = Router();
 
@@ -87,12 +89,66 @@ authRouter.post('/login', authLimiter, async (req, res) => {
   }
 });
 
-// ── Me (token validation) ──
+// ── Me (token validation & real live quotas) ──
 authRouter.get('/me', requireAuth, async (req, res) => {
   try {
     const user = await d1QueryOne('SELECT id, username, plan, role FROM users WHERE id = ?', [req.user.sub]);
     if (!user) return res.status(404).json({ status: 'error', msg: 'User not found' });
-    res.json({ status: 'success', user });
+
+    const plan = getPlan(user.plan || 'free');
+    const [vps, devbox, serverless, webhost, storageRows] = await Promise.all([
+      redisCmd('GET', `quota:${user.id}:vps`).catch(() => '0'),
+      redisCmd('GET', `quota:${user.id}:devbox`).catch(() => '0'),
+      queryD1("SELECT COUNT(*) as cnt FROM instances WHERE user_id = ? AND service = 'serverless' AND status != 'dismissed'", [user.id]).catch(() => [{ cnt: 0 }]),
+      queryD1("SELECT COUNT(*) as cnt FROM instances WHERE user_id = ? AND service = 'webhost' AND status != 'dismissed'", [user.id]).catch(() => [{ cnt: 0 }]),
+      queryD1("SELECT COALESCE(SUM(file_size), 0) as total_bytes, COUNT(*) as cnt FROM cloud_files WHERE user_id = ?", [user.id]).catch(() => [{ total_bytes: 0, cnt: 0 }])
+    ]);
+
+    const vpsSec = parseInt(vps || '0', 10);
+    const devboxSec = parseInt(devbox || '0', 10);
+    const srvCount = serverless?.[0]?.cnt || 0;
+    const webCount = webhost?.[0]?.cnt || 0;
+    const storeBytes = storageRows?.[0]?.total_bytes || 0;
+    const storeCount = storageRows?.[0]?.cnt || 0;
+
+    const quotas = {
+      plan: user.plan || 'free',
+      plan_name: plan.name,
+      vps: {
+        used_seconds: vpsSec,
+        max_seconds: plan.vps_hours_week * 3600,
+        hours_used: (vpsSec / 3600).toFixed(1),
+        hours_max: plan.vps_hours_week,
+        percent: Math.min(100, Math.round((vpsSec / (plan.vps_hours_week * 3600)) * 100))
+      },
+      devbox: {
+        used_seconds: devboxSec,
+        max_seconds: plan.devbox_gpu_min * 60,
+        minutes_used: Math.round(devboxSec / 60),
+        minutes_max: plan.devbox_gpu_min,
+        percent: Math.min(100, Math.round((devboxSec / (plan.devbox_gpu_min * 60)) * 100))
+      },
+      serverless: {
+        used_count: srvCount,
+        max_count: plan.serverless_functions,
+        percent: Math.min(100, Math.round((srvCount / plan.serverless_functions) * 100))
+      },
+      webhost: {
+        used_count: webCount,
+        max_count: plan.webhost_sites,
+        percent: Math.min(100, Math.round((webCount / plan.webhost_sites) * 100))
+      },
+      storage: {
+        used_bytes: storeBytes,
+        max_bytes: plan.storage_gb * 1024 * 1024 * 1024,
+        used_mb: (storeBytes / (1024 * 1024)).toFixed(2),
+        max_gb: plan.storage_gb,
+        file_count: storeCount,
+        percent: Math.min(100, Math.round((storeBytes / (plan.storage_gb * 1024 * 1024 * 1024)) * 100))
+      }
+    };
+
+    res.json({ status: 'success', user, quotas });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch user' });
   }
