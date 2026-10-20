@@ -93,7 +93,7 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
     } else {
       assignedRunnerId = `vps-runner-${crypto.randomUUID().slice(0, 8)}`;
       await executeD1(
-        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, 'kaggle_cpu', 'vps', 4, 1, 'ready', datetime('now'))",
+        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, 'kaggle_cpu', 'vps', 4, 1, 'provisioning', datetime('now'))",
         [assignedRunnerId]
       );
       console.log(`🚀 Provisioning new Kaggle VPS runner: ${assignedRunnerId}`);

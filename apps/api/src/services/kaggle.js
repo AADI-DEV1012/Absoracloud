@@ -158,15 +158,13 @@ def start_session(session_key, term_pass):
     port = free_ports.pop(0)
     work_dir = f"/tmp/devbox_ws_{session_key}"
     os.makedirs(work_dir, exist_ok=True)
-    pass_arg = f"-c admin:{term_pass}" if term_pass else ""
-    
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd {pass_arg} -W -p {port} bash"
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} bash"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
     log_file = f"/tmp/cf_devbox_{port}.log"
     if os.path.exists(log_file):
         os.remove(log_file)
-    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://localhost:{port} 2>&1 | tee {log_file}"
+    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:{port} 2>&1 | tee {log_file}"
     cf_proc = subprocess.Popen(["bash", "-c", cf_cmd])
 
     sessions[session_key] = {
@@ -309,15 +307,13 @@ def start_session(session_key, term_pass):
     port = free_ports.pop(0)
     work_dir = f"/tmp/vps_ws_{session_key}"
     os.makedirs(work_dir, exist_ok=True)
-    pass_arg = f"-c admin:{term_pass}" if term_pass else ""
-    
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd {pass_arg} -W -p {port} bash"
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} bash"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
     log_file = f"/tmp/cf_vps_{port}.log"
     if os.path.exists(log_file):
         os.remove(log_file)
-    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://localhost:{port} 2>&1 | tee {log_file}"
+    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:{port} 2>&1 | tee {log_file}"
     cf_proc = subprocess.Popen(["bash", "-c", cf_cmd])
 
     sessions[session_key] = {

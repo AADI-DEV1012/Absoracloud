@@ -105,7 +105,7 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
     } else {
       assignedRunnerId = `devbox-runner-${crypto.randomUUID().slice(0, 8)}`;
       await executeD1(
-        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'ready', datetime('now'))",
+        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'provisioning', datetime('now'))",
         [assignedRunnerId, runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu']
       );
       console.log(`🚀 Provisioning new Kaggle DevBox runner: ${assignedRunnerId}`);

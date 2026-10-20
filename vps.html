@@ -213,15 +213,12 @@
                             <td class="py-3">
                                 ${inst.public_url ? `
                                     <div class="flex flex-col gap-1">
-                                        <a href="${inst.public_url}" target="_blank" class="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1">
-                                            Web Terminal ↗
+                                        <a href="${inst.public_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition w-fit shadow-xs">
+                                            <i class="fa-solid fa-terminal text-[11px]"></i> Web Terminal ↗
                                         </a>
-                                        ${inst.term_pass ? `
-                                            <div class="text-[11px] font-mono text-neutral-500 flex items-center gap-1.5 bg-neutral-100 px-1.5 py-0.5 rounded w-fit">
-                                                <span>user: <b>admin</b> | pass: <b>${inst.term_pass}</b></span>
-                                                <button type="button" onclick="navigator.clipboard.writeText('${inst.term_pass}'); showToast('Password copied!', 'success');" class="text-blue-600 hover:underline text-[10px] cursor-pointer">copy</button>
-                                            </div>
-                                        ` : ''}
+                                        <span class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Direct secure shell
+                                        </span>
                                     </div>
                                 ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Runner offline</span>' : '<span class="text-neutral-400 animate-pulse">Initializing runner slot...</span>'))}
                             </td>

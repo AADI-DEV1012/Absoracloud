@@ -154,13 +154,13 @@ async function reapStalePendingInstances() {
 async function checkRunnerHealthAndDisconnectInstances() {
   const staleRunners = await queryD1(
     `SELECT id, service FROM runners 
-     WHERE status = 'ready' 
-       AND datetime(last_heartbeat) <= datetime('now', '-90 seconds')`
+     WHERE (status = 'ready' AND datetime(last_heartbeat) <= datetime('now', '-90 seconds'))
+        OR (status = 'provisioning' AND datetime(last_heartbeat) <= datetime('now', '-300 seconds'))`
   );
 
   if (staleRunners && staleRunners.length > 0) {
     for (const runner of staleRunners) {
-      console.warn(`⚠️  Watchdog: Runner ${runner.id} missed heartbeats (>90s). Marking as dead.`);
+      console.warn(`⚠️  Watchdog: Runner ${runner.id} timed out or missed heartbeats. Marking as dead.`);
       await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runner.id]);
       await redisCmd('SREM', 'runners:active', runner.id);
 
