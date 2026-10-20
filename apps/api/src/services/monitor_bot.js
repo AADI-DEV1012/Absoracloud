@@ -45,6 +45,13 @@ function formatUptime(seconds) {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
+// Safely normalize D1 query output whether returned as direct array or { results: [] }
+function toRows(res) {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.results)) return res.results;
+  return [];
+}
+
 // Send Telegram Message via native fetch (with automatic retry for network drops)
 export async function sendTelegramMessage(text, options = {}) {
   const token = process.env.TELEGRAM_BOT_TOKEN || BOT_TOKEN;
@@ -466,32 +473,32 @@ async function runUserStatusCheck(rawUsername, chatId) {
 
   try {
     // 1. Fetch user by username (case-insensitive)
-    const userRes = await queryD1(
+    const userRows = toRows(await queryD1(
       'SELECT id, username, email, plan, role, created_at, locked_until FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1',
       [cleanUsername]
-    );
+    ));
 
-    const user = userRes?.results?.[0];
+    const user = userRows[0];
     if (!user) {
       await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
       return;
     }
 
     // 2. Fetch user instances and storage files in parallel
-    const [instRes, filesRes, gpuSecondsRaw] = await Promise.all([
+    const [instRaw, filesRaw, gpuSecondsRaw] = await Promise.all([
       queryD1(
         'SELECT service, status, public_url, runner_id, created_at, expires_at FROM instances WHERE user_id = ? ORDER BY id DESC LIMIT 50',
         [user.id]
-      ).catch(() => ({ results: [] })),
+      ).catch(() => []),
       queryD1(
         'SELECT COUNT(*) as file_count, COALESCE(SUM(file_size), 0) as total_bytes FROM cloud_files WHERE user_id = ?',
         [user.id]
-      ).catch(() => ({ results: [{ file_count: 0, total_bytes: 0 }] })),
+      ).catch(() => []),
       redisCmd('GET', `quota:${user.id}:devbox_gpu`).catch(() => '0')
     ]);
 
-    const instances = instRes?.results || [];
-    const filesStats = filesRes?.results?.[0] || { file_count: 0, total_bytes: 0 };
+    const instances = toRows(instRaw);
+    const filesStats = toRows(filesRaw)[0] || { file_count: 0, total_bytes: 0 };
 
     // Active workloads
     const activeInstances = instances.filter(i => i.status === 'active' || i.status === 'pending');
@@ -564,9 +571,9 @@ async function runUserStatusCheck(rawUsername, chatId) {
 async function testD1Probe() {
   const t0 = performance.now();
   try {
-    const res = await queryD1('SELECT count(*) as cnt FROM users');
+    const rows = toRows(await queryD1('SELECT count(*) as cnt FROM users'));
     const ms = Math.round(performance.now() - t0);
-    const count = res?.results?.[0]?.cnt ?? 0;
+    const count = rows[0]?.cnt ?? 0;
     return { ok: true, ms, details: `${count} registered users across D1 shards` };
   } catch (e) {
     return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
@@ -602,13 +609,13 @@ async function testKaggleServiceProbe(service = 'vps') {
   const t0 = performance.now();
   try {
     const hasCreds = Boolean(process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY);
-    const [runnersRes, instRes] = await Promise.all([
-      queryD1('SELECT status, count(*) as cnt FROM runners WHERE service = ? GROUP BY status', [service]),
-      queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service])
+    const [runnersRaw, instRaw] = await Promise.all([
+      queryD1('SELECT status, count(*) as cnt FROM runners WHERE service = ? GROUP BY status', [service]).catch(() => []),
+      queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service]).catch(() => [])
     ]);
     const ms = Math.round(performance.now() - t0);
-    const runners = runnersRes?.results || [];
-    const instances = instRes?.results || [];
+    const runners = toRows(runnersRaw);
+    const instances = toRows(instRaw);
     const readyRunners = runners.find(r => r.status === 'ready')?.cnt || 0;
     const activeInst = instances.find(i => i.status === 'active')?.cnt || 0;
     return {
@@ -627,10 +634,10 @@ async function testWorkersServiceProbe(service = 'webhost') {
   const t0 = performance.now();
   try {
     const hasCreds = Boolean(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID);
-    const res = await queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service]);
+    const rows = toRows(await queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service]).catch(() => []));
     const ms = Math.round(performance.now() - t0);
-    const active = res?.results?.find(r => r.status === 'active')?.cnt || 0;
-    const total = (res?.results || []).reduce((acc, cur) => acc + (cur.cnt || 0), 0);
+    const active = rows.find(r => r.status === 'active')?.cnt || 0;
+    const total = rows.reduce((acc, cur) => acc + (cur.cnt || 0), 0);
     return {
       ok: hasCreds,
       ms,
@@ -873,10 +880,10 @@ async function runSystemDiagnostics(targetRaw, chatId) {
 // ── Active Runners Check (/runner active or /runners) ──
 async function runRunnersCheck(chatId) {
   try {
-    const res = await queryD1(
+    const raw = await queryD1(
       'SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners ORDER BY last_heartbeat DESC LIMIT 20'
     );
-    const runners = res?.results || [];
+    const runners = toRows(raw);
     const now = Date.now();
 
     const activeRunners = runners.filter(r => {
@@ -928,14 +935,14 @@ async function runRunnerLogsCheck(rawTargetId, chatId) {
 
   try {
     // 1. Fetch runner metadata and attached instances from D1
-    const [runnerRes, instRes, tunnelUrl] = await Promise.all([
-      queryD1('SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners WHERE id = ? LIMIT 1', [targetId]).catch(() => ({ results: [] })),
-      queryD1('SELECT session_key, service, status, public_url, created_at FROM instances WHERE runner_id = ? OR session_key = ? ORDER BY id DESC LIMIT 5', [targetId, targetId]).catch(() => ({ results: [] })),
+    const [runnerRaw, instRaw, tunnelUrl] = await Promise.all([
+      queryD1('SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners WHERE id = ? LIMIT 1', [targetId]).catch(() => []),
+      queryD1('SELECT session_key, service, status, public_url, created_at FROM instances WHERE runner_id = ? OR session_key = ? ORDER BY id DESC LIMIT 5', [targetId, targetId]).catch(() => []),
       redisCmd('HGET', `runner:${targetId}`, 'tunnel_url').catch(() => null)
     ]);
 
-    const runner = runnerRes?.results?.[0];
-    const attachedInstances = instRes?.results || [];
+    const runner = toRows(runnerRaw)[0];
+    const attachedInstances = toRows(instRaw);
 
     // 2. Search for disk logs across all services
     const services = ['devbox', 'vps', 'serverless', 'webhost'];
@@ -1015,7 +1022,7 @@ export async function handleTelegramWebhook(req, res) {
     return res.json({ status: 'ok', msg: 'Unauthorized' });
   }
 
-  const text = message.text.trim();
+  const text = String(message.text || '').replace(/[\u00A0\s]+/g, ' ').trim();
 
   // Command: /status or /status <username>
   if (text.startsWith('/status')) {
