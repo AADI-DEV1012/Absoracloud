@@ -17,6 +17,7 @@ import {
   listUserFunctions,
   getFunctionStatus,
 } from '../services/cloudflare_workers.js';
+import { appendRunLog } from '../services/run_logger.js';
 import crypto from 'crypto';
 
 export const serverlessRouter = Router();
@@ -91,6 +92,8 @@ serverlessRouter.post('/deploy', requireAuth, launchLimiter, async (req, res) =>
       );
       throw deployErr;
     }
+
+    appendRunLog('serverless', func_name, `Function [${func_name}] deployed (${code.length} bytes, route: ${publicUrl}) by user ${userId}`);
 
     res.json({
       status: 'active',
@@ -214,6 +217,8 @@ serverlessRouter.delete('/:func_name', requireAuth, async (req, res) => {
       "UPDATE instances SET status = 'dismissed', stopped_at = datetime('now') WHERE user_id = ? AND service = 'serverless' AND (json_extract(config, '$.func_name') = ? OR session_key = ?)",
       [req.user.sub, realName, func_name]
     );
+
+    appendRunLog('serverless', func_name, `Function [${func_name}] deleted by user ${req.user.sub}`);
 
     res.json({ status: 'success', msg: `Function "${func_name}" deleted.` });
   } catch (e) {

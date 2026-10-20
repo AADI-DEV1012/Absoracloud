@@ -9,6 +9,7 @@ import { triggerKaggleKernel, getKernelStatus } from '../services/kaggle.js';
 import { queryD1, executeD1, d1QueryOne }       from '../../../../packages/shared/d1.js';
 import { redisCmd, redisParseHash }             from '../../../../packages/shared/redis.js';
 import { getPlan, consumeQuota }                from '../../../../packages/shared/plans.js';
+import { appendRunLog }                         from '../services/run_logger.js';
 import crypto from 'crypto';
 
 export const devboxRouter = Router();
@@ -143,6 +144,8 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
         return res.status(502).json({ status: 'error', msg: `Failed to provision DevBox runner: ${kErr.message}` });
       }
     }
+
+    appendRunLog('devbox', sessionKey, `DevBox session launched by user ${userId} [Runtime: ${runtime}, Runner: ${assignedRunnerId}, Pool: ${reusedPool ? 'reused' : 'new'}]`);
 
     res.json({
       status: 'queued',
@@ -361,6 +364,7 @@ devboxRouter.post('/stop', requireAuth, async (req, res) => {
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
+    appendRunLog('devbox', session_key, `DevBox session terminated by user ${req.user.sub}`);
 
     res.json({ status: 'success', msg: 'DevBox session terminated' });
   } catch (e) {

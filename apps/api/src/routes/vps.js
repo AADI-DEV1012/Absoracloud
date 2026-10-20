@@ -10,6 +10,7 @@ import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.j
 import { redisCmd, redisParseHash }       from '../../../../packages/shared/redis.js';
 import { getPlan, consumeQuota }          from '../../../../packages/shared/plans.js';
 import { triggerVPSKernel }               from '../services/kaggle.js';
+import { appendRunLog }                   from '../services/run_logger.js';
 import crypto from 'crypto';
 
 export const vpsRouter = Router();
@@ -131,6 +132,8 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
         return res.status(502).json({ status: 'error', msg: `Failed to provision VPS runtime: ${kErr.message}` });
       }
     }
+
+    appendRunLog('vps', sessionKey, `VPS instance launched by user ${userId} [CPU: ${plan.vps_cpu}, RAM: ${plan.vps_ram_mb}MB, Runner: ${assignedRunnerId}, Pool: ${reusedPool ? 'reused' : 'new'}]`);
 
     res.json({
       status: 'queued',
@@ -336,6 +339,7 @@ vpsRouter.post('/stop', requireAuth, async (req, res) => {
 
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
+    appendRunLog('vps', session_key, `VPS instance stopped by user ${req.user.sub}`);
 
     res.json({ status: 'success', msg: 'VPS termination signal sent' });
   } catch (e) {

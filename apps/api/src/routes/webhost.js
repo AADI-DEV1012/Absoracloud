@@ -8,6 +8,7 @@ import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.j
 import { redisCmd, redisParseHash }       from '../../../../packages/shared/redis.js';
 import { getPlan }                        from '../../../../packages/shared/plans.js';
 import { deployWebsite, removeWebsite }   from '../services/cloudflare_workers.js';
+import { appendRunLog }                   from '../services/run_logger.js';
 
 import crypto from 'crypto';
 
@@ -81,6 +82,8 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
     );
     await redisCmd('EXPIRE', `session:${sessionKey}`, String(timeoutSeconds + 3600));
 
+    appendRunLog('webhost', sessionKey, `Website deployment requested for [${site_name}.astrocore.qzz.io] from git [${repo_url}] by user ${userId}`);
+
     // Deploy directly to Cloudflare Workers (async — don't block response)
     deployWebsite({ siteName: site_name, repoUrl: repo_url, sessionKey, userId, plan: req.user.plan })
       .then(async ({ publicUrl }) => {
@@ -90,6 +93,7 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
             [publicUrl, sessionKey]
           );
           await redisCmd('HSET', `session:${sessionKey}`, 'status', 'active', 'tunnel_url', publicUrl);
+          appendRunLog('webhost', sessionKey, `Website deployed successfully! Live at ${publicUrl}`);
           console.log(`✅ WebHost deployed: ${site_name} → ${publicUrl}`);
         } catch (dbErr) {
           console.error('WebHost status DB update error:', dbErr.message);
@@ -105,6 +109,7 @@ webhostRouter.post('/deploy', requireAuth, async (req, res) => {
         } catch (dbErr) {
           console.error('WebHost fail DB update error:', dbErr.message);
         }
+        appendRunLog('webhost', sessionKey, `Website deploy failed: ${err.message}`, 'ERROR');
         console.error(`❌ WebHost deploy failed for ${site_name}:`, err.message);
       });
 

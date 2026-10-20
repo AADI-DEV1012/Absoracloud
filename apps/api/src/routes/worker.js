@@ -6,6 +6,7 @@ import { requireWorkerAuth }  from '../middleware/worker_auth.js';
 import { asyncHandler }       from '../middleware/async_handler.js';
 import { executeD1, d1QueryOne, queryD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd }              from '../../../../packages/shared/redis.js';
+import { appendRunLog }          from '../services/run_logger.js';
 
 export const workerRouter = Router();
 workerRouter.use(requireWorkerAuth);
@@ -148,6 +149,9 @@ workerRouter.post('/session_update', asyncHandler(async (req, res) => {
     if (tunnel_url) fields.push('tunnel_url', tunnel_url);
     if (expires_at) fields.push('expires_at', String(expires_at));
     await redisCmd('HSET', `session:${session_key}`, ...fields);
+
+    const svc = session_key.startsWith('devbox') ? 'devbox' : (session_key.startsWith('vps') ? 'vps' : 'webhost');
+    appendRunLog(svc, session_key, `Runner reported session state [${status}]${tunnel_url ? ' - Endpoint active: ' + tunnel_url : ''}`);
 
     res.json({ status: 'success' });
   } catch (err) {
