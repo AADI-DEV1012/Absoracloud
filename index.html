@@ -270,15 +270,9 @@
 
             <!-- Landing Navigation Links -->
             <nav id="landing-nav-links" class="hidden md:flex items-center gap-5 text-xs font-semibold text-neutral-600">
-                <a href="#services" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-layer-group text-neutral-400"></i> Services
+                <a href="#features" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-neutral-400"></i> Features
                 </a>
-                <a href="vps.html" class="hover:text-primary transition">VPS</a>
-                <a href="devbox.html" class="hover:text-primary transition">DevBox</a>
-                <a href="serverless.html" class="hover:text-primary transition">Serverless</a>
-                <a href="webhosting.html" class="hover:text-primary transition">Web Hosting</a>
-                <a href="cloudstorage.html" class="hover:text-primary transition">Storage</a>
-                <a href="websocket.html" class="hover:text-primary transition">Realtime</a>
                 <a href="#pricing" onclick="navigateTo('landing');" class="hover:text-primary transition flex items-center gap-1.5">
                     <i class="fa-solid fa-tags text-neutral-400"></i> Plans
                 </a>
@@ -359,142 +353,6 @@
             </div>
         </section>
 
-        <!-- Services Section -->
-        <section id="services" class="py-16 px-6 max-w-6xl mx-auto w-full border-t border-neutral-200">
-            <div class="text-center max-w-xl mx-auto mb-12">
-                <span class="badge" style="margin-bottom:8px">Services</span>
-                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary mt-1">Unified Cloud Services</h2>
-                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Every service is isolated with dedicated hardware resources, guaranteed cgroup quotas, and automated edge routing.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                <!-- VPS Hosting -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-primary text-base mb-4">
-                            <i class="fa-solid fa-server"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">VPS Cloud Compute</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            Hardened isolated compute containers sliced via kernel cgroups. Includes full interactive web terminal, dedicated CPU/RAM, and secure reverse edge networking.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">0.5 - 4.0 vCPU</span>
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">2GB - 16GB RAM</span>
-                            <span class="px-2.5 py-1 rounded-md bg-neutral-100 text-neutral-700">Web Shell</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'vps')" class="mt-6 text-xs font-bold text-primary hover:underline flex items-center gap-1.5">
-                        Launch VPS Instance <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-
-                <!-- Serverless Functions -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-base mb-4 border border-amber-200">
-                            <i class="fa-solid fa-bolt"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">AbsoraEdge Functions</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            Zero-cold-start serverless micro-functions deployed instantaneously across 300+ global edge locations. Ideal for JSON APIs, webhooks, and proxies.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">0ms Cold Starts</span>
-                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">Global Edge PoPs</span>
-                            <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">ESM / JS Runtime</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'serverless')" class="mt-6 text-xs font-bold text-amber-700 hover:underline flex items-center gap-1.5">
-                        Deploy Edge Function <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-
-                <!-- DevBox GPU -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-700 text-base mb-4 border border-purple-200">
-                            <i class="fa-solid fa-microchip"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">DevBox GPU Workstations</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            Accelerated compute for machine learning, inference, and CUDA development. Equipped with Dual Nvidia Tesla T4 GPUs (32GB pooled VRAM) and JupyterLab.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">2× Tesla T4</span>
-                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">32GB VRAM</span>
-                            <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-700">JupyterLab IDE</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'devbox')" class="mt-6 text-xs font-bold text-purple-700 hover:underline flex items-center gap-1.5">
-                        Request GPU Slot <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-
-                <!-- Cloud Web Hosting -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-base mb-4 border border-indigo-200">
-                            <i class="fa-solid fa-globe"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">Edge Web Hosting</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            High-speed website hosting connected directly to your public Git repositories. Automated global SSL, instant edge distribution, and continuous updates.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Global Edge CDN</span>
-                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Automated SSL</span>
-                            <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700">Git Linked</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'webhost')" class="mt-6 text-xs font-bold text-indigo-700 hover:underline flex items-center gap-1.5">
-                        Deploy Website <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-
-                <!-- Cloud Storage -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-base mb-4 border border-blue-200">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">Multi-Zone Cloud Storage</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            Ultra-fast, secure object storage for backups, datasets, media, and build artifacts. Generates direct CDN download URLs with quota management.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">5GB - 200GB Quota</span>
-                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Direct CDN Links</span>
-                            <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Instant Streaming</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'storage')" class="mt-6 text-xs font-bold text-blue-700 hover:underline flex items-center gap-1.5">
-                        Open File Manager <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-
-                <!-- Realtime WebSocket Gateway -->
-                <div class="spec-card text-left p-6 flex flex-col justify-between">
-                    <div>
-                        <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-base mb-4 border border-emerald-200">
-                            <i class="fa-solid fa-tower-broadcast"></i>
-                        </div>
-                        <h3 class="font-heading font-bold text-lg text-primary">Realtime WebSocket Channels</h3>
-                        <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                            Ultra-low latency pub/sub event broadcasting cluster with automatic multi-provider failover. Supports 500+ concurrent channel connections, live presence, and event streaming.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] font-mono">
-                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">500+ Concurrents</span>
-                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">&lt;10ms Latency</span>
-                            <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">Edge Failover</span>
-                        </div>
-                    </div>
-                    <button onclick="navigateTo('dashboard', 'realtime')" class="mt-6 text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1.5">
-                        Open WebSocket Gateway <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                    </button>
-                </div>
-            </div>
-        </section>
 
         <!-- Features / Platform Pillars Section -->
         <section id="features" class="py-16 px-6 max-w-6xl mx-auto w-full border-t border-neutral-200">
@@ -638,7 +496,6 @@
                     <span>AbsoraCloud V3</span>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-6 font-medium">
-                    <a href="#services" class="hover:text-primary transition">Services</a>
                     <a href="#features" class="hover:text-primary transition">Features</a>
                     <a href="#pricing" class="hover:text-primary transition">Plans</a>
                     <a href="javascript:void(0)" onclick="navigateTo('terms')" class="hover:text-primary transition">Terms & Conditions</a>
@@ -1436,7 +1293,7 @@
                 if (hash === 'terms') navigateTo('terms');
                 else if (hash === 'refund') navigateTo('refund');
                 else if (hash === 'privacy') navigateTo('privacy');
-                else if (hash === 'services' || hash === 'features' || hash === 'pricing') navigateTo('landing');
+                else if (hash === 'features' || hash === 'pricing') navigateTo('landing');
             });
 
             if (window.location.hash === '#terms') navigateTo('terms');
