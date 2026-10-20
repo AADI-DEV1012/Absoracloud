@@ -910,554 +910,290 @@
     <!-- ══════════════════════════════════════════════ -->
     <!-- VIEW 3: CLOUD DASHBOARD / CONSOLE -->
     <!-- ══════════════════════════════════════════════ -->
-    <div id="view-dashboard" class="hidden flex-1 flex overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 border-r border-neutral-200 p-4 flex flex-col gap-1.5 shrink-0 bg-white">
-            <div class="flex items-center justify-between px-3 mb-2">
-                <span class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Cloud Services</span>
-                <span class="text-[10px] text-neutral-400">Dedicated</span>
-            </div>
-            
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('vps')" class="nav-tab active flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="vps">
-                    <i class="fa-solid fa-server text-sm w-4"></i>
-                    <span>VPS Hosting</span>
-                </button>
-                <a href="vps.html" title="Open Dedicated VPS Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('devbox')" class="nav-tab flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="devbox">
-                    <i class="fa-solid fa-microchip text-sm w-4 text-purple-600"></i>
-                    <span>DevBox (GPU)</span>
-                </button>
-                <a href="devbox.html" title="Open Dedicated DevBox Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('webhost')" class="nav-tab flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="webhost">
-                    <i class="fa-solid fa-globe text-sm w-4 text-indigo-600"></i>
-                    <span>Web Hosting</span>
-                </button>
-                <a href="webhosting.html" title="Open Dedicated Web Hosting Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('serverless')" class="nav-tab flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="serverless">
-                    <i class="fa-solid fa-bolt text-sm w-4 text-amber-500"></i>
-                    <span>Edge Functions</span>
-                </button>
-                <a href="serverless.html" title="Open Dedicated Serverless Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('storage')" class="nav-tab flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="storage">
-                    <i class="fa-solid fa-cloud-arrow-up text-sm w-4 text-blue-500"></i>
-                    <span>Cloud Storage</span>
-                </button>
-                <a href="cloudstorage.html" title="Open Dedicated Cloud Storage Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="flex items-center gap-1 group">
-                <button onclick="switchDashboardTab('realtime')" class="nav-tab flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="realtime">
-                    <i class="fa-solid fa-tower-broadcast text-sm w-4 text-emerald-500"></i>
-                    <span>Realtime Sockets</span>
-                </button>
-                <a href="websocket.html" title="Open Dedicated Realtime WebSocket Page" class="p-2 rounded-xl text-neutral-400 hover:text-primary hover:bg-neutral-100 transition text-xs">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-            </div>
-
-            <div class="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase px-3 mt-6 mb-2">Account & Quotas</div>
-
-            <button onclick="switchDashboardTab('plans')" class="nav-tab w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-neutral-700 hover:bg-neutral-100" data-tab="plans">
-                <i class="fa-solid fa-credit-card text-sm w-4"></i>
-                <span>Plans & Limits</span>
-            </button>
-
-            <!-- User Plan Widget in Sidebar -->
-            <div class="mt-auto p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200">
-                <div class="flex items-center justify-between text-xs mb-1.5">
-                    <span class="font-medium text-neutral-500">Active Tier:</span>
-                    <span id="user-plan-badge" class="font-bold text-primary uppercase">Free Community</span>
-                </div>
-                <div class="w-full bg-neutral-200 h-1.5 rounded-full overflow-hidden mb-2">
-                    <div id="quota-progress-bar" class="bg-primary h-full w-1/4 transition-all duration-300"></div>
-                </div>
-                <div class="text-[11px] text-neutral-500 flex justify-between">
-                    <span>VPS Quota</span>
-                    <span id="quota-text" class="font-semibold text-neutral-700">4h / week</span>
-                </div>
-                <button onclick="switchDashboardTab('plans')" class="mt-3 w-full py-1.5 rounded-lg bg-white border border-neutral-200 text-[11px] font-bold text-neutral-700 hover:bg-neutral-100 transition shadow-xs">
-                    Upgrade Limits
-                </button>
-            </div>
-        </aside>
-
-        <!-- Main Workspace Area -->
-        <main class="flex-1 overflow-y-auto p-8 bg-[#faf8f8]">
-            <!-- Dynamic Notification / Status Toast Banner -->
-            <div id="dashboard-toast" class="hidden mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border">
-                <div class="flex items-center gap-3">
-                    <span id="dashboard-toast-icon" class="text-base"></span>
-                    <span id="dashboard-toast-msg" class="font-medium"></span>
-                </div>
-                <button onclick="hideToast()" class="text-neutral-400 hover:text-neutral-700 ml-4 font-bold">✕</button>
-            </div>
-
-            <!-- 1. VPS Tab -->
-            <section id="panel-vps" class="tab-panel space-y-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">VPS Cloud Compute</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant runner sliced by plan: dedicated CPU & RAM limits with web terminal.</p>
-                    </div>
-                    <button onclick="launchVPS()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-play"></i> Launch VPS
-                    </button>
-                </div>
-
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active VPS Sessions</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Session Key</th>
-                                    <th class="pb-3">Resources (CPUs / RAM)</th>
-                                    <th class="pb-3">Web Terminal</th>
-                                    <th class="pb-3">Time Remaining</th>
-                                    <th class="pb-3">Status</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vps-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS" to start one.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 2. DevBox GPU Tab -->
-            <section id="panel-devbox" class="tab-panel hidden space-y-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">DevBox GPU Workstations</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Interactive accelerated compute with dynamic CPU / 2× Nvidia Tesla T4 GPU switching & web terminal.</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="inline-flex rounded-xl p-1 bg-neutral-100 border border-neutral-200">
-                            <button id="devbox-rt-gpu" onclick="selectDevboxRuntime('gpu')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-primary flex items-center gap-1.5">
-                                <i class="fa-solid fa-bolt text-purple-600"></i> Dual Tesla T4 GPU
-                            </button>
-                            <button id="devbox-rt-cpu" onclick="selectDevboxRuntime('cpu')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5">
-                                <i class="fa-solid fa-microchip text-neutral-400"></i> Standard CPU
-                            </button>
-                        </div>
-                        <button onclick="launchDevBoxWithSelectedRuntime()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-play"></i> Start Session
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="glass-card p-5 rounded-2xl">
-                        <div class="text-xs text-neutral-400 font-medium">Hardware Spec</div>
-                        <div class="font-heading font-bold text-lg text-primary mt-1">2× Nvidia Tesla T4</div>
-                        <div class="text-xs text-purple-700 mt-1 font-semibold">32 GB Pooled VRAM</div>
-                    </div>
-                    <div class="glass-card p-5 rounded-2xl">
-                        <div class="text-xs text-neutral-400 font-medium">Active Slots</div>
-                        <div class="font-heading font-bold text-lg text-primary mt-1">High-Priority Queue</div>
-                        <div class="text-xs text-emerald-600 mt-1">Dynamic GPU Slot Allocation</div>
-                    </div>
-                    <div class="glass-card p-5 rounded-2xl">
-                        <div class="text-xs text-neutral-400 font-medium">Session Quota</div>
-                        <div class="font-heading font-bold text-lg text-primary mt-1">30m (Free) - 480m (Ent)</div>
-                        <div class="text-xs text-neutral-500 mt-1">Fair-share scheduling</div>
-                    </div>
-                </div>
-
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active GPU Sessions</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Session Key</th>
-                                    <th class="pb-3">Hardware Spec</th>
-                                    <th class="pb-3">Access Endpoint</th>
-                                    <th class="pb-3">Session Timeout</th>
-                                    <th class="pb-3">Status</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="devbox-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active DevBox sessions. Select runtime and click "Start Session".</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 3. WebHost Tab -->
-            <section id="panel-webhost" class="tab-panel hidden space-y-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">Edge Web Hosting</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Multi-tenant high-speed hosting cluster with automated global SSL & edge routing.</p>
-                    </div>
-                    <button onclick="openDeploySiteModal()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Deploy Website
-                    </button>
-                </div>
-
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Deployed Websites</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Site Name</th>
-                                    <th class="pb-3">Repository</th>
-                                    <th class="pb-3">Public Edge URL</th>
-                                    <th class="pb-3">Auto-Timeout</th>
-                                    <th class="pb-3">Status</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="webhost-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No websites deployed. Click "Deploy Website" to link a Git repository.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 4. Serverless Functions Tab -->
-            <section id="panel-serverless" class="tab-panel hidden space-y-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">AbsoraEdge Serverless Functions</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Zero-cold-start micro-workers running on global edge nodes with instant ESM deployments.</p>
-                    </div>
-                </div>
-
-                <!-- Deploy Function Card -->
-                <div class="glass-card rounded-2xl p-6 space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
-                        <h3 class="font-heading font-bold text-base text-primary">Create & Deploy Edge Function</h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-neutral-400 font-medium">Template:</span>
-                            <select id="fn-template-select" onchange="applyServerlessTemplate()" class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold bg-neutral-50 focus:outline-none focus:border-primary">
-                                <option value="hello">Hello World (JSON)</option>
-                                <option value="api">Dynamic REST Router</option>
-                                <option value="proxy">Low-Latency CORS Proxy</option>
-                                <option value="html">HTML Micro-Site</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-neutral-700 mb-1">Function Subdomain Identifier</label>
-                            <input id="fn-name-input" type="text" pattern="[a-z0-9-]{2,30}" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none" placeholder="api-auth">
-                            <span class="text-[10px] text-neutral-400">Letters, numbers, hyphens (e.g. hello-world)</span>
-                        </div>
-                        <div class="flex items-end justify-end">
-                            <button id="fn-deploy-btn" onclick="deployServerlessFunction()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
-                                <i class="fa-solid fa-bolt text-amber-400"></i> Deploy to Edge
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="text-xs font-bold text-neutral-700">Function Logic (JavaScript / ESM)</label>
-                            <span class="text-[11px] text-neutral-400 font-mono">export default { fetch(request, env) }</span>
-                        </div>
-                        <textarea id="fn-code-editor" rows="9" class="w-full rounded-xl border border-neutral-300 p-3.5 text-xs font-mono bg-neutral-900 text-emerald-400 focus:outline-none focus:border-primary leading-relaxed" spellcheck="false"></textarea>
-                    </div>
-                </div>
-
-                <!-- Active Functions List -->
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="font-heading font-semibold text-base mb-4 text-primary">Active Edge Functions</h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Function Name</th>
-                                    <th class="pb-3">Session Key</th>
-                                    <th class="pb-3">Live Edge Endpoint</th>
-                                    <th class="pb-3">Created</th>
-                                    <th class="pb-3">Status</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="serverless-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No active serverless functions. Write code above and click "Deploy to Edge".</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 5. Cloud Storage Tab -->
-            <section id="panel-storage" class="tab-panel hidden space-y-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">Multi-Zone Cloud Storage</h1>
-                        <p class="text-sm text-neutral-500 mt-1">High-speed persistent object engine with instant public CDN links and quota management.</p>
-                    </div>
-                </div>
-
-                <!-- Storage Quota Meter & Upload Bar -->
-                <div class="glass-card rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-bold text-neutral-700">Storage Capacity Utilization</div>
-                            <div id="storage-quota-text" class="text-xs text-neutral-500 mt-0.5">0.00 MB used of 5.00 GB</div>
-                        </div>
-                        <span id="storage-plan-pill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Free Tier</span>
-                    </div>
-                    <div class="w-full bg-neutral-200 h-2.5 rounded-full overflow-hidden">
-                        <div id="storage-quota-bar" class="bg-blue-600 h-full w-0 transition-all duration-300"></div>
-                    </div>
-
-                    <!-- Upload Controls -->
-                    <div class="pt-2 border-t border-neutral-100 flex flex-col sm:flex-row items-center gap-3">
-                        <input type="file" id="storage-file-input" class="w-full sm:flex-1 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200 cursor-pointer">
-                        <button id="storage-upload-btn" onclick="uploadStorageFile()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Stored Files List -->
-                <div class="glass-card rounded-2xl p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-heading font-semibold text-base text-primary">Your Cloud Files</h2>
-                        <button onclick="refreshActiveTab('storage')" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1">
-                            <i class="fa-solid fa-rotate-right"></i> Refresh
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Filename</th>
-                                    <th class="pb-3">Size</th>
-                                    <th class="pb-3">Type</th>
-                                    <th class="pb-3">Uploaded</th>
-                                    <th class="pb-3">Direct Edge Link</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="storage-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-neutral-400">No files uploaded yet. Select a file above and click "Upload File".</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Realtime WebSocket Sockets Tab -->
-            <section id="panel-realtime" class="tab-panel hidden space-y-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 class="font-heading font-bold text-2xl text-primary">Realtime WebSocket Channels</h1>
-                        <p class="text-sm text-neutral-500 mt-1">Ultra-low latency pub/sub event broadcasting, live state synchronization, and connection streams.</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span id="rt-gateway-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> AbsoraEdge Realtime Online
+        <div id="view-dashboard" class="hidden flex-1 overflow-y-auto bg-[#faf8f8]">
+        <div class="max-w-7xl mx-auto px-6 py-10 space-y-8">
+            <!-- Top Greeting & Quota Overview Banner -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white border border-neutral-200 shadow-xs">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-neutral-900 text-white uppercase tracking-wider">
+                            <i class="fa-solid fa-terminal text-[10px]"></i> Cloud Console
                         </span>
+                        <span class="text-xs text-neutral-400 font-medium">&bull; Multi-Tenant Global Edge</span>
                     </div>
+                    <h1 class="text-2xl sm:text-3xl font-heading font-extrabold text-primary">
+                        Welcome, <span id="console-username">Engineer</span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-neutral-500 mt-1 max-w-xl">
+                        Launch isolated Linux VPS runners, Dual GPU workstations, V8 edge functions, static web deployments, object storage, and realtime pub/sub streams.
+                    </p>
                 </div>
 
-                <!-- Event Dispatcher Bar -->
-                <div class="glass-card rounded-2xl p-6 space-y-4">
-                    <div class="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-bolt text-emerald-500"></i> Dispatch Live Realtime Event
+                <div class="flex flex-wrap sm:flex-nowrap items-center gap-4 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between gap-3 text-xs">
+                            <span class="text-neutral-500 font-medium">Active Tier:</span>
+                            <span id="user-plan-badge" class="font-bold text-primary uppercase">Free Community</span>
+                        </div>
+                        <div class="w-36 sm:w-44 bg-neutral-200 h-2 rounded-full overflow-hidden">
+                            <div id="quota-progress-bar" class="bg-primary h-full w-1/4 transition-all duration-300"></div>
+                        </div>
+                        <div class="text-[11px] text-neutral-400 flex justify-between">
+                            <span>VPS Quota:</span>
+                            <span id="quota-text" class="font-semibold text-neutral-700">4h / week</span>
+                        </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Target Channel</label>
-                            <input type="text" id="rt-channel-input" value="notifications" placeholder="e.g. alerts, chat-room-1" class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
+                    <a href="#pricing" onclick="navigateTo('landing');" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition whitespace-nowrap shadow-xs">
+                        Upgrade
+                    </a>
+                </div>
+            </div>
+
+            <!-- Floating Services Grid -->
+            <div>
+                <div class="flex items-center justify-between mb-5">
+                    <div>
+                        <h2 class="font-heading font-bold text-lg text-primary">Cloud Services & Workspaces</h2>
+                        <p class="text-xs text-neutral-500">Click any service card to open its dedicated management console.</p>
+                    </div>
+                    <span class="text-xs font-medium text-neutral-400">8 Services Available</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- 1. VPS Cloud Compute -->
+                    <div onclick="window.location.href='vps.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-server"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
+                                    Compute
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-blue-600 transition">VPS Cloud Compute</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Multi-tenant Linux runner sliced by plan. Dedicated CPU & RAM with built-in interactive web terminal.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">AMD EPYCâ„¢</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Web Shell</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">4h/week Free</span>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Event Name</label>
-                            <input type="text" id="rt-event-input" value="system_alert" placeholder="e.g. user_joined, update" class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-neutral-500 mb-1">Payload (JSON or Text)</label>
-                            <input type="text" id="rt-payload-input" value='{"message": "Hello from AbsoraCloud Realtime Gateway!"}' placeholder='{"status": "ok"}' class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-xs font-mono focus:border-neutral-900 focus:outline-none">
-                        </div>
+                        <a href="vps.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm group-hover:bg-blue-600">
+                            <span>Open VPS Console</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
                     </div>
 
-                    <div class="pt-2 flex justify-end">
-                        <button id="rt-broadcast-btn" onclick="broadcastRealtimeMessage()" class="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
-                            <i class="fa-solid fa-paper-plane"></i> Broadcast Event
+                    <!-- 2. DevBox GPU Workstation -->
+                    <div onclick="window.location.href='devbox.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-microchip"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wider">
+                                    Dual GPU
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-purple-600 transition">DevBox (GPU)</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Hardware-accelerated Dual GPU cloud workstations with PyTorch, CUDA, VS Code Web, and JupyterLab.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-purple-50 text-[11px] font-medium text-purple-700">Tesla T4 32GB</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">VS Code Web</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">JupyterLab</span>
+                            </div>
+                        </div>
+                        <a href="devbox.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open DevBox Console</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- 3. Edge Serverless Functions -->
+                    <div onclick="window.location.href='serverless.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-bolt"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
+                                    Serverless
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-amber-600 transition">Edge Functions</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Zero cold start JavaScript edge microservices deployed instantly to global endpoints with dedicated URLs.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-amber-50 text-[11px] font-medium text-amber-700">0ms Cold Start</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">V8 Engine</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Subdomains</span>
+                            </div>
+                        </div>
+                        <a href="serverless.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open Serverless Studio</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- 4. Web Hosting -->
+                    <div onclick="window.location.href='webhosting.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-globe"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                                    Edge CDN
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-indigo-600 transition">Web Hosting</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Automated edge hosting for static sites and Single Page Applications with instant Git builds and custom subdomains.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Free Subdomain</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Auto SSL</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Global CDN</span>
+                            </div>
+                        </div>
+                        <a href="webhosting.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open Web Hosting</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- 5. Cloud Storage -->
+                    <div onclick="window.location.href='cloudstorage.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 uppercase tracking-wider">
+                                    Storage
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-sky-600 transition">Cloud Storage</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Multi-zone object file storage with direct download links, CDN caching, and high durability for media & datasets.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-sky-50 text-[11px] font-medium text-sky-700">5GB Free</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">CDN URLs</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">REST API</span>
+                            </div>
+                        </div>
+                        <a href="cloudstorage.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open Cloud Storage</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- 6. Realtime Sockets -->
+                    <div onclick="window.location.href='websocket.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-tower-broadcast"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                    WebSockets
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-emerald-600 transition">Realtime Sockets</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Low-latency bidirectional WebSocket pub/sub broker with channel isolation, event broadcast, and live monitor.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-[11px] font-medium text-emerald-700">Sub-50ms</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Live Monitor</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Multi-Channel</span>
+                            </div>
+                        </div>
+                        <a href="websocket.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open Realtime Hub</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <!-- 7. Subscription Plans & Limits -->
+                    <div onclick="navigateTo('landing'); document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'});" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-credit-card"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider">
+                                    Quotas
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-rose-600 transition">Plans & Limits</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Review account quotas, active allocations, and upgrade to Pro or Enterprise for increased weekly runtime & GPUs.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Free Community</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Pro â‚¹299</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Enterprise</span>
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); navigateTo('landing'); document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'});" class="mt-6 w-full py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm group-hover:bg-rose-600">
+                            <span>View Pricing & Quotas</span>
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
                         </button>
                     </div>
-                </div>
 
-                <!-- Live Stream Feed Table -->
-                <div class="glass-card rounded-2xl p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h2 class="font-heading font-semibold text-base text-primary">Live Event Log</h2>
-                            <p class="text-xs text-neutral-500">History of dispatched realtime events recorded on the edge mesh.</p>
+                    <!-- 8. Admin Control Plane -->
+                    <div onclick="window.location.href='admin.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300 uppercase tracking-wider">
+                                    Ops Fleet
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-slate-800 transition">Admin Control Plane</h3>
+                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
+                                    Inspect Kaggle runner fleet, dispatch provisioning kernels, check the 1GB unified log engine, and monitor cluster health.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">Kaggle Fleet</span>
+                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">1GB Log Engine</span>
+                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">Telemetry</span>
+                            </div>
                         </div>
-                        <button onclick="refreshActiveTab('realtime')" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1">
-                            <i class="fa-solid fa-rotate-right"></i> Refresh
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b text-neutral-400 font-medium">
-                                    <th class="pb-3">Channel</th>
-                                    <th class="pb-3">Event Name</th>
-                                    <th class="pb-3">Payload Data</th>
-                                    <th class="pb-3">Timestamp</th>
-                                    <th class="pb-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="realtime-events-list" class="divide-y divide-neutral-100">
-                                <tr>
-                                    <td colspan="5" class="py-6 text-center text-neutral-400">Loading live realtime events...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <a href="admin.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>Open Admin Plane</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
                     </div>
                 </div>
-
-                <!-- Developer Connection Quickstart -->
-                <div class="glass-card rounded-2xl p-6">
-                    <h2 class="font-heading font-semibold text-base text-primary mb-1">Developer Connection Quickstart</h2>
-                    <p class="text-xs text-neutral-500 mb-4">Connect any frontend client or microservice to listen and dispatch realtime events over AbsoraCloud Gateway (absoracloud.qzz.io).</p>
-                    
-                    <div class="space-y-3">
-                        <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
-                            <span class="text-neutral-500">// 1. Listen for Realtime Events via WebSocket (Browser / Node.js)</span><br>
-                            <span class="text-purple-400">const</span> pusher = <span class="text-purple-400">new</span> <span class="text-amber-400">Pusher</span>(<span class="text-emerald-400">'4bd0a2c237188dac0245'</span>, { <span class="text-blue-400">cluster</span>: <span class="text-emerald-400">'ap2'</span>, <span class="text-blue-400">forceTLS</span>: <span class="text-purple-400">true</span> });<br>
-                            <span class="text-purple-400">const</span> channel = pusher.<span class="text-blue-400">subscribe</span>(<span class="text-emerald-400">'notifications'</span>);<br>
-                            channel.<span class="text-blue-400">bind</span>(<span class="text-emerald-400">'system_alert'</span>, (data) =&gt; {<br>
-                            &nbsp;&nbsp;<span class="text-blue-400">console</span>.<span class="text-blue-400">log</span>(<span class="text-emerald-400">'[Realtime Event Received]:'</span>, data);<br>
-                            });
-                        </div>
-
-                        <div class="bg-neutral-900 text-neutral-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
-                            <span class="text-neutral-500">// 2. Broadcast an Event to the Gateway Mesh (API / Backend)</span><br>
-                            <span class="text-purple-400">await</span> <span class="text-blue-400">fetch</span>(<span class="text-emerald-400">'https://absoracloud.qzz.io/api/realtime/publish'</span>, {<br>
-                            &nbsp;&nbsp;<span class="text-blue-400">method</span>: <span class="text-emerald-400">'POST'</span>,<br>
-                            &nbsp;&nbsp;<span class="text-blue-400">headers</span>: { <span class="text-emerald-400">'Content-Type'</span>: <span class="text-emerald-400">'application/json'</span> },<br>
-                            &nbsp;&nbsp;<span class="text-blue-400">body</span>: <span class="text-amber-400">JSON</span>.<span class="text-blue-400">stringify</span>({ <span class="text-blue-400">channel</span>: <span class="text-emerald-400">'notifications'</span>, <span class="text-blue-400">event</span>: <span class="text-emerald-400">'system_alert'</span>, <span class="text-blue-400">data</span>: { <span class="text-blue-400">msg</span>: <span class="text-emerald-400">'Hello from App'</span> } })<br>
-                            });
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 6. Dashboard Plans Tab -->
-            <section id="panel-plans" class="tab-panel hidden space-y-6">
-                <div class="text-center max-w-xl mx-auto mb-8">
-                    <h1 class="font-heading font-bold text-3xl text-primary">Predictable, Sliced Cloud Compute</h1>
-                    <p class="text-sm text-neutral-500 mt-2">Every plan enforces automated resource limits, multi-tenant container slicing, and guaranteed runtimes.</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border-2 border-neutral-200">
-                        <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Community</span>
-                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Free</h3>
-                            <div class="text-3xl font-extrabold font-heading text-primary my-4">$0 <span class="text-xs text-neutral-400 font-normal">/ forever</span></div>
-                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 4h/week VPS (0.5 vCPU, 2GB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1 Edge Function (128 KB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 30m GPU DevBox / week</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1 Hosted Edge Website</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 GB Cloud Storage</li>
-                            </ul>
-                        </div>
-                        <button class="w-full py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 bg-neutral-100" disabled>Current Tier</button>
-                    </div>
-
-                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
-                        <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Starter</span>
-                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Basic</h3>
-                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹99 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
-                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10h/week VPS (1 vCPU, 4GB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 Edge Functions (512 KB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 1h GPU DevBox (Strict Limit)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 3 Hosted Edge Websites</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 25 GB Persistent Storage</li>
-                            </ul>
-                        </div>
-                        <button onclick="upgradePlan('basic')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Basic</button>
-                    </div>
-
-                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border-2 border-primary relative shadow-md">
-                        <div class="absolute -top-3 right-6 bg-primary text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full">Popular</div>
-                        <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Power Compute</span>
-                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Pro</h3>
-                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹299 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
-                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 20h/week VPS (2 vCPU, 8GB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 15 Edge Functions (1 MB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 3h GPU DevBox (Strict Limit)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5 Hosted Edge Websites</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 75 GB Persistent Storage</li>
-                            </ul>
-                        </div>
-                        <button onclick="upgradePlan('pro')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Pro</button>
-                    </div>
-
-                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
-                        <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Maximum</span>
-                            <h3 class="font-heading font-bold text-2xl text-primary mt-1">Enterprise</h3>
-                            <div class="text-3xl font-extrabold font-heading text-primary my-4">₹799 <span class="text-xs text-neutral-400 font-normal">/ mo</span></div>
-                            <ul class="text-xs space-y-3 text-neutral-600 mb-6">
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 40h/week VPS (4 vCPU, 16GB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 50 Edge Functions (4 MB)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 5h GPU DevBox (Strict Limit)</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 10 Hosted Edge Websites</li>
-                                <li><i class="fa-solid fa-check text-emerald-600 mr-2"></i> 200 GB Persistent Storage</li>
-                            </ul>
-                        </div>
-                        <button onclick="upgradePlan('enterprise')" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition">Upgrade to Enterprise</button>
-                    </div>
-                </div>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
 
     <!-- Deploy Site Modal -->
@@ -1599,9 +1335,15 @@
                     navigateTo('auth', 'login');
                     return;
                 }
+                if (subParam && ['vps', 'devbox', 'webhost', 'serverless', 'storage', 'realtime', 'admin', 'plans'].includes(subParam)) {
+                    switchDashboardTab(subParam);
+                    return;
+                }
                 document.getElementById('view-dashboard').classList.remove('hidden');
                 landingNav.classList.add('hidden');
-                if (subParam) switchDashboardTab(subParam);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                const consoleUser = document.getElementById('console-username');
+                if (consoleUser && currentUser) consoleUser.innerText = currentUser.username || 'Engineer';
             }
             updateNavbar();
         }
@@ -1727,17 +1469,19 @@
         }
 
         // ── Dashboard Controller ──
-        function switchDashboardTab(tabId) {
-            document.querySelectorAll('#view-dashboard .tab-panel').forEach(p => p.classList.add('hidden'));
-            document.querySelectorAll('#view-dashboard .nav-tab').forEach(b => {
-                b.classList.remove('active');
-                if (b.getAttribute('data-tab') === tabId) b.classList.add('active');
-            });
-
-            const target = document.getElementById(`panel-${tabId}`);
-            if (target) target.classList.remove('hidden');
-
-            if (authToken) refreshActiveTab(tabId);
+                function switchDashboardTab(tabId) {
+            if (tabId === 'vps') { window.location.href = 'vps.html'; return; }
+            if (tabId === 'devbox') { window.location.href = 'devbox.html'; return; }
+            if (tabId === 'webhost') { window.location.href = 'webhosting.html'; return; }
+            if (tabId === 'serverless') { window.location.href = 'serverless.html'; return; }
+            if (tabId === 'storage') { window.location.href = 'cloudstorage.html'; return; }
+            if (tabId === 'realtime') { window.location.href = 'websocket.html'; return; }
+            if (tabId === 'admin') { window.location.href = 'admin.html'; return; }
+            if (tabId === 'plans') {
+                navigateTo('landing');
+                document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
         }
 
         function openDeploySiteModal() {
@@ -2478,6 +2222,8 @@
                     const data = await res.json();
                     if (data.user) {
                         currentUser = data.user;
+                        const consoleUser = document.getElementById('console-username');
+                        if (consoleUser) consoleUser.innerText = currentUser.username || 'Engineer';
                         const planEl = document.getElementById('user-plan-badge');
                         if (planEl) planEl.innerText = `${currentUser.plan} Tier`;
                         if (data.quotas && data.quotas.vps) {
