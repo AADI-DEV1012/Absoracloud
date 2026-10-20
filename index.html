@@ -1684,16 +1684,10 @@
         function updateNavbar() {
             const area = document.getElementById('nav-auth-area');
             if (authToken) {
-                const isAdmin = (currentUser?.role === 'admin' && currentUser?.username?.toLowerCase() === 'absoracloud') || !!localStorage.getItem('absora_admin_token');
                 area.innerHTML = `
                     <button onclick="navigateTo('dashboard')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-neutral-100 hover:bg-neutral-200 transition text-primary flex items-center gap-1.5">
                         <i class="fa-solid fa-terminal text-[10px]"></i> Console
                     </button>
-                    ${isAdmin ? `
-                        <a href="admin.html" class="px-3 py-2 text-xs font-bold rounded-xl bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-shield-halved text-[10px]"></i> Admin Plane
-                        </a>
-                    ` : ''}
                     <div class="flex items-center gap-2 pl-2">
                         <span class="text-xs font-bold text-neutral-800">${currentUser?.username || 'User'}</span>
                         <button onclick="logout()" class="text-xs text-neutral-400 hover:text-red-600 transition" title="Sign Out">
