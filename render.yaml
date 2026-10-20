@@ -28,7 +28,7 @@ services:
       - key: CLOUDFLARE_DOMAIN
         value: astrocore.qzz.io
       - key: CF_WORKERS_SUBDOMAIN
-        value: aadibabaji12345
+        value: absoracloud
       - key: D1_DB_ID
         sync: false
       - key: D1_DB_1_ID

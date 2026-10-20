@@ -1429,7 +1429,7 @@
             <form onsubmit="handleDeploySubmit(event)" class="space-y-4 text-xs">
                 <div>
                     <label class="font-semibold text-neutral-700 block mb-1">Site Subdomain / Name</label>
-                    <input id="deploy-site-name" type="text" required pattern="[a-z0-9-]{3,30}" class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-awesome-site">
+                    <input id="deploy-site-name" type="text" required pattern="[a-z0-9\-]{3,30}" class="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-awesome-site">
                     <span class="text-[10px] text-neutral-400">Lowercase letters, numbers, and hyphens only</span>
                 </div>
                 <div>
