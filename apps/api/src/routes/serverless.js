@@ -192,20 +192,27 @@ serverlessRouter.delete('/:func_name', requireAuth, async (req, res) => {
     }
 
     const inst = await d1QueryOne(
-      "SELECT * FROM instances WHERE user_id = ? AND service = 'serverless' AND json_extract(config, '$.func_name') = ?",
-      [req.user.sub, func_name]
+      "SELECT * FROM instances WHERE user_id = ? AND service = 'serverless' AND status != 'dismissed' AND (json_extract(config, '$.func_name') = ? OR session_key = ?)",
+      [req.user.sub, func_name, func_name]
     );
-    if (!inst) return res.status(404).json({ status: 'error', msg: 'Function not found' });
+
+    let realName = func_name;
+    if (inst) {
+      try {
+        const cfg = JSON.parse(inst.config || '{}');
+        if (cfg.func_name) realName = cfg.func_name;
+      } catch (_) {}
+    }
 
     try {
-      await deleteFunction(req.user.sub, func_name);
+      await deleteFunction(req.user.sub, realName);
     } catch (e) {
-      console.warn(`CF Worker delete warning for fn ${func_name}:`, e.message);
+      console.warn(`CF Worker delete warning for fn ${realName}:`, e.message);
     }
 
     await executeD1(
-      "UPDATE instances SET status = 'dismissed', stopped_at = datetime('now') WHERE session_key = ?",
-      [inst.session_key]
+      "UPDATE instances SET status = 'dismissed', stopped_at = datetime('now') WHERE user_id = ? AND service = 'serverless' AND (json_extract(config, '$.func_name') = ? OR session_key = ?)",
+      [req.user.sub, realName, func_name]
     );
 
     res.json({ status: 'success', msg: `Function "${func_name}" deleted.` });
