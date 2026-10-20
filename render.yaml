@@ -2,7 +2,7 @@ services:
   - type: web
     name: absoracloud-api
     runtime: node
-    buildCommand: npm ci --production=false
+    buildCommand: npm install --production=false
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
