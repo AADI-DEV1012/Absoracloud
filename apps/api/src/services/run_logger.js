@@ -1,12 +1,13 @@
 // ── Run Logger Service ──
 // Stores disk-backed logs for each run (devbox, serverless, vps, webhost)
-// strictly capped under 200MB with automated rotation and pruning.
+// in a unified 1 GB shared platform log pool with automated rotation and pruning.
 
 import fs from 'fs';
 import path from 'path';
 
-const MAX_LOG_DISK_BYTES = 200 * 1024 * 1024; // 200 MB limit
-const PRUNE_TARGET_BYTES = 160 * 1024 * 1024; // Prune to 160 MB when near limit
+const MAX_LOG_DISK_BYTES = 1024 * 1024 * 1024; // 1 GB pool
+const PRUNE_THRESHOLD_BYTES = 950 * 1024 * 1024; // Trigger pruning at 950 MB
+const PRUNE_TARGET_BYTES = 850 * 1024 * 1024; // Prune to 850 MB when near limit
 
 const LOGS_ROOT = process.env.LOGS_DIR || (
   fs.existsSync('/opt/absoracloud-data')
@@ -15,7 +16,7 @@ const LOGS_ROOT = process.env.LOGS_DIR || (
 );
 
 // Ensure directories exist for all services
-const SERVICES = ['devbox', 'vps', 'serverless', 'webhost'];
+const SERVICES = ['devbox', 'vps', 'serverless', 'webhost', 'runners'];
 for (const s of SERVICES) {
   try {
     fs.mkdirSync(path.join(LOGS_ROOT, s), { recursive: true });
@@ -25,12 +26,12 @@ for (const s of SERVICES) {
 }
 
 /**
- * Calculates total disk size of all stored run logs in bytes.
+ * Calculates total disk size of all stored run logs in bytes out of 1GB pool.
  */
 export function getLogDiskUsage() {
   let totalBytes = 0;
   let fileCount = 0;
-  const breakdown = { devbox: 0, vps: 0, serverless: 0, webhost: 0 };
+  const breakdown = { devbox: 0, vps: 0, serverless: 0, webhost: 0, runners: 0 };
   const filesList = [];
 
   for (const s of SERVICES) {
@@ -61,33 +62,52 @@ export function getLogDiskUsage() {
     } catch (_) {}
   }
 
+  // Count files per service
+  const filesCountByService = { devbox: 0, vps: 0, serverless: 0, webhost: 0, runners: 0 };
+  for (const f of filesList) {
+    if (filesCountByService[f.service] !== undefined) filesCountByService[f.service]++;
+  }
+
   // Sort files by last modified descending
   filesList.sort((a, b) => b.mtime - a.mtime);
 
+  const totalMBVal = totalBytes / (1024 * 1024);
+  const percentUsed = Math.min(100, parseFloat(((totalBytes / MAX_LOG_DISK_BYTES) * 100).toFixed(2)));
+  const remainingMB = Math.max(0, parseFloat((1024 - totalMBVal).toFixed(2)));
+
   return {
     totalBytes,
-    totalMB: (totalBytes / (1024 * 1024)).toFixed(2),
-    maxMB: 200,
-    percentUsed: Math.min(100, Math.round((totalBytes / MAX_LOG_DISK_BYTES) * 100)),
+    totalMB: totalMBVal.toFixed(2),
+    remainingMB: remainingMB.toFixed(2),
+    maxMB: 1024,
+    poolGB: 1,
+    maxBytes: MAX_LOG_DISK_BYTES,
+    percentUsed,
     fileCount,
+    logsRoot: LOGS_ROOT,
+    pruneThresholdMB: 950,
+    pruneTargetMB: 850,
     breakdown: {
       devboxMB: (breakdown.devbox / (1024 * 1024)).toFixed(2),
       vpsMB: (breakdown.vps / (1024 * 1024)).toFixed(2),
       serverlessMB: (breakdown.serverless / (1024 * 1024)).toFixed(2),
-      webhostMB: (breakdown.webhost / (1024 * 1024)).toFixed(2)
+      webhostMB: (breakdown.webhost / (1024 * 1024)).toFixed(2),
+      runnersMB: (breakdown.runners / (1024 * 1024)).toFixed(2)
     },
+    breakdownBytes: breakdown,
+    breakdownFiles: filesCountByService,
     files: filesList
   };
 }
 
 /**
- * Enforces the 200MB quota. If total logs exceed 190MB, deletes oldest logs.
+ * Enforces the unified 1GB platform log pool quota. If total logs exceed 950MB, deletes oldest logs.
  */
 export function ensureDiskUnderQuota() {
   const usage = getLogDiskUsage();
-  if (usage.totalBytes <= 190 * 1024 * 1024) return; // Within safe threshold
+  if (usage.totalBytes <= PRUNE_THRESHOLD_BYTES) return; // Within safe threshold
 
-  console.warn(`[RunLogger] Log disk usage (${usage.totalMB}MB) near 200MB limit. Pruning oldest logs...`);
+  console.warn(`[RunLogger] Log pool disk usage (${usage.totalMB}MB) near 1GB limit. Pruning oldest logs...`);
   // Sort oldest first
   const oldestFirst = [...usage.files].sort((a, b) => a.mtime - b.mtime);
 

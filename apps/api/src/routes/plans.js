@@ -42,8 +42,8 @@ plansRouter.get('/quotas', requireAuth, async (req, res) => {
       redisCmd('GET', `quota:${uid}:devbox_gpu`),
       redisCmd('GET', `quota:${uid}:serverless`),
     ]);
-    const reservedLogsMb = plan.logs_reserved_mb || 200;
-    const usableStorageBytes = Math.max(0, (plan.storage_gb * 1024 - reservedLogsMb) * 1024 * 1024);
+    const totalStorageBytes = plan.storage_gb * 1024 * 1024 * 1024;
+    const usableStorageBytes = totalStorageBytes;
 
     res.json({
       status: 'success',
@@ -60,8 +60,8 @@ plansRouter.get('/quotas', requireAuth, async (req, res) => {
         serverless_count: parseInt(serverless || '0', 10),
         serverless_max: plan.serverless_functions,
         storage_usable_bytes: usableStorageBytes,
-        storage_total_bytes: plan.storage_gb * 1024 * 1024 * 1024,
-        reserved_logs_mb: reservedLogsMb,
+        storage_total_bytes: totalStorageBytes,
+        reserved_logs_mb: 0,
       },
     });
   } catch (e) {

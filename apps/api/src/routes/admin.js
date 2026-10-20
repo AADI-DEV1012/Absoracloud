@@ -142,7 +142,7 @@ adminRouter.get('/runs', asyncHandler(async (req, res) => {
   }
 }));
 
-// ── GET /admin/logs — Disk Usage and Stored Log Files (<200MB quota) ──
+// ── GET /admin/logs — Unified 1GB Shared Platform Log Pool ──
 adminRouter.get('/logs', asyncHandler(async (req, res) => {
   try {
     const usage = getLogDiskUsage();
@@ -195,11 +195,17 @@ adminRouter.get('/stats', asyncHandler(async (req, res) => {
       instances: instances || [],
       active_runners: runners[0]?.cnt || 0,
       log_storage: {
+        total_bytes: logUsage.totalBytes,
         total_mb: logUsage.totalMB,
+        remaining_mb: logUsage.remainingMB,
         max_mb: logUsage.maxMB,
+        pool_gb: logUsage.poolGB,
         percent_used: logUsage.percentUsed,
         file_count: logUsage.fileCount,
-        breakdown: logUsage.breakdown
+        breakdown: logUsage.breakdown,
+        breakdown_bytes: logUsage.breakdownBytes,
+        breakdown_files: logUsage.breakdownFiles,
+        prune_threshold_mb: logUsage.pruneThresholdMB
       }
     });
   } catch (err) {

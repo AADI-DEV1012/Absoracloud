@@ -9,9 +9,9 @@ export const PLANS = {
   free: {
     name: 'Free',
     price: 0,
-    // Storage: 5 GB total with 200 MB reserved for system runtime logs
+    // Storage: Full 5 GB (System logs stored in unified 1GB platform pool)
     storage_gb: 5,
-    logs_reserved_mb: 200,
+    logs_reserved_mb: 0,
     // VPS
     vps_hours_week: 4,
     vps_cpu: 0.5,
@@ -35,7 +35,7 @@ export const PLANS = {
     name: 'Basic',
     price: 99,
     storage_gb: 25,
-    logs_reserved_mb: 200,
+    logs_reserved_mb: 0,
     vps_hours_week: 10,
     vps_cpu: 1,
     vps_ram_mb: 4096,
@@ -55,7 +55,7 @@ export const PLANS = {
     name: 'Pro',
     price: 299,
     storage_gb: 75,
-    logs_reserved_mb: 200,
+    logs_reserved_mb: 0,
     vps_hours_week: 20,
     vps_cpu: 2,
     vps_ram_mb: 8192,
@@ -75,7 +75,7 @@ export const PLANS = {
     name: 'Enterprise',
     price: 799,
     storage_gb: 200,
-    logs_reserved_mb: 200,
+    logs_reserved_mb: 0,
     vps_hours_week: 40,
     vps_cpu: 4,
     vps_ram_mb: 16384,
@@ -102,9 +102,9 @@ export function getPlanLimits(planKey, service) {
   switch (service) {
     case 'storage': return { 
       storage_gb: p.storage_gb,
-      logs_reserved_mb: p.logs_reserved_mb || 200,
-      usable_storage_mb: (p.storage_gb * 1024) - (p.logs_reserved_mb || 200),
-      usable_storage_bytes: ((p.storage_gb * 1024) - (p.logs_reserved_mb || 200)) * 1024 * 1024
+      logs_reserved_mb: 0,
+      usable_storage_mb: p.storage_gb * 1024,
+      usable_storage_bytes: p.storage_gb * 1024 * 1024 * 1024
     };
     case 'vps': return { 
       weekly_seconds: p.vps_hours_week * 3600, 

@@ -410,7 +410,7 @@ Alerts: ${activeAlertsToSend.join('; ')}
 
     let msg = `${statusIcon} <b>AbsoraCloud Monitor</b> ${statusLabel} • ${getIstTime()}\n`;
     msg += `<b>Health:</b> ${healthOk ? 'OK' : 'FAIL'} • <b>Latency:</b> ${latencyMs}ms • <b>Uptime:</b> ${formatUptime(currentUptime)}\n`;
-    msg += `<b>Infra:</b> D1 ${d1Ok ? '✅' : '❌'} | Redis ${redisOk ? '✅' : '❌'} | LogDisk ${diskLogs.totalMB}MB/200MB (${diskLogs.percentUsed}%)\n`;
+    msg += `<b>Infra:</b> D1 ${d1Ok ? '✅' : '❌'} | Redis ${redisOk ? '✅' : '❌'} | LogPool ${diskLogs.totalMB}MB/1GB (${diskLogs.percentUsed}%)\n`;
     msg += `<b>Workloads:</b>\n`;
     msg += ` • VPS: ${vpsStats.active} active, ${vpsStats.pending} pending, ${vpsStats.failed} failed\n`;
     msg += ` • DevBox: ${devboxStats.active} active, ${devboxStats.pending} pending, ${devboxStats.failed} failed\n`;
@@ -545,7 +545,8 @@ async function runUserStatusCheck(rawUsername, chatId) {
 
     msg += `<b>Storage & Quotas:</b>\n`;
     msg += ` • Cloud Files: ${filesStats.file_count || 0} files (${storageFormatted})\n`;
-    msg += ` • Log Reserve: 0.00MB / 200MB reserved\n`;
+    const logUsage = getLogDiskUsage();
+    msg += ` • Platform Log Pool: ${logUsage.totalMB}MB / 1GB shared (${logUsage.percentUsed}%)\n`;
     msg += ` • DevBox GPU Used: ${gpuHours}h\n`;
 
     if (activeInstances.length > 0) {
@@ -709,10 +710,10 @@ function testRealtimeProbe() {
 
 function testLogDiskProbe() {
   const usage = getLogDiskUsage();
-  const ok = usage.totalBytes < 200 * 1024 * 1024;
+  const ok = usage.totalBytes < (950 * 1024 * 1024);
   return {
     ok,
-    details: `Disk: ${usage.totalMB}MB / 200MB (${usage.percentUsed}%) | ${usage.fileCount} log files`
+    details: `${usage.totalMB}MB / 1GB (${usage.percentUsed}% | ${usage.fileCount} files)`
   };
 }
 
@@ -828,13 +829,42 @@ async function runSystemDiagnostics(targetRaw, chatId) {
     return;
   }
 
-  // 10. Single component test: Logs / Disk
+  // 10. Single component test: Logs / Disk (Real 1GB Matrix)
   if (target === 'logs' || target === 'log' || target === 'disk') {
-    const probe = testLogDiskProbe();
-    let msg = `🧪 <b>Isolated Log Storage Diagnostic Probe</b> • ${getIstTime()}\n\n`;
-    msg += `<b>Status:</b> ${probe.ok ? '🟢 SAFE' : '⚠️ NEAR LIMIT'}\n`;
-    msg += `<b>Cap:</b> Strictly 200 MB reserved per policy\n`;
-    msg += `<b>Current Disk:</b> ${probe.details}\n`;
+    const usage = getLogDiskUsage();
+    const ok = usage.totalBytes < (950 * 1024 * 1024);
+    const usedBytesFormatted = Number(usage.totalBytes).toLocaleString();
+    const maxBytesFormatted = Number(usage.maxBytes).toLocaleString();
+    const freeBytesFormatted = Number(Math.max(0, usage.maxBytes - usage.totalBytes)).toLocaleString();
+
+    let msg = `🧪 <b>Unified 1GB Log Storage Matrix</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Platform Quota Matrix:</b>\n`;
+    msg += ` • Max Pool Capacity: <b>1,024.00 MB</b> (1.00 GB / ${maxBytesFormatted} B)\n`;
+    msg += ` • Real Disk Used: <b>${usage.totalMB} MB</b> (${usedBytesFormatted} B)\n`;
+    msg += ` • Real Free Space: <b>${usage.remainingMB} MB</b> (${freeBytesFormatted} B)\n`;
+    msg += ` • Pool Utilization: <b>${usage.percentUsed}%</b>\n`;
+    msg += ` • Total Log Files: <b>${usage.fileCount} files</b>\n`;
+    msg += ` • Health Status: ${ok ? '🟢 SAFE' : '⚠️ NEAR PRUNE THRESHOLD'}\n\n`;
+
+    msg += `<b>Service Usage Breakdown:</b>\n`;
+    msg += ` • DevBox: <code>${usage.breakdown.devboxMB} MB</code> (${usage.breakdownFiles.devbox || 0} files)\n`;
+    msg += ` • VPS: <code>${usage.breakdown.vpsMB} MB</code> (${usage.breakdownFiles.vps || 0} files)\n`;
+    msg += ` • Serverless: <code>${usage.breakdown.serverlessMB} MB</code> (${usage.breakdownFiles.serverless || 0} files)\n`;
+    msg += ` • WebHost: <code>${usage.breakdown.webhostMB} MB</code> (${usage.breakdownFiles.webhost || 0} files)\n`;
+    msg += ` • Runners: <code>${usage.breakdown.runnersMB} MB</code> (${usage.breakdownFiles.runners || 0} files)\n\n`;
+
+    msg += `<b>Engine & Rotation Rules:</b>\n`;
+    msg += ` • Prune Trigger: <code>${usage.pruneThresholdMB} MB</code> (Oldest logs purged to ${usage.pruneTargetMB} MB)\n`;
+    msg += ` • User Plans: <b>100% full quota</b> (0MB user log deduction)\n`;
+    msg += ` • Disk Location: <code>${usage.logsRoot}</code>\n`;
+
+    if (usage.files && usage.files.length > 0) {
+      msg += `\n<b>Recent Run Log Files (Top 3):</b>\n`;
+      usage.files.slice(0, 3).forEach(f => {
+        msg += ` • <code>${f.filename}</code> [${f.service.toUpperCase()}] - ${f.sizeKB} KB\n`;
+      });
+    }
+
     await sendTelegramMessage(msg, { chatId });
     return;
   }
@@ -1112,14 +1142,14 @@ export async function handleTelegramWebhook(req, res) {
   - <code>/test ai</code> (NVIDIA Nemotron 3.5 LLM)
   - <code>/test storage</code> (Cloudinary, ImageKit, Uploadcare)
   - <code>/test realtime</code> (Pusher, Ably, PieSocket, Scaledrone)
-  - <code>/test logs</code> (200MB disk usage & isolation)
+  - <code>/test logs</code> (1GB platform log pool usage)
 
 <b>Controls:</b>
 • <code>/mute &lt;duration&gt;</code> - Mute alerts (e.g. <code>/mute 30m</code>, <code>/mute 2h</code>)
 • <code>/unmute</code> - Unmute notifications immediately
 • <code>/help</code> - Show this menu
 
-<i>Automated reports run every 5 minutes with strict 200MB log caps.</i>
+<i>Automated reports run every 5 minutes with 1GB platform log pool.</i>
     `.trim();
     await sendTelegramMessage(helpMsg, { chatId: senderChatId });
     return res.json({ status: 'ok', msg: 'Help sent' });

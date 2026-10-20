@@ -113,8 +113,8 @@ authRouter.get('/me', requireAuth, async (req, res) => {
     const storeBytes = storageRows?.[0]?.total_bytes || 0;
     const storeCount = storageRows?.[0]?.cnt || 0;
 
-    const reservedLogsMb = plan.logs_reserved_mb || 200;
-    const usableStorageBytes = Math.max(0, (plan.storage_gb * 1024 - reservedLogsMb) * 1024 * 1024);
+    const totalStorageBytes = plan.storage_gb * 1024 * 1024 * 1024;
+    const usableStorageBytes = totalStorageBytes;
 
     const quotas = {
       plan: user.plan || 'free',
@@ -153,10 +153,10 @@ authRouter.get('/me', requireAuth, async (req, res) => {
         used_bytes: storeBytes,
         usable_bytes: usableStorageBytes,
         max_bytes: usableStorageBytes,
-        total_disk_bytes: plan.storage_gb * 1024 * 1024 * 1024,
-        reserved_logs_mb: reservedLogsMb,
+        total_disk_bytes: totalStorageBytes,
+        reserved_logs_mb: 0,
         used_mb: (storeBytes / (1024 * 1024)).toFixed(2),
-        usable_gb: ((plan.storage_gb * 1024 - reservedLogsMb) / 1024).toFixed(2),
+        usable_gb: plan.storage_gb.toFixed(2),
         max_gb: plan.storage_gb,
         file_count: storeCount,
         percent: Math.min(100, Math.round((storeBytes / Math.max(1, usableStorageBytes)) * 100))

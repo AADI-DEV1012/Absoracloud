@@ -189,15 +189,15 @@
                 <div class="text-[11px] text-neutral-400 mt-1" id="metric-workloads-sub">DevBox, VPS, Serverless, WebHost</div>
             </div>
 
-            <!-- Metric 3: Disk Log Storage (Strictly < 200MB) -->
+            <!-- Metric 3: Unified 1GB Platform Log Pool -->
             <div class="glass-card rounded-2xl p-5 shadow-xs border-l-4 border-l-amber-500">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-neutral-500">Run Logs Disk Storage</span>
+                    <span class="text-xs font-semibold text-neutral-500">Platform Log Pool</span>
                     <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs"><i class="fa-solid fa-hard-drive"></i></div>
                 </div>
                 <div class="flex items-baseline gap-2 mt-2">
                     <span id="metric-logs-mb" class="font-heading font-extrabold text-2xl text-primary">0.0 MB</span>
-                    <span class="text-xs text-neutral-500 font-mono">/ 200 MB</span>
+                    <span class="text-xs text-neutral-500 font-mono">/ 1 GB</span>
                 </div>
                 <!-- Progress bar -->
                 <div class="w-full bg-neutral-100 h-1.5 rounded-full overflow-hidden mt-2">
@@ -232,7 +232,7 @@
                 <i class="fa-solid fa-play"></i> Workload Runs
             </button>
             <button onclick="switchTab('logs')" id="tab-btn-logs" class="admin-tab px-4 py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 transition flex items-center gap-2">
-                <i class="fa-solid fa-terminal"></i> Disk Logs (<200MB)
+                <i class="fa-solid fa-terminal"></i> Log Pool (1GB)
             </button>
             <button onclick="switchTab('users')" id="tab-btn-users" class="admin-tab px-4 py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 transition flex items-center gap-2">
                 <i class="fa-solid fa-user-gear"></i> Users & Plans
@@ -321,7 +321,7 @@
         </section>
 
         <!-- ══════════════════════════════════════════════════════ -->
-        <!-- TAB 3: DISK LOGS EXPLORER (< 200MB QUOTA) -->
+        <!-- TAB 3: DISK LOGS EXPLORER (1GB UNIFIED POOL) -->
         <!-- ══════════════════════════════════════════════════════ -->
         <section id="pane-logs" class="hidden space-y-4">
             <!-- Quota & Storage Breakdown -->
@@ -329,17 +329,17 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="font-heading font-bold text-base text-primary">Disk Log Storage Engine</h2>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">CAPPED &lt; 200MB</span>
+                            <h2 class="font-heading font-bold text-base text-primary">Platform Log Storage Engine</h2>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">UNIFIED 1GB POOL</span>
                         </div>
-                        <p class="text-xs text-neutral-500 mt-0.5">Logs of each run stored directly on host filesystem. Auto-rotates to preserve disk space.</p>
+                        <p class="text-xs text-neutral-500 mt-0.5">Unified 1GB log pool across all workloads. Users retain 100% of their storage plan. Auto-prunes oldest logs when reaching 950MB.</p>
                     </div>
                     <button onclick="purgeAllLogs()" class="px-3.5 py-1.5 rounded-xl border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition text-xs font-bold flex items-center gap-1.5">
                         <i class="fa-solid fa-trash-can"></i> Purge All Logs
                     </button>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     <div class="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200">
                         <div class="text-[11px] text-neutral-500 font-semibold">DevBox Logs</div>
                         <div id="breakdown-devbox" class="font-heading font-bold text-lg text-primary mt-1">0.0 MB</div>
@@ -355,6 +355,10 @@
                     <div class="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200">
                         <div class="text-[11px] text-neutral-500 font-semibold">Web Hosting Logs</div>
                         <div id="breakdown-webhost" class="font-heading font-bold text-lg text-primary mt-1">0.0 MB</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200">
+                        <div class="text-[11px] text-neutral-500 font-semibold">Runner Node Logs</div>
+                        <div id="breakdown-runners" class="font-heading font-bold text-lg text-primary mt-1">0.0 MB</div>
                     </div>
                 </div>
             </div>
@@ -599,7 +603,7 @@
                         const ls = d.log_storage;
                         document.getElementById('metric-logs-mb').innerText = `${ls.total_mb} MB`;
                         document.getElementById('metric-logs-bar').style.width = `${Math.min(100, ls.percent_used || 0)}%`;
-                        document.getElementById('metric-logs-files').innerText = `${ls.file_count || 0} run files`;
+                        document.getElementById('metric-logs-files').innerText = `${ls.file_count || 0} run files (${ls.percent_used}% of 1GB)`;
                     }
                 }
             } catch (e) {}
@@ -761,9 +765,17 @@
                         document.getElementById('breakdown-vps').innerText = `${d.breakdown.vpsMB} MB`;
                         document.getElementById('breakdown-serverless').innerText = `${d.breakdown.serverlessMB} MB`;
                         document.getElementById('breakdown-webhost').innerText = `${d.breakdown.webhostMB} MB`;
+                        if (document.getElementById('breakdown-runners')) {
+                            document.getElementById('breakdown-runners').innerText = `${d.breakdown.runnersMB || '0.00'} MB`;
+                        }
+                    }
+                    if (d.totalMB !== undefined) {
+                        document.getElementById('metric-logs-mb').innerText = `${d.totalMB} MB`;
+                        document.getElementById('metric-logs-bar').style.width = `${Math.min(100, d.percentUsed || 0)}%`;
+                        document.getElementById('metric-logs-files').innerText = `${d.fileCount || 0} run files (${d.percentUsed}% of 1GB)`;
                     }
                     allLogFilesCache = d.files || [];
-                    document.getElementById('log-files-count-badge').innerText = `${allLogFilesCache.length} files (${d.totalMB} MB)`;
+                    document.getElementById('log-files-count-badge').innerText = `${allLogFilesCache.length} files (${d.totalMB} MB / 1GB)`;
                     renderLogFilesList(allLogFilesCache);
 
                     if (allLogFilesCache.length > 0 && !currentActiveLog) {

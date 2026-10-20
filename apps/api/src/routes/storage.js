@@ -113,10 +113,8 @@ storageRouter.get('/files', requireAuth, async (req, res) => {
 
     const totalBytes = files.reduce((acc, f) => acc + (parseInt(f.file_size) || 0), 0);
     const plan = getPlan(req.user.plan || 'free');
-    const reservedLogsMb = plan.logs_reserved_mb || 200;
-    const reservedLogsBytes = reservedLogsMb * 1024 * 1024;
     const totalStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
-    const usableStorageBytes = Math.max(0, totalStorageBytes - reservedLogsBytes);
+    const usableStorageBytes = totalStorageBytes;
 
     res.json({
       status: 'success',
@@ -124,10 +122,10 @@ storageRouter.get('/files', requireAuth, async (req, res) => {
       used_bytes: totalBytes,
       quota_bytes: usableStorageBytes,
       total_storage_bytes: totalStorageBytes,
-      reserved_logs_mb: reservedLogsMb,
-      reserved_logs_bytes: reservedLogsBytes,
-      usable_gb: ((plan.storage_gb * 1024 - reservedLogsMb) / 1024).toFixed(2),
-      total_gb: plan.storage_gb,
+      reserved_logs_mb: 0,
+      reserved_logs_bytes: 0,
+      usable_gb: (plan.storage_gb || 5).toFixed(2),
+      total_gb: plan.storage_gb || 5,
       plan: plan.name,
       files,
     });
@@ -149,12 +147,10 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
     const fileBuffer = Buffer.from(content_base64, 'base64');
     const fileSize = fileBuffer.length;
 
-    // Check plan quota: 200 MB reserved for system runtime logs across all plans
+    // Check plan quota: 100% full storage allocated to user (logs managed in unified 1GB platform pool)
     const plan = getPlan(req.user.plan || 'free');
-    const reservedLogsMb = plan.logs_reserved_mb || 200;
-    const reservedLogsBytes = reservedLogsMb * 1024 * 1024;
     const totalStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
-    const usableStorageBytes = Math.max(0, totalStorageBytes - reservedLogsBytes);
+    const usableStorageBytes = totalStorageBytes;
 
     let currentFiles = [];
     try {
