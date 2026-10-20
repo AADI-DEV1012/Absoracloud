@@ -768,7 +768,17 @@
     <!-- VIEW 3: CLOUD DASHBOARD / CONSOLE -->
     <!-- ══════════════════════════════════════════════ -->
         <div id="view-dashboard" class="hidden flex-1 overflow-y-auto bg-[#faf8f8]">
-        <div class="max-w-7xl mx-auto px-6 py-10 space-y-8">
+        <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+            <!-- Navigation Back to Home Button -->
+            <div class="flex items-center justify-between">
+                <button onclick="navigateTo('landing')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-neutral-300 hover:bg-neutral-100 hover:text-primary transition text-xs font-semibold text-neutral-700 shadow-xs">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Home
+                </button>
+                <div class="text-xs text-neutral-400 font-medium hidden sm:block">
+                    AbsoraCloud Console &bull; All Cloud Services
+                </div>
+            </div>
+
             <!-- Top Greeting & Quota Overview Banner -->
             <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white border border-neutral-200 shadow-xs">
                 <div>
@@ -835,7 +845,7 @@
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">AMD EPYCâ„¢</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">AMD EPYC™</span>
                                 <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Web Shell</span>
                                 <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">4h/week Free</span>
                             </div>
@@ -1020,33 +1030,33 @@
                         </button>
                     </div>
 
-                    <!-- 8. Admin Control Plane -->
-                    <div onclick="window.location.href='admin.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
+                    <!-- 8. Coming Soon -->
+                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border border-dashed border-neutral-300 bg-neutral-50/70 relative overflow-hidden">
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-shield-halved"></i>
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-xs">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
                                 </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300 uppercase tracking-wider">
-                                    Ops Fleet
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
+                                    Coming Soon
                                 </span>
                             </div>
                             <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-slate-800 transition">Admin Control Plane</h3>
+                                <h3 class="font-heading font-bold text-base text-neutral-700">Coming Soon.....</h3>
                                 <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Inspect Kaggle runner fleet, dispatch provisioning kernels, check the 1GB unified log engine, and monitor cluster health.
+                                    Next-generation cloud infrastructure modules and advanced developer tooling are currently in active development.
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">Kaggle Fleet</span>
-                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">1GB Log Engine</span>
-                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700">Telemetry</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">In Development</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">Enterprise</span>
+                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">Preview</span>
                             </div>
                         </div>
-                        <a href="admin.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open Admin Plane</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
+                        <button disabled class="mt-6 w-full py-2.5 rounded-xl bg-neutral-200/70 text-neutral-400 text-xs font-semibold cursor-not-allowed flex items-center justify-center gap-2">
+                            <span>Coming Soon.....</span>
+                            <i class="fa-solid fa-hourglass-half text-[10px]"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1293,10 +1303,12 @@
                 if (hash === 'terms') navigateTo('terms');
                 else if (hash === 'refund') navigateTo('refund');
                 else if (hash === 'privacy') navigateTo('privacy');
+                else if (hash === 'dashboard') navigateTo('dashboard');
                 else if (hash === 'features' || hash === 'pricing') navigateTo('landing');
             });
 
-            if (window.location.hash === '#terms') navigateTo('terms');
+            if (window.location.hash === '#dashboard') navigateTo('dashboard');
+            else if (window.location.hash === '#terms') navigateTo('terms');
             else if (window.location.hash === '#refund') navigateTo('refund');
             else if (window.location.hash === '#privacy') navigateTo('privacy');
 
