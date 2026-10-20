@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import { requireWorkerAuth }  from '../middleware/worker_auth.js';
 import { asyncHandler }       from '../middleware/async_handler.js';
-import { executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { executeD1, d1QueryOne, queryD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd }              from '../../../../packages/shared/redis.js';
 
 export const workerRouter = Router();
@@ -65,6 +65,66 @@ workerRouter.post('/heartbeat', asyncHandler(async (req, res) => {
     await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
 
     res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
+
+// ── Runner Heartbeat (Multi-tenant master daemon) ──
+workerRouter.post('/runner_heartbeat', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, active_count = 0 } = req.body;
+    if (!runner_id) {
+      return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+    }
+
+    await executeD1(
+      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ?, status = 'ready' WHERE id = ?",
+      [active_count, runner_id]
+    );
+    await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
+
+    // Fetch instances assigned to this runner that are pending or active
+    const instances = await queryD1(
+      "SELECT session_key, status, config FROM instances WHERE runner_id = ? AND status IN ('pending', 'active')",
+      [runner_id]
+    );
+
+    const assignments = (instances || []).map(inst => {
+      let termPass = '';
+      try {
+        const cfg = JSON.parse(inst.config || '{}');
+        termPass = cfg.term_pass || '';
+      } catch {}
+      return { session_key: inst.session_key, term_pass: termPass, status: inst.status };
+    });
+
+    const kill = await redisCmd('GET', `kill:runner:${runner_id}`);
+
+    res.json({
+      status: 'success',
+      assignments,
+      kill: kill === '1'
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
+
+// ── Runner Clean Shutdown (Called when idle for 5 min with 0 users) ──
+workerRouter.post('/runner_shutdown', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, reason = 'idle_timeout' } = req.body;
+    if (!runner_id) {
+      return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+    }
+
+    await executeD1("UPDATE runners SET status = 'stopped' WHERE id = ?", [runner_id]);
+    await redisCmd('SREM', 'runners:active', runner_id);
+    await redisCmd('HDEL', `runner:${runner_id}`, 'status');
+
+    console.log(`🛑 Runner ${runner_id} clean shutdown acknowledged (reason: ${reason})`);
+    res.json({ status: 'success', msg: `Runner ${runner_id} shut down acknowledged` });
   } catch (err) {
     res.status(500).json({ status: 'error', msg: err.message });
   }

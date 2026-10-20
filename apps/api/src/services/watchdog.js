@@ -158,28 +158,33 @@ async function checkRunnerHealthAndDisconnectInstances() {
        AND datetime(last_heartbeat) <= datetime('now', '-90 seconds')`
   );
 
-  if (!staleRunners || staleRunners.length === 0) return;
+  if (staleRunners && staleRunners.length > 0) {
+    for (const runner of staleRunners) {
+      console.warn(`⚠️  Watchdog: Runner ${runner.id} missed heartbeats (>90s). Marking as dead.`);
+      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runner.id]);
+      await redisCmd('SREM', 'runners:active', runner.id);
 
-  for (const runner of staleRunners) {
-    console.warn(`⚠️  Watchdog: Runner ${runner.id} missed heartbeats (>90s). Marking as dead.`);
-    await executeD1("UPDATE runners SET status = 'dead' WHERE id = ?", [runner.id]);
-    await redisCmd('SREM', 'runners:active', runner.id);
-
-    const orphaned = await queryD1(
-      `SELECT id, session_key, service FROM instances 
-       WHERE runner_id = ? AND status IN ('active', 'pending')`,
-      [runner.id]
-    );
-
-    for (const inst of orphaned) {
-      await executeD1(
-        "UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE id = ?",
-        [inst.id]
+      const orphaned = await queryD1(
+        `SELECT id, session_key, service FROM instances 
+         WHERE runner_id = ? AND status IN ('active', 'pending')`,
+        [runner.id]
       );
-      if (inst.session_key) {
-        await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'disconnected', 'error', 'Host runner lost connection');
+
+      for (const inst of orphaned) {
+        await executeD1(
+          "UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE id = ?",
+          [inst.id]
+        );
+        if (inst.session_key) {
+          await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'disconnected', 'error', 'Host runner lost connection');
+        }
+        console.log(`⚠️  Disconnected orphaned session ${inst.session_key} on dead runner ${runner.id}`);
       }
-      console.log(`⚠️  Disconnected orphaned session ${inst.session_key} on dead runner ${runner.id}`);
     }
   }
+
+  // Purge dead/stopped runners older than 24h to keep table compact
+  try {
+    await executeD1("DELETE FROM runners WHERE status IN ('dead', 'stopped') AND datetime(last_heartbeat) <= datetime('now', '-24 hours')");
+  } catch (_) {}
 }

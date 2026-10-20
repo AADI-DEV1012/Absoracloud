@@ -24,13 +24,14 @@ function getAuth() {
  */
 export async function triggerKaggleKernel(sessionKey, userId, plan, config = {}) {
   const { username, authHeader } = getAuth();
-  const kernelSlug = `absoracloud-devbox-${sessionKey.slice(-8)}`;
+  const runnerId = config.runner_id || `devbox-runner-${sessionKey.slice(-8)}`;
+  const kernelSlug = `absoracloud-devbox-${runnerId.slice(-12)}`;
   const isGpu = config.runtime !== 'cpu';
 
   const kernelPush = {
     slug: `${username}/${kernelSlug}`,
-    newTitle: `AbsoraCloud DevBox — ${sessionKey}`,
-    text: buildDevBoxScript(sessionKey, userId, plan, config),
+    newTitle: `AbsoraCloud DevBox Pool — ${runnerId}`,
+    text: buildDevBoxScript(runnerId, sessionKey, userId, plan, config),
     language: 'python',
     kernelType: 'script',
     isPrivate: true,
@@ -56,16 +57,17 @@ export async function triggerKaggleKernel(sessionKey, userId, plan, config = {})
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Triggers a Kaggle CPU-only kernel for a VPS session.
+ * Triggers a Kaggle CPU-only kernel for a VPS pooled runner session.
  */
 export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
   const { username, authHeader } = getAuth();
-  const kernelSlug = `absoracloud-vps-${sessionKey.slice(-8)}`;
+  const runnerId = config.runner_id || `vps-runner-${sessionKey.slice(-8)}`;
+  const kernelSlug = `absoracloud-vps-${runnerId.slice(-12)}`;
 
   const kernelPush = {
     slug: `${username}/${kernelSlug}`,
-    newTitle: `AbsoraCloud VPS — ${sessionKey}`,
-    text: buildVPSScript(sessionKey, userId, plan, config),
+    newTitle: `AbsoraCloud VPS Pool — ${runnerId}`,
+    text: buildVPSScript(runnerId, sessionKey, userId, plan, config),
     language: 'python',
     kernelType: 'script',
     isPrivate: true,
@@ -111,163 +113,307 @@ export async function getVPSKernelStatus(sessionKey) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KERNEL SCRIPTS
+// KERNEL SCRIPTS (Multi-Tenant Pooled Runner with Auto-Shutdown on 0 Users)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildDevBoxScript(sessionKey, userId, plan, config = {}) {
+function buildDevBoxScript(runnerId, initialSessionKey, userId, plan, config = {}) {
   const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
   const secret   = process.env.WORKER_SECRET || '';
-  const termPass = config.term_pass || '';
-  const passArg  = termPass ? `-c admin:${termPass}` : '';
-  const timeoutS = (config.timeout_seconds) || 7200;
+  const timeoutS = config.timeout_seconds || 14400;
+  const capacity = config.capacity || 2;
+  const initPass = config.term_pass || '';
 
   return `
-# AbsoraCloud DevBox Runner
-# Session: ${sessionKey} | User: ${userId} | Plan: ${plan}
-import subprocess, os, time, requests, re
+# AbsoraCloud DevBox Multi-Tenant Runner
+# Runner: ${runnerId} | Capacity: ${capacity}
+import subprocess, os, time, requests, re, sys
 
-SESSION_KEY   = "${sessionKey}"
+RUNNER_ID     = "${runnerId}"
 API_URL       = "${apiUrl}"
 WORKER_SECRET = "${secret}"
+CAPACITY      = ${capacity}
 TIMEOUT_SEC   = ${timeoutS}
+BASE_PORT     = 7860
 
-def report_url(url):
-    try:
-        requests.post(f"{API_URL}/api/worker/session_update",
-            json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
-    except Exception as e:
-        print("session_update error:", e)
+subprocess.run(["pip", "install", "-q", "requests"], check=False)
+subprocess.run(["bash", "-c", "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd"], check=False)
+subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
 
-def check_heartbeat():
+try:
+    requests.post(f"{API_URL}/api/worker/register",
+        json={"runner_id": RUNNER_ID, "type": "kaggle_gpu", "service": "devbox", "capacity": CAPACITY},
+        headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+    print(f"✅ DevBox runner {RUNNER_ID} registered with capacity {CAPACITY}")
+except Exception as e:
+    print("Devbox register error:", e)
+
+sessions = {}
+free_ports = [BASE_PORT + i + 1 for i in range(CAPACITY)]
+idle_start = None
+
+def start_session(session_key, term_pass):
+    if not free_ports:
+        print(f"⚠️ No free port for session {session_key}")
+        return
+    port = free_ports.pop(0)
+    work_dir = f"/tmp/devbox_ws_{session_key}"
+    os.makedirs(work_dir, exist_ok=True)
+    pass_arg = f"-c admin:{term_pass}" if term_pass else ""
+    
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd {pass_arg} -W -p {port} bash"
+    ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
+
+    log_file = f"/tmp/cf_devbox_{port}.log"
+    if os.path.exists(log_file):
+        os.remove(log_file)
+    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://localhost:{port} 2>&1 | tee {log_file}"
+    cf_proc = subprocess.Popen(["bash", "-c", cf_cmd])
+
+    sessions[session_key] = {
+        "port": port,
+        "ttyd_proc": ttyd_proc,
+        "cf_proc": cf_proc,
+        "url": None,
+        "log_file": log_file,
+        "poll_count": 0
+    }
+    print(f"🚀 Started DevBox session {session_key} on port {port}")
+
+def stop_session(session_key):
+    if session_key in sessions:
+        info = sessions.pop(session_key)
+        try:
+            info["ttyd_proc"].terminate()
+            info["cf_proc"].terminate()
+        except Exception:
+            pass
+        free_ports.append(info["port"])
+        print(f"🛑 Stopped DevBox session {session_key} (freed port {info['port']})")
+
+def check_session_urls():
+    for sk, info in list(sessions.items()):
+        if not info["url"] and info["poll_count"] < 40:
+            info["poll_count"] += 1
+            if os.path.exists(info["log_file"]):
+                try:
+                    log = open(info["log_file"]).read()
+                    urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
+                    if urls:
+                        info["url"] = urls[0]
+                        print(f"✅ DevBox session {sk} live at: {urls[0]}")
+                        requests.post(f"{API_URL}/api/worker/session_update",
+                            json={"session_key": sk, "status": "active", "tunnel_url": urls[0]},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+                except Exception as e:
+                    print(f"Devbox tunnel parse error for {sk}:", e)
+
+if "${initialSessionKey}":
+    start_session("${initialSessionKey}", "${initPass}")
+
+start_time = time.time()
+while True:
+    time.sleep(10)
+    if time.time() - start_time > TIMEOUT_SEC:
+        print("⏱️ Max DevBox runner lifetime reached. Shutting down.")
+        break
+
+    check_session_urls()
+
     try:
-        r = requests.post(f"{API_URL}/api/worker/heartbeat",
-            json={"session_key": SESSION_KEY, "status": "active"},
+        r = requests.post(f"{API_URL}/api/worker/runner_heartbeat",
+            json={"runner_id": RUNNER_ID, "active_count": len(sessions)},
             headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
         data = r.json()
         if data.get("kill"):
-            return False
+            print("🛑 Kill signal received for DevBox runner.")
+            break
+
+        assignments = data.get("assignments", [])
+        assigned_keys = {a["session_key"] for a in assignments}
+
+        for sk in list(sessions.keys()):
+            if sk not in assigned_keys:
+                stop_session(sk)
+
+        for a in assignments:
+            sk = a["session_key"]
+            if sk not in sessions:
+                start_session(sk, a.get("term_pass", ""))
+
     except Exception as e:
-        print("heartbeat error:", e)
-    return True
+        print("Devbox heartbeat poll error:", e)
 
-subprocess.run(["pip", "install", "-q", "requests"], check=False)
+    if len(sessions) == 0:
+        if idle_start is None:
+            idle_start = time.time()
+            print("⏳ DevBox runner has 0 active sessions. Idle countdown started (300s)...")
+        elif time.time() - idle_start > 300:
+            print("⏱️ Idle timeout (300s) reached with 0 active users. Cleanly shutting down DevBox runner.")
+            try:
+                requests.post(f"{API_URL}/api/worker/runner_shutdown",
+                    json={"runner_id": RUNNER_ID, "reason": "idle_timeout_300s"},
+                    headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception:
+                pass
+            break
+    else:
+        if idle_start is not None:
+            print("⚡ New DevBox session connected. Idle countdown reset.")
+        idle_start = None
 
-# Install ttyd for browser terminal
-subprocess.Popen(["bash", "-c",
-    "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    f"&& chmod +x /usr/local/bin/ttyd && ttyd ${passArg} -W -p 7860 bash"
-])
-
-# Install cloudflared for tunnel
-subprocess.Popen(["bash", "-c",
-    "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 "
-    "-O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared "
-    "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf.log"
-])
-
-# Poll for tunnel URL (poll every 3s up to 60 times)
-for _ in range(60):
-    time.sleep(3)
-    try:
-        if os.path.exists("/tmp/cf.log"):
-            log = open("/tmp/cf.log").read()
-            urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
-            if urls:
-                report_url(urls[0])
-                print(f"✅ DevBox live: {urls[0]}")
-                break
-    except Exception as e:
-        print("devbox poll error:", e)
-
-# Keep alive with heartbeats & check kill signals
-start = time.time()
-while True:
-    if time.time() - start > TIMEOUT_SEC:
-        print("⏱️ DevBox session timeout reached. Shutting down.")
-        break
-    if not check_heartbeat():
-        print("🛑 Kill signal received — shutting down DevBox.")
-        break
-    time.sleep(30)
+for sk in list(sessions.keys()):
+    stop_session(sk)
+print("🏁 DevBox runner shut down complete.")
 `.trim();
 }
 
-function buildVPSScript(sessionKey, userId, plan, config = {}) {
+function buildVPSScript(runnerId, initialSessionKey, userId, plan, config = {}) {
   const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
   const secret   = process.env.WORKER_SECRET || '';
-  const termPass = config.term_pass || '';
-  const passArg  = termPass ? `-c admin:${termPass}` : '';
   const timeoutS = config.timeout_seconds || 14400;
+  const capacity = config.capacity || 4;
+  const initPass = config.term_pass || '';
 
   return `
-# AbsoraCloud VPS — CPU Kernel Runner (no GPU)
-# Session: ${sessionKey} | User: ${userId} | Plan: ${plan}
-import subprocess, os, time, requests, re
+# AbsoraCloud VPS Multi-Tenant Runner (CPU-only)
+# Runner: ${runnerId} | Capacity: ${capacity}
+import subprocess, os, time, requests, re, sys
 
-SESSION_KEY   = "${sessionKey}"
+RUNNER_ID     = "${runnerId}"
 API_URL       = "${apiUrl}"
 WORKER_SECRET = "${secret}"
+CAPACITY      = ${capacity}
 TIMEOUT_SEC   = ${timeoutS}
+BASE_PORT     = 7860
 
-def report_url(url):
-    try:
-        requests.post(f"{API_URL}/api/worker/session_update",
-            json={"session_key": SESSION_KEY, "status": "active", "tunnel_url": url},
-            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
-    except Exception as e:
-        print("session_update error:", e)
+subprocess.run(["pip", "install", "-q", "requests"], check=False)
+subprocess.run(["bash", "-c", "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd"], check=False)
+subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
 
-def check_heartbeat():
+try:
+    requests.post(f"{API_URL}/api/worker/register",
+        json={"runner_id": RUNNER_ID, "type": "kaggle_cpu", "service": "vps", "capacity": CAPACITY},
+        headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+    print(f"✅ VPS runner {RUNNER_ID} registered with capacity {CAPACITY}")
+except Exception as e:
+    print("VPS register error:", e)
+
+sessions = {}
+free_ports = [BASE_PORT + i + 1 for i in range(CAPACITY)]
+idle_start = None
+
+def start_session(session_key, term_pass):
+    if not free_ports:
+        print(f"⚠️ No free port for session {session_key}")
+        return
+    port = free_ports.pop(0)
+    work_dir = f"/tmp/vps_ws_{session_key}"
+    os.makedirs(work_dir, exist_ok=True)
+    pass_arg = f"-c admin:{term_pass}" if term_pass else ""
+    
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd {pass_arg} -W -p {port} bash"
+    ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
+
+    log_file = f"/tmp/cf_vps_{port}.log"
+    if os.path.exists(log_file):
+        os.remove(log_file)
+    cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://localhost:{port} 2>&1 | tee {log_file}"
+    cf_proc = subprocess.Popen(["bash", "-c", cf_cmd])
+
+    sessions[session_key] = {
+        "port": port,
+        "ttyd_proc": ttyd_proc,
+        "cf_proc": cf_proc,
+        "url": None,
+        "log_file": log_file,
+        "poll_count": 0
+    }
+    print(f"🚀 Started VPS session {session_key} on port {port}")
+
+def stop_session(session_key):
+    if session_key in sessions:
+        info = sessions.pop(session_key)
+        try:
+            info["ttyd_proc"].terminate()
+            info["cf_proc"].terminate()
+        except Exception:
+            pass
+        free_ports.append(info["port"])
+        print(f"🛑 Stopped VPS session {session_key} (freed port {info['port']})")
+
+def check_session_urls():
+    for sk, info in list(sessions.items()):
+        if not info["url"] and info["poll_count"] < 40:
+            info["poll_count"] += 1
+            if os.path.exists(info["log_file"]):
+                try:
+                    log = open(info["log_file"]).read()
+                    urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
+                    if urls:
+                        info["url"] = urls[0]
+                        print(f"✅ VPS session {sk} live at: {urls[0]}")
+                        requests.post(f"{API_URL}/api/worker/session_update",
+                            json={"session_key": sk, "status": "active", "tunnel_url": urls[0]},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
+                except Exception as e:
+                    print(f"VPS tunnel parse error for {sk}:", e)
+
+if "${initialSessionKey}":
+    start_session("${initialSessionKey}", "${initPass}")
+
+start_time = time.time()
+while True:
+    time.sleep(10)
+    if time.time() - start_time > TIMEOUT_SEC:
+        print("⏱️ Max VPS runner lifetime reached. Shutting down.")
+        break
+
+    check_session_urls()
+
     try:
-        r = requests.post(f"{API_URL}/api/worker/heartbeat",
-            json={"session_key": SESSION_KEY, "status": "active"},
+        r = requests.post(f"{API_URL}/api/worker/runner_heartbeat",
+            json={"runner_id": RUNNER_ID, "active_count": len(sessions)},
             headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
         data = r.json()
         if data.get("kill"):
-            return False
+            print("🛑 Kill signal received for VPS runner.")
+            break
+
+        assignments = data.get("assignments", [])
+        assigned_keys = {a["session_key"] for a in assignments}
+
+        for sk in list(sessions.keys()):
+            if sk not in assigned_keys:
+                stop_session(sk)
+
+        for a in assignments:
+            sk = a["session_key"]
+            if sk not in sessions:
+                start_session(sk, a.get("term_pass", ""))
+
     except Exception as e:
-        print("heartbeat error:", e)
-    return True
+        print("VPS heartbeat poll error:", e)
 
-subprocess.run(["pip", "install", "-q", "requests"], check=False)
+    if len(sessions) == 0:
+        if idle_start is None:
+            idle_start = time.time()
+            print("⏳ VPS runner has 0 active sessions. Idle countdown started (300s)...")
+        elif time.time() - idle_start > 300:
+            print("⏱️ Idle timeout (300s) reached with 0 active users. Cleanly shutting down VPS runner.")
+            try:
+                requests.post(f"{API_URL}/api/worker/runner_shutdown",
+                    json={"runner_id": RUNNER_ID, "reason": "idle_timeout_300s"},
+                    headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception:
+                pass
+            break
+    else:
+        if idle_start is not None:
+            print("⚡ New VPS session connected. Idle countdown reset.")
+        idle_start = None
 
-# Install ttyd on CPU runtime
-subprocess.Popen(["bash", "-c",
-    "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 "
-    f"&& chmod +x /usr/local/bin/ttyd && ttyd ${passArg} -W -p 7860 bash"
-])
-
-# Cloudflare tunnel
-subprocess.Popen(["bash", "-c",
-    "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 "
-    "-O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared "
-    "&& cloudflared tunnel --url http://localhost:7860 2>&1 | tee /tmp/cf_vps.log"
-])
-
-# Poll for tunnel URL (every 3s up to 60 times)
-for _ in range(60):
-    time.sleep(3)
-    try:
-        if os.path.exists("/tmp/cf_vps.log"):
-            log = open("/tmp/cf_vps.log").read()
-            urls = re.findall(r"https://[\\w-]+\\.trycloudflare\\.com", log)
-            if urls:
-                report_url(urls[0])
-                print(f"✅ VPS live: {urls[0]}")
-                break
-    except Exception as e:
-        print("vps poll error:", e)
-
-# Keep alive with heartbeats & check kill signals
-start = time.time()
-while True:
-    if time.time() - start > TIMEOUT_SEC:
-        print("⏱️ VPS session timeout reached. Shutting down.")
-        break
-    if not check_heartbeat():
-        print("🛑 Kill signal received — shutting down VPS.")
-        break
-    time.sleep(30)
+for sk in list(sessions.keys()):
+    stop_session(sk)
+print("🏁 VPS runner shut down complete.")
 `.trim();
 }
