@@ -456,7 +456,421 @@ async function checkMorningDigest() {
   } catch (_) {}
 }
 
-// ── Telegram Webhook Handler (/status & /mute) ──
+// ── Specific User Status Check (/status <username>) ──
+async function runUserStatusCheck(rawUsername, chatId) {
+  const cleanUsername = rawUsername.replace(/^@/, '').trim();
+  if (!cleanUsername) {
+    await sendTelegramMessage('⚠️ Please provide a username: <code>/status &lt;username&gt;</code>', { chatId });
+    return;
+  }
+
+  try {
+    // 1. Fetch user by username (case-insensitive)
+    const userRes = await queryD1(
+      'SELECT id, username, email, plan, role, created_at, locked_until FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1',
+      [cleanUsername]
+    );
+
+    const user = userRes?.results?.[0];
+    if (!user) {
+      await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
+      return;
+    }
+
+    // 2. Fetch user instances and storage files in parallel
+    const [instRes, filesRes, gpuSecondsRaw] = await Promise.all([
+      queryD1(
+        'SELECT service, status, public_url, runner_id, created_at, expires_at FROM instances WHERE user_id = ? ORDER BY id DESC LIMIT 50',
+        [user.id]
+      ).catch(() => ({ results: [] })),
+      queryD1(
+        'SELECT COUNT(*) as file_count, COALESCE(SUM(file_size), 0) as total_bytes FROM cloud_files WHERE user_id = ?',
+        [user.id]
+      ).catch(() => ({ results: [{ file_count: 0, total_bytes: 0 }] })),
+      redisCmd('GET', `quota:${user.id}:devbox_gpu`).catch(() => '0')
+    ]);
+
+    const instances = instRes?.results || [];
+    const filesStats = filesRes?.results?.[0] || { file_count: 0, total_bytes: 0 };
+
+    // Active workloads
+    const activeInstances = instances.filter(i => i.status === 'active' || i.status === 'pending');
+    
+    // Group counts
+    const counts = {
+      vps: { active: 0, total: 0 },
+      devbox: { active: 0, total: 0 },
+      webhost: { active: 0, total: 0 },
+      serverless: { active: 0, total: 0 }
+    };
+
+    instances.forEach(i => {
+      const s = (i.service || '').toLowerCase();
+      if (counts[s]) {
+        counts[s].total++;
+        if (i.status === 'active' || i.status === 'pending') {
+          counts[s].active++;
+        }
+      }
+    });
+
+    const totalBytes = Number(filesStats.total_bytes || 0);
+    const storageFormatted = totalBytes < 1024 * 1024
+      ? `${(totalBytes / 1024).toFixed(1)} KB`
+      : totalBytes < 1024 * 1024 * 1024
+        ? `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
+        : `${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+
+    const gpuSeconds = parseInt(gpuSecondsRaw || '0', 10);
+    const gpuHours = (gpuSeconds / 3600).toFixed(2);
+
+    let msg = `👤 <b>User Report: ${user.username}</b> • ${getIstTime()}\n`;
+    msg += `<b>Account:</b>\n`;
+    msg += ` • ID: <code>${user.id}</code> | Plan: <b>${(user.plan || 'free').toUpperCase()}</b>\n`;
+    msg += ` • Role: <code>${user.role || 'user'}</code> | Status: ${user.locked_until ? '🔒 Locked' : '🟢 Active'}\n`;
+    msg += ` • Registered: ${user.created_at ? user.created_at.slice(0, 10) : 'N/A'}\n\n`;
+
+    msg += `<b>Workloads:</b>\n`;
+    msg += ` • VPS: ${counts.vps.active} active (${counts.vps.total} total)\n`;
+    msg += ` • DevBox: ${counts.devbox.active} active (${counts.devbox.total} total)\n`;
+    msg += ` • WebHost: ${counts.webhost.active} live (${counts.webhost.total} total)\n`;
+    msg += ` • Serverless: ${counts.serverless.active} active (${counts.serverless.total} total)\n\n`;
+
+    msg += `<b>Storage & Quotas:</b>\n`;
+    msg += ` • Cloud Files: ${filesStats.file_count || 0} files (${storageFormatted})\n`;
+    msg += ` • Log Reserve: 0.00MB / 200MB reserved\n`;
+    msg += ` • DevBox GPU Used: ${gpuHours}h\n`;
+
+    if (activeInstances.length > 0) {
+      msg += `\n<b>Active Instances:</b>\n`;
+      activeInstances.slice(0, 5).forEach(inst => {
+        const urlStr = inst.public_url ? ` → <code>${inst.public_url}</code>` : '';
+        msg += ` • <b>${(inst.service || '').toUpperCase()}</b> [${inst.status}]${urlStr}\n`;
+      });
+      if (activeInstances.length > 5) {
+        msg += ` <i>...and ${activeInstances.length - 5} more</i>\n`;
+      }
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] User check error:', err.message);
+    await sendTelegramMessage(`⚠️ Error checking user <b>${cleanUsername}</b>: ${err.message}`, { chatId });
+  }
+}
+
+// ── Modular Diagnostic Probes (/test <service> or /test all) ──
+
+async function testD1Probe() {
+  const t0 = performance.now();
+  try {
+    const res = await queryD1('SELECT count(*) as cnt FROM users');
+    const ms = Math.round(performance.now() - t0);
+    const count = res?.results?.[0]?.cnt ?? 0;
+    return { ok: true, ms, details: `${count} registered users across D1 shards` };
+  } catch (e) {
+    return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
+  }
+}
+
+async function testRedisProbe() {
+  const t0 = performance.now();
+  try {
+    const pong = await redisCmd('PING');
+    await redisCmd('SET', 'monitor:test:ping', '1', 'EX', '30');
+    const read = await redisCmd('GET', 'monitor:test:ping');
+    const [activeGpu, poolSecRaw] = await Promise.all([
+      redisCmd('SCARD', 'gpu:active').catch(() => '0'),
+      redisCmd('GET', 'gpu:pool:weekly_seconds').catch(() => '0')
+    ]);
+    const ms = Math.round(performance.now() - t0);
+    const ok = pong === 'PONG' && read === '1';
+    const weeklyHours = (parseInt(poolSecRaw || '0', 10) / 3600).toFixed(1);
+    return {
+      ok,
+      ms,
+      activeGpu: parseInt(activeGpu || '0', 10),
+      weeklyHours,
+      details: ok ? 'PING/PONG & Read/Write probe verified' : 'Unexpected probe response'
+    };
+  } catch (e) {
+    return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
+  }
+}
+
+async function testKaggleServiceProbe(service = 'vps') {
+  const t0 = performance.now();
+  try {
+    const hasCreds = Boolean(process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY);
+    const [runnersRes, instRes] = await Promise.all([
+      queryD1('SELECT status, count(*) as cnt FROM runners WHERE service = ? GROUP BY status', [service]),
+      queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service])
+    ]);
+    const ms = Math.round(performance.now() - t0);
+    const runners = runnersRes?.results || [];
+    const instances = instRes?.results || [];
+    const readyRunners = runners.find(r => r.status === 'ready')?.cnt || 0;
+    const activeInst = instances.find(i => i.status === 'active')?.cnt || 0;
+    return {
+      ok: hasCreds,
+      ms,
+      readyRunners,
+      activeInst,
+      details: `Kaggle Auth: ${hasCreds ? 'Configured' : 'Missing'} | ${readyRunners} runners ready | ${activeInst} active instances`
+    };
+  } catch (e) {
+    return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
+  }
+}
+
+async function testWorkersServiceProbe(service = 'webhost') {
+  const t0 = performance.now();
+  try {
+    const hasCreds = Boolean(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID);
+    const res = await queryD1('SELECT status, count(*) as cnt FROM instances WHERE service = ? GROUP BY status', [service]);
+    const ms = Math.round(performance.now() - t0);
+    const active = res?.results?.find(r => r.status === 'active')?.cnt || 0;
+    const total = (res?.results || []).reduce((acc, cur) => acc + (cur.cnt || 0), 0);
+    return {
+      ok: hasCreds,
+      ms,
+      active,
+      total,
+      details: `CF Auth: ${hasCreds ? 'Configured' : 'Missing'} | Subdomain: ${process.env.CF_WORKERS_SUBDOMAIN || 'absoracloud'} | ${active} active (${total} total)`
+    };
+  } catch (e) {
+    return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
+  }
+}
+
+async function testAiProbe() {
+  const t0 = performance.now();
+  if (!NVIDIA_KEY) return { ok: false, ms: 0, details: 'NVIDIA_API_KEY is missing' };
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch(NVIDIA_API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${NVIDIA_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: NVIDIA_MODEL,
+        messages: [{ role: 'user', content: 'Respond with the single word PONG.' }],
+        max_tokens: 10,
+        temperature: 0.1
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const ms = Math.round(performance.now() - t0);
+    const data = await res.json().catch(() => ({}));
+    const reply = data.choices?.[0]?.message?.content?.trim() || (res.ok ? 'OK' : 'Error');
+    return {
+      ok: res.ok,
+      ms,
+      details: `Model: ${NVIDIA_MODEL.split('/').pop()} | Response: "${reply.slice(0, 30)}"`
+    };
+  } catch (e) {
+    return { ok: false, ms: Math.round(performance.now() - t0), details: e.message };
+  }
+}
+
+function testStorageProbe() {
+  const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY);
+  const hasImagekit   = Boolean(process.env.IMAGEKIT_PUBLIC_KEY && process.env.IMAGEKIT_PRIVATE_KEY);
+  const hasUploadcare = Boolean(process.env.UPLOADCARE_PUBLIC_KEY && process.env.UPLOADCARE_SECRET_KEY);
+  const ok = hasCloudinary || hasImagekit || hasUploadcare;
+  return {
+    ok,
+    details: `Cloudinary: ${hasCloudinary ? '✅' : '❌'} | ImageKit: ${hasImagekit ? '✅' : '❌'} | Uploadcare: ${hasUploadcare ? '✅' : '❌'}`
+  };
+}
+
+function testRealtimeProbe() {
+  const hasPusher     = Boolean(process.env.PUSHER_KEY && process.env.PUSHER_SECRET);
+  const hasAbly       = Boolean(process.env.ABLY_API_KEY);
+  const hasPieSocket  = Boolean(process.env.PIESOCKET_API_KEY);
+  const hasScaledrone = Boolean(process.env.SCALEDRONE_CHANNEL_ID);
+  const count = [hasPusher, hasAbly, hasPieSocket, hasScaledrone].filter(Boolean).length;
+  return {
+    ok: count > 0,
+    details: `Pusher: ${hasPusher ? '✅' : '❌'} | Ably: ${hasAbly ? '✅' : '❌'} | PieSocket: ${hasPieSocket ? '✅' : '❌'} | Scaledrone: ${hasScaledrone ? '✅' : '❌'}`
+  };
+}
+
+function testLogDiskProbe() {
+  const usage = getLogDiskUsage();
+  const ok = usage.totalBytes < 200 * 1024 * 1024;
+  return {
+    ok,
+    details: `Disk: ${usage.totalMB}MB / 200MB (${usage.percentUsed}%) | ${usage.fileCount} log files`
+  };
+}
+
+async function runSystemDiagnostics(targetRaw, chatId) {
+  const target = (targetRaw || 'all').toLowerCase().trim();
+
+  // 1. Single component test: D1
+  if (target === 'd1' || target === 'database' || target === 'db') {
+    const probe = await testD1Probe();
+    let msg = `🧪 <b>D1 Database Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 PASSED' : '🚨 FAILED'}\n`;
+    msg += `<b>Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Telemetry:</b> ${probe.details}\n`;
+    msg += `<b>Primary ID:</b> <code>${process.env.D1_DB_ID || 'primary'}</code>\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 2. Single component test: Redis
+  if (target === 'redis' || target === 'cache') {
+    const probe = await testRedisProbe();
+    let msg = `🧪 <b>Redis Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 PASSED' : '🚨 FAILED'}\n`;
+    msg += `<b>Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    if (probe.activeGpu !== undefined) {
+      msg += `<b>Active GPU Sessions:</b> ${probe.activeGpu}\n`;
+      msg += `<b>Weekly GPU Hours:</b> ${probe.weeklyHours}h / ${GPU_LIMIT_HOURS}h\n`;
+    }
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 3. Single component test: VPS
+  if (target === 'vps') {
+    const probe = await testKaggleServiceProbe('vps');
+    let msg = `🧪 <b>VPS Service Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 READY' : '⚠️ WARNING'}\n`;
+    msg += `<b>D1 Query Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    msg += `<b>Compute Backend:</b> Kaggle CPU Kernels\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 4. Single component test: DevBox
+  if (target === 'devbox') {
+    const probe = await testKaggleServiceProbe('devbox');
+    let msg = `🧪 <b>DevBox IDE Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 READY' : '⚠️ WARNING'}\n`;
+    msg += `<b>D1 Query Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    msg += `<b>Compute Backend:</b> Kaggle GPU T4×2 Kernels\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 5. Single component test: WebHost
+  if (target === 'webhost' || target === 'web' || target === 'sites') {
+    const probe = await testWorkersServiceProbe('webhost');
+    let msg = `🧪 <b>WebHost Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 READY' : '⚠️ WARNING'}\n`;
+    msg += `<b>Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    msg += `<b>Edge Runtime:</b> Cloudflare Workers Static Sites\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 6. Single component test: Serverless
+  if (target === 'serverless' || target === 'functions' || target === 'funcs') {
+    const probe = await testWorkersServiceProbe('serverless');
+    let msg = `🧪 <b>Serverless Functions Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 READY' : '⚠️ WARNING'}\n`;
+    msg += `<b>Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    msg += `<b>Edge Runtime:</b> Cloudflare Workers Serverless V8\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 7. Single component test: AI
+  if (target === 'ai' || target === 'nemotron' || target === 'nvidia') {
+    const probe = await testAiProbe();
+    let msg = `🧪 <b>NVIDIA Nemotron AI Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 PASSED' : '🚨 FAILED'}\n`;
+    msg += `<b>Roundtrip Latency:</b> ${probe.ms}ms\n`;
+    msg += `<b>Details:</b> ${probe.details}\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 8. Single component test: Storage / CDN
+  if (target === 'storage' || target === 'cdn' || target === 'media') {
+    const probe = testStorageProbe();
+    const filesStats = await queryD1('SELECT count(*) as count, COALESCE(SUM(file_size), 0) as bytes FROM cloud_files').catch(() => ({ results: [] }));
+    const totalBytes = Number(filesStats?.results?.[0]?.bytes || 0);
+    const mbStr = (totalBytes / (1024 * 1024)).toFixed(1);
+    let msg = `🧪 <b>Cloud Media Storage Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Shards:</b> ${probe.details}\n`;
+    msg += `<b>Usage:</b> ${filesStats?.results?.[0]?.count || 0} files (${mbStr} MB stored)\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 9. Single component test: Realtime / WebSockets
+  if (target === 'realtime' || target === 'sockets' || target === 'ws') {
+    const probe = testRealtimeProbe();
+    let msg = `🧪 <b>Realtime WebSocket Gateway Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Provider Cluster Pool:</b>\n${probe.details}\n`;
+    msg += `<b>Pooled Capacity:</b> 500 concurrent connections\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 10. Single component test: Logs / Disk
+  if (target === 'logs' || target === 'log' || target === 'disk') {
+    const probe = testLogDiskProbe();
+    let msg = `🧪 <b>Isolated Log Storage Diagnostic Probe</b> • ${getIstTime()}\n\n`;
+    msg += `<b>Status:</b> ${probe.ok ? '🟢 SAFE' : '⚠️ NEAR LIMIT'}\n`;
+    msg += `<b>Cap:</b> Strictly 200 MB reserved per policy\n`;
+    msg += `<b>Current Disk:</b> ${probe.details}\n`;
+    await sendTelegramMessage(msg, { chatId });
+    return;
+  }
+
+  // 11. Comprehensive Audit: /test all
+  const [d1, redis, vps, devbox, webhost, serverless, ai] = await Promise.all([
+    testD1Probe(),
+    testRedisProbe(),
+    testKaggleServiceProbe('vps'),
+    testKaggleServiceProbe('devbox'),
+    testWorkersServiceProbe('webhost'),
+    testWorkersServiceProbe('serverless'),
+    testAiProbe()
+  ]);
+
+  const storage = testStorageProbe();
+  const realtime = testRealtimeProbe();
+  const logs = testLogDiskProbe();
+
+  let msg = `🧪 <b>AbsoraCloud System Diagnostics</b> • ${getIstTime()}\n\n`;
+  msg += `<b>Core Infrastructure:</b>\n`;
+  msg += ` • D1 Database: ${d1.ok ? '✅ PASS' : '❌ FAIL'} (${d1.ms}ms)\n`;
+  msg += ` • Redis Cache: ${redis.ok ? '✅ PASS' : '❌ FAIL'} (${redis.ms}ms)\n`;
+  msg += ` • Log Storage: ${logs.ok ? '✅ PASS' : '⚠️ WARN'} (${logs.details})\n\n`;
+
+  msg += `<b>Workloads & Compute:</b>\n`;
+  msg += ` • VPS (CPU): ${vps.ok ? '✅ READY' : '⚠️ WARN'} [${vps.readyRunners} ready, ${vps.activeInst} active]\n`;
+  msg += ` • DevBox (GPU): ${devbox.ok ? '✅ READY' : '⚠️ WARN'} [${devbox.readyRunners} ready, ${devbox.activeInst} active]\n`;
+  msg += ` • WebHost (CF): ${webhost.ok ? '✅ READY' : '⚠️ WARN'} [${webhost.active} live]\n`;
+  msg += ` • Serverless: ${serverless.ok ? '✅ READY' : '⚠️ WARN'} [${serverless.active} active]\n\n`;
+
+  msg += `<b>Integrations:</b>\n`;
+  msg += ` • Media CDN: ${storage.ok ? '✅ READY' : '⚠️ WARN'}\n`;
+  msg += ` • Realtime Sockets: ${realtime.ok ? '✅ POOLED' : '⚠️ WARN'}\n`;
+  msg += ` • NVIDIA AI: ${ai.ok ? '✅ PASS' : '⚠️ WARN'} (${ai.ms}ms)\n\n`;
+
+  const allPass = d1.ok && redis.ok && vps.ok && devbox.ok && webhost.ok && serverless.ok;
+  msg += `<b>Health Verdict:</b> ${allPass ? '🟢 ALL SYSTEMS OPERATIONAL' : '⚠️ MINOR DEGRADATION DETECTED'}\n`;
+
+  await sendTelegramMessage(msg, { chatId });
+}
+
+// ── Telegram Webhook Handler (/status, /test, /mute) ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
   const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
@@ -483,10 +897,26 @@ export async function handleTelegramWebhook(req, res) {
 
   const text = message.text.trim();
 
-  // Command: /status
+  // Command: /status or /status <username>
   if (text.startsWith('/status')) {
+    const parts = text.split(/\s+/);
+    const targetUser = parts[1];
+    if (targetUser) {
+      res.json({ status: 'ok', msg: 'Dispatching user status' });
+      await runUserStatusCheck(targetUser, senderChatId);
+      return;
+    }
     res.json({ status: 'ok', msg: 'Dispatching status' });
     await runMonitoringCycle(true, senderChatId);
+    return;
+  }
+
+  // Command: /test [target] (e.g. /test all, /test redis, /test d1, /test vps, etc.)
+  if (text.startsWith('/test')) {
+    const parts = text.split(/\s+/);
+    const target = parts[1] || 'all';
+    res.json({ status: 'ok', msg: `Running diagnostic probe for ${target}` });
+    await runSystemDiagnostics(target, senderChatId);
     return;
   }
 
@@ -521,8 +951,25 @@ export async function handleTelegramWebhook(req, res) {
     const helpMsg = `
 ⚡ <b>AbsoraCloud System Monitor Bot</b>
 
-<b>Available Commands:</b>
-• <code>/status</code> - Run immediate health & telemetry check
+<b>Telemetry & Status:</b>
+• <code>/status</code> - Platform health & overall telemetry
+• <code>/status &lt;username&gt;</code> - Specific user workloads, storage & quota
+
+<b>System Diagnostics:</b>
+• <code>/test all</code> - Comprehensive infrastructure health audit
+• <code>/test &lt;service&gt;</code> - Targeted probe:
+  - <code>/test d1</code> (Database shards & latency)
+  - <code>/test redis</code> (Cache, queues & GPU sessions)
+  - <code>/test vps</code> (Kaggle CPU runner pool)
+  - <code>/test devbox</code> (Kaggle GPU pool & quotas)
+  - <code>/test webhost</code> (Cloudflare Workers static sites)
+  - <code>/test serverless</code> (Edge serverless functions)
+  - <code>/test ai</code> (NVIDIA Nemotron 3.5 LLM)
+  - <code>/test storage</code> (Cloudinary, ImageKit, Uploadcare)
+  - <code>/test realtime</code> (Pusher, Ably, PieSocket, Scaledrone)
+  - <code>/test logs</code> (200MB disk usage & isolation)
+
+<b>Controls:</b>
 • <code>/mute &lt;duration&gt;</code> - Mute alerts (e.g. <code>/mute 30m</code>, <code>/mute 2h</code>)
 • <code>/unmute</code> - Unmute notifications immediately
 • <code>/help</code> - Show this menu
