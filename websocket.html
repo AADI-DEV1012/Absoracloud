@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Pusher Realtime Client -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -71,8 +73,8 @@
                 <p class="text-xs sm:text-sm text-neutral-500 mt-1">Pub/Sub event broadcasting mesh and live message synchronization for interactive applications.</p>
             </div>
             <div class="flex items-center gap-2 self-start sm:self-auto">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Gateway Mesh Online
+                <span id="ws-connection-state" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Connecting to Edge WSS...
                 </span>
             </div>
         </div>
@@ -166,8 +168,12 @@
     </footer>
 
     <script>
-        const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud.onrender.com';
         const authToken = localStorage.getItem('auth_token');
+
+        let pusherClient = null;
+        let activeChannel = null;
+        let currentChannelName = 'notifications';
 
         function showToast(msg, type = 'info') {
             const b = document.getElementById('toast-banner');
@@ -177,6 +183,7 @@
             }`;
             b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
             b.classList.remove('hidden');
+            setTimeout(() => b.classList.add('hidden'), 5000);
         }
 
         async function initAuth() {
@@ -202,9 +209,78 @@
             return false;
         }
 
+        // ── Connect Real Live Edge WebSocket ──
+        function connectLiveWebSocket(channelName) {
+            currentChannelName = channelName || 'notifications';
+            if (typeof Pusher === 'undefined') return;
+
+            try {
+                if (pusherClient) {
+                    pusherClient.disconnect();
+                }
+
+                pusherClient = new Pusher('4bd0a2c237188dac0245', {
+                    cluster: 'ap2',
+                    forceTLS: true
+                });
+
+                const badge = document.getElementById('ws-connection-state');
+
+                pusherClient.connection.bind('state_change', function(states) {
+                    if (badge) {
+                        if (states.current === 'connected') {
+                            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Connected (Edge ap2 • #${currentChannelName})`;
+                            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                        } else if (states.current === 'connecting') {
+                            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> Connecting...`;
+                        } else {
+                            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-neutral-400"></span> ${states.current}`;
+                        }
+                    }
+                });
+
+                activeChannel = pusherClient.subscribe(currentChannelName);
+                activeChannel.bind_global((eventName, data) => {
+                    if (eventName.startsWith('pusher:')) return;
+                    handleLiveIncomingEvent(currentChannelName, eventName, data);
+                });
+            } catch(err) {
+                console.warn('WebSocket init warning:', err);
+            }
+        }
+
+        function handleLiveIncomingEvent(channel, eventName, data) {
+            const tbody = document.getElementById('events-table-body');
+            const placeholder = tbody.querySelector('td[colspan="5"]');
+            if (placeholder) tbody.innerHTML = '';
+
+            const payloadStr = typeof data === 'string' ? data : JSON.stringify(data);
+            const nowTime = new Date().toTimeString().slice(0, 8);
+
+            const row = document.createElement('tr');
+            row.className = 'bg-emerald-50/70 transition duration-1000';
+            row.innerHTML = `
+                <td class="py-3 font-mono font-bold text-emerald-800">${channel}</td>
+                <td class="py-3 font-mono text-neutral-800 font-semibold">${eventName}</td>
+                <td class="py-3 font-mono text-neutral-600 text-[11px] max-w-sm truncate">${payloadStr}</td>
+                <td class="py-3 font-mono text-neutral-400">${nowTime}</td>
+                <td class="py-3 text-right">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 animate-pulse">LIVE RECV</span>
+                </td>
+            `;
+
+            tbody.prepend(row);
+            setTimeout(() => row.className = '', 2000);
+
+            showToast(`⚡ Live event received on #${channel}: ${eventName}`, 'success');
+        }
+
         async function fetchEvents() {
             try {
-                const res = await fetch(`${API_BASE}/realtime/events?_t=${Date.now()}`);
+                const headers = {};
+                if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+                const res = await fetch(`${API_BASE}/realtime/events?_t=${Date.now()}`, { headers });
                 const data = await res.json();
                 const tbody = document.getElementById('events-table-body');
 
@@ -228,11 +304,15 @@
         }
 
         async function broadcastEvent() {
-            const channel = document.getElementById('rt-channel-input').value.trim();
+            const channel = document.getElementById('rt-channel-input').value.trim() || 'notifications';
             const eventName = document.getElementById('rt-event-input').value.trim();
             const payloadRaw = document.getElementById('rt-payload-input').value.trim();
 
             if (!channel || !eventName) return showToast('Channel and Event name required', 'error');
+
+            if (channel !== currentChannelName) {
+                connectLiveWebSocket(channel);
+            }
 
             let payload = payloadRaw;
             try { payload = JSON.parse(payloadRaw); } catch(e) {}
@@ -242,15 +322,18 @@
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Broadcasting...`;
 
             try {
-                const res = await fetch(`${API_BASE}/realtime/broadcast`, {
+                const headers = { 'Content-Type': 'application/json' };
+                if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+                const res = await fetch(`${API_BASE}/realtime/publish`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({ channel, event: eventName, data: payload })
                 });
                 const d = await res.json();
                 if (d.status === 'success') {
-                    showToast('Event broadcasted successfully across edge mesh!', 'success');
-                    fetchEvents();
+                    showToast(`Dispatched via ${d.result?.provider || 'cluster'} mesh!`, 'success');
+                    setTimeout(fetchEvents, 600);
                 } else {
                     showToast(d.msg || 'Broadcast failed', 'error');
                 }
@@ -270,6 +353,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             await initAuth();
+            connectLiveWebSocket('notifications');
             fetchEvents();
         });
     </script>

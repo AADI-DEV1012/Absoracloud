@@ -19,11 +19,11 @@ realtimeRouter.get('/config', optionalAuth, (req, res) => {
   });
 });
 
-// ── POST /realtime/publish — Broadcast message to a channel ──
-realtimeRouter.post('/publish', requireAuth, async (req, res) => {
+// ── Handler for Realtime Publish & Broadcast ──
+const handlePublish = async (req, res) => {
   try {
-    const userId = req.user.id || req.user.sub;
-    const { channel, event, event_name, data } = req.body;
+    const userId = req.user ? (req.user.id || req.user.sub) : 'public-demo';
+    const { channel, event, event_name, data } = req.body || {};
     const targetEvent = event || event_name;
 
     if (!channel || !targetEvent) {
@@ -45,7 +45,7 @@ realtimeRouter.post('/publish', requireAuth, async (req, res) => {
     try {
       await executeD1(
         'INSERT INTO realtime_events (user_id, channel, event_name, payload, provider) VALUES (?, ?, ?, ?, ?)',
-        [userId, safeChannel, safeEvent, JSON.stringify(data || {}), result.provider || 'pool']
+        [String(userId), safeChannel, safeEvent, JSON.stringify(data || {}), result.provider || 'pool']
       );
     } catch (_) {}
 
@@ -58,28 +58,35 @@ realtimeRouter.post('/publish', requireAuth, async (req, res) => {
     console.error('[RealtimeRouter] Publish error:', err);
     res.status(500).json({ status: 'error', msg: err.message || 'Failed to publish realtime event' });
   }
-});
+};
+
+realtimeRouter.post('/publish', optionalAuth, handlePublish);
+realtimeRouter.post('/broadcast', optionalAuth, handlePublish);
 
 // ── GET /realtime/events — List recent channel events ──
-realtimeRouter.get('/events', requireAuth, async (req, res) => {
+realtimeRouter.get('/events', optionalAuth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user.sub;
+    const userId = req.user ? (req.user.id || req.user.sub) : null;
     const channel = req.query.channel;
 
     let events = [];
     if (channel) {
       events = await queryD1(
-        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE channel = ? AND user_id = ? ORDER BY id DESC LIMIT 50',
-        [channel, userId]
+        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE channel = ? ORDER BY id DESC LIMIT 50',
+        [channel]
+      );
+    } else if (userId) {
+      events = await queryD1(
+        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE user_id = ? ORDER BY id DESC LIMIT 50',
+        [String(userId)]
       );
     } else {
       events = await queryD1(
-        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events WHERE user_id = ? ORDER BY id DESC LIMIT 50',
-        [userId]
+        'SELECT id, channel, event_name, payload, provider, created_at FROM realtime_events ORDER BY id DESC LIMIT 50'
       );
     }
 
-    res.json({ status: 'success', events });
+    res.json({ status: 'success', events: events || [] });
   } catch (err) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch realtime events' });
   }
