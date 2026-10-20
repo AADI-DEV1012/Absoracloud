@@ -270,14 +270,14 @@ export async function runMonitoringCycle(isManual = false, overrideChatId = null
     }
 
     // ── Check 4: Runners Health (Consolidated Query 2) ──
-    let runnersSummary = { ready: 0, starting: 0, dead: 0 };
+    let runnersSummary = { ready: 0, starting: 0, dead: 0, stopped: 0 };
     try {
       const q2 = `
         SELECT 
           status,
           COUNT(*) AS cnt,
-          SUM(CASE WHEN status = 'starting' AND started_at < datetime('now', '-6 minutes') THEN 1 ELSE 0 END) AS stuck_starting,
-          SUM(CASE WHEN last_heartbeat < datetime('now', '-5 minutes') AND status != 'dead' THEN 1 ELSE 0 END) AS dead_heartbeats
+          SUM(CASE WHEN status IN ('starting', 'provisioning') AND started_at < datetime('now', '-6 minutes') THEN 1 ELSE 0 END) AS stuck_starting,
+          SUM(CASE WHEN last_heartbeat < datetime('now', '-5 minutes') AND status IN ('ready', 'active') THEN 1 ELSE 0 END) AS dead_heartbeats
         FROM runners
         GROUP BY status;
       `;
@@ -289,15 +289,17 @@ export async function runMonitoringCycle(isManual = false, overrideChatId = null
         const stuck = parseInt(r.stuck_starting || '0', 10);
         const deadHb = parseInt(r.dead_heartbeats || '0', 10);
 
-        if (s === 'ready') runnersSummary.ready += cnt;
-        else if (s === 'starting') {
+        if (s === 'ready' || s === 'active') runnersSummary.ready += cnt;
+        else if (s === 'starting' || s === 'provisioning') {
           runnersSummary.starting += cnt;
           if (stuck > 0) alerts.push(`${stuck} runner(s) stuck in starting > 6m`);
+        } else if (s === 'stopped') {
+          runnersSummary.stopped += cnt;
         } else {
           runnersSummary.dead += cnt;
         }
 
-        if (deadHb > 0) alerts.push(`${deadHb} runner(s) missed heartbeat > 5m`);
+        if (deadHb > 0) alerts.push(`${deadHb} active runner(s) missed heartbeat > 5m`);
       }
     } catch (_) {}
 
@@ -911,40 +913,47 @@ async function runSystemDiagnostics(targetRaw, chatId) {
 async function runRunnersCheck(chatId) {
   try {
     const raw = await queryD1(
-      'SELECT id, type, service, capacity, active_count, status, last_heartbeat FROM runners ORDER BY last_heartbeat DESC LIMIT 20'
+      'SELECT id, type, service, capacity, active_count, status, last_heartbeat, started_at FROM runners ORDER BY last_heartbeat DESC LIMIT 20'
     );
     const runners = toRows(raw);
     const now = Date.now();
 
     const activeRunners = runners.filter(r => {
-      if (r.status === 'ready' || r.status === 'active') {
-        const hbTime = new Date(r.last_heartbeat + 'Z').getTime();
-        return (now - hbTime) <= 10 * 60 * 1000;
+      const s = (r.status || '').toLowerCase();
+      if (s === 'ready' || s === 'active') {
+        if (!r.last_heartbeat) return true;
+        const hbTime = new Date(String(r.last_heartbeat).replace(' ', 'T') + 'Z').getTime();
+        return isNaN(hbTime) || Math.abs(now - hbTime) <= 15 * 60 * 1000;
+      }
+      if (s === 'starting' || s === 'provisioning') {
+        return true;
       }
       return false;
     });
 
     if (activeRunners.length > 0) {
-      let msg = `⚡ <b>Active Runners (${activeRunners.length})</b> • ${getIstTime()}\n\n`;
+      let msg = `⚡ <b>Compute Runners (${activeRunners.length} active)</b> • ${getIstTime()}\n\n`;
       activeRunners.forEach(r => {
         const typeTag = r.type === 'kaggle_gpu' ? 'GPU T4×2' : (r.type === 'kaggle_cpu' ? 'CPU' : r.type);
+        const isReady = r.status === 'ready' || r.status === 'active';
+        const statusBadge = isReady ? `🟢 <b>${r.status}</b>` : `🟡 <b>${r.status}</b>`;
         msg += `• <code>${r.id}</code>\n`;
         msg += `  Service: <b>${(r.service || '').toUpperCase()}</b> [${typeTag}]\n`;
-        msg += `  Status: 🟢 <b>${r.status}</b> | Load: ${r.active_count || 0}/${r.capacity || 1}\n`;
-        msg += `  Last Heartbeat: <code>${r.last_heartbeat}</code>\n`;
+        msg += `  Status: ${statusBadge} | Load: ${r.active_count || 0}/${r.capacity || 1}\n`;
+        msg += `  Last Heartbeat: <code>${r.last_heartbeat || r.started_at || 'Just started'}</code>\n`;
         msg += `  <i>Tail logs:</i> <code>/logs ${r.id}</code>\n\n`;
       });
       await sendTelegramMessage(msg, { chatId });
       return;
     }
 
-    let msg = `⚡ <b>Active Runners</b> • ${getIstTime()}\n\n`;
-    msg += `ℹ️ <b>No runners currently active or ready.</b>\n`;
+    let msg = `⚡ <b>Compute Runners</b> • ${getIstTime()}\n\n`;
+    msg += `ℹ️ <b>No runners currently active or provisioning.</b>\n`;
     msg += `<i>(Runners spin up on Kaggle on-demand when users launch a VPS or DevBox session)</i>\n\n`;
     if (runners.length > 0) {
       msg += `<b>Recent Runners in Database:</b>\n`;
       runners.slice(0, 6).forEach(r => {
-        msg += `• <code>${r.id}</code> [${r.service}] - <i>${r.status}</i>\n`;
+        msg += `• <code>${r.id}</code> [${(r.service || '').toUpperCase()}] - <i>${r.status}</i>\n`;
       });
       msg += `\n<i>To inspect logs for any runner, send:</i>\n<code>/logs &lt;runner_id&gt;</code>\n`;
     }
