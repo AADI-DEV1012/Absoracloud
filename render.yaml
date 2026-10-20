@@ -81,3 +81,19 @@ services:
         value: AADI-DEV1012
       - key: GITHUB_REPO
         value: Absoracloud
+      - key: MONITOR_ENABLED
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        sync: false
+      - key: PUBLIC_URL
+        value: https://absoracloud.onrender.com
+      - key: GPU_WEEKLY_LIMIT_HOURS
+        sync: false

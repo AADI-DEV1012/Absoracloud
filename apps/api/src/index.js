@@ -60,6 +60,7 @@ import { communityRouter }  from './routes/community.js';
 import { realtimeRouter }   from './routes/realtime.js';
 import { errorHandler }     from './middleware/error_handler.js';
 import { startWatchdog }    from './services/watchdog.js';
+import { initMonitorBot, handleTelegramWebhook } from './services/monitor_bot.js';
 
 // Process-level crash protection (log without crashing the server)
 process.on('unhandledRejection', e => console.error('Unhandled rejection:', e));
@@ -126,6 +127,10 @@ app.use('/worker',     workerRouter);
 app.use('/community',  communityRouter);
 app.use('/realtime',   realtimeRouter);
 
+// ── Telegram Monitor Webhook ──
+app.post('/api/monitor/webhook', handleTelegramWebhook);
+app.post('/monitor/webhook', handleTelegramWebhook);
+
 // ── Static File Serving ──
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -141,6 +146,7 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`☁️  AbsoraCloud V3 API running on port ${PORT}`);
   startWatchdog(30000); // Reap expired/stale instances every 30s
+  initMonitorBot();     // Start background monitoring bot (if MONITOR_ENABLED=true)
 });
 
 export default app;
