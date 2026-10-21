@@ -6,6 +6,21 @@ import { redisCmd }         from '../../../../packages/shared/redis.js';
 export function requireQuota(service) {
   return async (req, res, next) => {
     try {
+      // 1. Check Maintenance Mode
+      const maintRaw = await redisCmd('GET', 'platform:maintenance').catch(() => null);
+      if (maintRaw) {
+        try {
+          const maint = JSON.parse(maintRaw);
+          if (maint && maint.enabled) {
+            return res.status(503).json({
+              status: 'error',
+              maintenance: true,
+              msg: maint.message || 'System maintenance in progress. New launches are temporarily paused.'
+            });
+          }
+        } catch (_) {}
+      }
+
       const runtime = (req.body?.runtime || 'gpu').toLowerCase();
       const quota = await checkQuota(redisCmd, req.user.sub, service, req.user.plan, runtime);
       if (!quota.allowed) {

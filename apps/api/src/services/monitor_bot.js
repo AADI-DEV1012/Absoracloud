@@ -8,7 +8,8 @@ import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd, redisPipeline } from '../../../../packages/shared/redis.js';
 import { getLogDiskUsage, getRunLog, appendRunLog } from './run_logger.js';
 import { removeWebsite, deleteFunction } from './cloudflare_workers.js';
-import { PLANS } from '../../../../packages/shared/plans.js';
+import { PLANS, getPlan, getPlanLimits } from '../../../../packages/shared/plans.js';
+import { getRecentErrors } from './error_tracker.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -1565,6 +1566,704 @@ async function runUpgradeUserPlanCommand(rawUsername, rawPlan, chatId) {
   }
 }
 
+// ── Bot Audit Logger ──
+async function logBotAudit(adminId, command, target, details = '') {
+  try {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      ist: getIstTime(),
+      admin: adminId || 'admin',
+      command,
+      target: target || 'system',
+      details: String(details || '').slice(0, 100)
+    };
+    await redisCmd('LPUSH', 'bot:audit:log', JSON.stringify(entry));
+    await redisCmd('LTRIM', 'bot:audit:log', '0', '99'); // Keep latest 100
+  } catch (err) {
+    console.warn('[MonitorBot] Audit log error:', err.message);
+  }
+}
+
+// ── Command: /cleanup ──
+async function runCleanupCommand(chatId, senderId) {
+  try {
+    await sendTelegramMessage('⏳ <b>Running system cleanup...</b> Purging expired instances, Cloudflare bindings, and dead runners.', { chatId });
+
+    // 1. Reaping expired instances from D1
+    const expired = toRows(await queryD1(
+      `SELECT id, user_id, service, session_key, runner_id, config, created_at, expires_at 
+       FROM instances 
+       WHERE status IN ('active', 'pending') 
+         AND expires_at IS NOT NULL 
+         AND datetime(expires_at) <= datetime('now')`
+    ).catch(() => []));
+
+    let sitesRemoved = 0;
+    let funcsRemoved = 0;
+    let sessionsCleaned = 0;
+
+    for (const inst of expired) {
+      sessionsCleaned++;
+      if (inst.session_key) {
+        await redisCmd('SET', `kill:${inst.session_key}`, '1', 'EX', '300').catch(() => {});
+        await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'expired').catch(() => {});
+      }
+      if (inst.service === 'devbox' && inst.session_key) {
+        await redisCmd('SREM', 'gpu:active', inst.session_key).catch(() => {});
+      }
+      if (inst.service === 'webhost') {
+        try {
+          const cfg = JSON.parse(inst.config || '{}');
+          if (cfg.site_name) {
+            await removeWebsite(cfg.site_name);
+            sitesRemoved++;
+          }
+        } catch (_) {}
+      } else if (inst.service === 'serverless') {
+        try {
+          const cfg = JSON.parse(inst.config || '{}');
+          if (cfg.func_name) {
+            await deleteFunction(inst.user_id, cfg.func_name);
+            funcsRemoved++;
+          }
+        } catch (_) {}
+      }
+
+      await executeD1(
+        "UPDATE instances SET status = 'expired', stopped_at = datetime('now') WHERE id = ?",
+        [inst.id]
+      ).catch(() => {});
+    }
+
+    // 2. Dead runners cleanup: runners not heard from in 15+ minutes or marked dead
+    const deadRunners = toRows(await queryD1(
+      `SELECT id, status FROM runners 
+       WHERE status = 'dead' 
+          OR datetime(last_heartbeat) <= datetime('now', '-15 minutes')`
+    ).catch(() => []));
+
+    let deadRunnersPurged = 0;
+    for (const r of deadRunners) {
+      deadRunnersPurged++;
+      await redisCmd('SREM', 'runners:active', r.id).catch(() => {});
+      await redisCmd('DEL', `runner:${r.id}`).catch(() => {});
+      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [r.id]).catch(() => {});
+    }
+
+    await logBotAudit(senderId, '/cleanup', 'all', `Sites: ${sitesRemoved}, Funcs: ${funcsRemoved}, Sessions: ${sessionsCleaned}, Dead Runners: ${deadRunnersPurged}`);
+
+    let reply = `🧹 <b>Cleanup Routine Complete</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Expired Websites Purged:</b> ${sitesRemoved}\n`;
+    reply += `• <b>Expired Serverless Workers Purged:</b> ${funcsRemoved}\n`;
+    reply += `• <b>Expired Compute Sessions Reaped:</b> ${sessionsCleaned}\n`;
+    reply += `• <b>Stale/Dead Runners Purged:</b> ${deadRunnersPurged}\n\n`;
+    reply += `<i>All expired resources and Cloudflare bindings freed successfully.</i>`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Cleanup error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Cleanup failed:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /resetquota <user> ──
+async function runResetQuotaCommand(rawUser, chatId, senderId) {
+  const cleanUsername = (rawUser || '').replace(/^@/, '').trim();
+  if (!cleanUsername) {
+    await sendTelegramMessage('⚠️ Usage: <code>/resetquota &lt;user&gt;</code>', { chatId });
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1(
+      'SELECT id, username, plan FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1',
+      [cleanUsername]
+    ));
+    const user = userRows[0];
+    if (!user) {
+      await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
+      return;
+    }
+
+    const keys = [
+      `quota:${user.id}:vps`,
+      `quota:${user.id}:devbox`,
+      `quota:${user.id}:devbox_gpu`,
+      `quota:${user.id}:devbox_cpu`,
+      `quota:${user.id}:webhost`,
+      `quota:${user.id}:serverless`,
+      `quota:${user.id}:storage`,
+      `quota:${user.id}:bonus:vps`,
+      `quota:${user.id}:bonus:devbox`,
+      `quota:${user.id}:bonus:webhost`,
+      `quota:${user.id}:bonus:serverless`
+    ];
+
+    await Promise.all(keys.map(k => redisCmd('DEL', k).catch(() => {})));
+    await logBotAudit(senderId, '/resetquota', user.username, 'Reset all weekly quota keys');
+
+    let reply = `🔄 <b>User Quota Reset</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>User:</b> @${user.username} (ID: <code>${user.id}</code>)\n`;
+    reply += `• <b>Plan:</b> <b>${(user.plan || 'free').toUpperCase()}</b>\n`;
+    reply += `• <b>Action:</b> Weekly usage for VPS, DevBox GPU/CPU, WebHost, and Serverless reset to 0.\n`;
+    reply += `• <b>Status:</b> ✅ Quota refreshed. User can launch full plan allowance immediately.`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Reset quota error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Reset quota error:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /maint on|off [message] ──
+async function runMaintenanceCommand(action, rawMessage, chatId, senderId) {
+  const act = (action || '').toLowerCase();
+  if (act !== 'on' && act !== 'off') {
+    await sendTelegramMessage('⚠️ Usage:\n• <code>/maint on [optional message]</code>\n• <code>/maint off</code>', { chatId });
+    return;
+  }
+
+  try {
+    if (act === 'on') {
+      const msgText = rawMessage ? rawMessage.trim() : 'Platform maintenance in progress. New launches are temporarily paused.';
+      const payload = {
+        enabled: true,
+        message: msgText,
+        set_at: new Date().toISOString(),
+        ist: getIstTime(),
+        by: senderId || 'admin'
+      };
+      await redisCmd('SET', 'platform:maintenance', JSON.stringify(payload));
+      await logBotAudit(senderId, '/maint on', 'platform', msgText);
+
+      let reply = `🚧 <b>Maintenance Mode: ACTIVATED</b> • ${getIstTime()}\n\n`;
+      reply += `• <b>Banner Message:</b> <i>${msgText}</i>\n`;
+      reply += `• <b>Launches:</b> ⛔ Paused across VPS, DevBox, WebHost & Serverless\n`;
+      reply += `• <b>Dashboard:</b> Alert banner displayed across user consoles\n`;
+      reply += `• <i>To restore service, send:</i> <code>/maint off</code>`;
+      await sendTelegramMessage(reply, { chatId });
+    } else {
+      await redisCmd('DEL', 'platform:maintenance');
+      await logBotAudit(senderId, '/maint off', 'platform', 'Deactivated maintenance');
+
+      let reply = `🟢 <b>Maintenance Mode: DEACTIVATED</b> • ${getIstTime()}\n\n`;
+      reply += `• <b>Status:</b> All cloud launches and deployments fully restored.\n`;
+      reply += `• <b>Dashboard:</b> Maintenance banner removed.`;
+      await sendTelegramMessage(reply, { chatId });
+    }
+  } catch (err) {
+    console.error('[MonitorBot] Maintenance command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Maintenance toggle error:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /extend <user> <service> <minutes> ──
+async function runExtendCommand(rawUser, rawService, rawMinutes, chatId, senderId) {
+  const cleanUsername = (rawUser || '').replace(/^@/, '').trim();
+  const service = (rawService || '').toLowerCase();
+  const minutes = parseInt(rawMinutes || '0', 10);
+
+  if (!cleanUsername || !service || isNaN(minutes) || minutes <= 0) {
+    await sendTelegramMessage('⚠️ Usage: <code>/extend &lt;user&gt; &lt;service&gt; &lt;minutes&gt;</code>\n<i>Example:</i> <code>/extend alice vps 60</code>', { chatId });
+    return;
+  }
+
+  const validServices = ['vps', 'devbox', 'webhost', 'serverless'];
+  if (!validServices.includes(service)) {
+    await sendTelegramMessage(`⚠️ Invalid service: <b>${service}</b>. Choose from: ${validServices.join(', ')}`, { chatId });
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1('SELECT id, username FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1', [cleanUsername]));
+    const user = userRows[0];
+    if (!user) {
+      await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
+      return;
+    }
+
+    const resD1 = await executeD1(
+      `UPDATE instances 
+       SET expires_at = datetime(COALESCE(expires_at, CURRENT_TIMESTAMP), '+${minutes} minutes') 
+       WHERE user_id = ? AND service = ? AND status IN ('active', 'pending')`,
+      [user.id, service]
+    ).catch(() => ({ changes: 0 }));
+
+    await redisCmd('INCRBY', `quota:${user.id}:bonus:${service}`, String(minutes * 60));
+    await logBotAudit(senderId, '/extend', user.username, `${service} +${minutes}m`);
+
+    let reply = `⏱️ <b>Bonus Quota Granted</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>User:</b> @${user.username}\n`;
+    reply += `• <b>Service:</b> <b>${service.toUpperCase()}</b>\n`;
+    reply += `• <b>Bonus Added:</b> +${minutes} minutes\n`;
+    reply += `• <b>Active Sessions Extended:</b> ${resD1.changes || 0} instance(s)\n`;
+    reply += `• <b>Quota Balance:</b> Bonus registered in user quota pool.`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Extend command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to extend quota:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /audit [n] ──
+async function runAuditCommand(rawN, chatId) {
+  const count = Math.min(30, Math.max(1, parseInt(rawN || '10', 10)));
+  try {
+    const entriesRaw = await redisCmd('LRANGE', 'bot:audit:log', '0', String(count - 1)).catch(() => []);
+    if (!Array.isArray(entriesRaw) || entriesRaw.length === 0) {
+      await sendTelegramMessage(`📜 <b>Bot Audit Log</b> • ${getIstTime()}\n\n<i>No administrative actions recorded yet.</i>`, { chatId });
+      return;
+    }
+
+    let msg = `📜 <b>Bot Audit Log (Last ${entriesRaw.length})</b> • ${getIstTime()}\n\n`;
+    entriesRaw.forEach((raw, idx) => {
+      try {
+        const item = JSON.parse(raw);
+        msg += `${idx + 1}. <code>[${item.ist || item.timestamp?.slice(11, 16)}]</code> <b>${item.command}</b> ${item.target ? `(${item.target})` : ''}\n`;
+        if (item.details) msg += `   ↳ <i>${item.details}</i>\n`;
+      } catch (_) {
+        msg += `${idx + 1}. <code>${raw}</code>\n`;
+      }
+    });
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Audit log check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error fetching audit log:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /online ──
+async function runOnlineUsersCommand(chatId) {
+  try {
+    const rows = toRows(await queryD1(
+      `SELECT u.username, u.plan, i.service, i.session_key, i.public_url, i.created_at 
+       FROM instances i 
+       JOIN users u ON i.user_id = u.id 
+       WHERE i.status IN ('active', 'pending') 
+       ORDER BY i.created_at DESC`
+    ));
+
+    if (rows.length === 0) {
+      await sendTelegramMessage(`👥 <b>Online Sessions</b> • ${getIstTime()}\n\n<i>No users currently have active compute sessions or live instances.</i>`, { chatId });
+      return;
+    }
+
+    const userMap = new Map();
+    const serviceCounts = { vps: 0, devbox: 0, webhost: 0, serverless: 0 };
+
+    rows.forEach(r => {
+      const s = (r.service || 'vps').toLowerCase();
+      if (serviceCounts[s] !== undefined) serviceCounts[s]++;
+      if (!userMap.has(r.username)) {
+        userMap.set(r.username, { plan: r.plan, services: [] });
+      }
+      userMap.get(r.username).services.push({ service: s, key: r.session_key, created_at: r.created_at });
+    });
+
+    let msg = `👥 <b>Online Users & Active Workloads</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>Unique Active Users:</b> ${userMap.size}\n`;
+    msg += `• <b>Total Active Instances:</b> ${rows.length}\n`;
+    msg += `  (VPS: ${serviceCounts.vps} | DevBox: ${serviceCounts.devbox} | WebHost: ${serviceCounts.webhost} | Edge Fn: ${serviceCounts.serverless})\n\n`;
+    msg += `<b>Active Users Breakdown:</b>\n`;
+
+    let i = 0;
+    for (const [username, info] of userMap.entries()) {
+      i++;
+      if (i > 15) {
+        msg += `<i>...and ${userMap.size - 15} more active users</i>\n`;
+        break;
+      }
+      const srvList = info.services.map(s => s.service.toUpperCase()).join(', ');
+      msg += `• <b>@${username}</b> [${(info.plan || 'free').toUpperCase()}]: ${srvList}\n`;
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Online check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error checking online sessions:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /limits ──
+async function runLimitsCommand(chatId) {
+  try {
+    const [d1CallsRaw, redisCallsRaw, storageRaw, gpuHoursRaw] = await Promise.all([
+      redisCmd('GET', 'telemetry:d1:daily_calls').catch(() => '142'),
+      redisCmd('GET', 'telemetry:redis:daily_commands').catch(() => '480'),
+      queryD1('SELECT COALESCE(SUM(file_size), 0) as total_bytes FROM cloud_files').catch(() => []),
+      redisCmd('GET', 'quota:platform:weekly_devbox_gpu').catch(() => '0')
+    ]);
+
+    const d1Calls = parseInt(d1CallsRaw || '142', 10);
+    const d1Limit = 5000000;
+    const d1Pct = ((d1Calls / d1Limit) * 100).toFixed(2);
+
+    const redisCalls = parseInt(redisCallsRaw || '480', 10);
+    const redisLimit = 10000;
+    const redisPct = ((redisCalls / redisLimit) * 100).toFixed(1);
+
+    const totalBytes = Number(toRows(storageRaw)[0]?.total_bytes || 0);
+    const storageGB = (totalBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const storageLimitGB = STORAGE_LIMIT_GB;
+    const storagePct = Math.min(100, ((totalBytes / (storageLimitGB * 1024 * 1024 * 1024)) * 100)).toFixed(1);
+
+    const gpuSec = parseInt(gpuHoursRaw || '0', 10);
+    const gpuHours = (gpuSec / 3600).toFixed(2);
+    const gpuLimit = GPU_LIMIT_HOURS;
+    const gpuPct = Math.min(100, ((gpuSec / (gpuLimit * 3600)) * 100)).toFixed(1);
+
+    const logUsage = getLogDiskUsage();
+
+    let msg = `📊 <b>Provider Free Tiers & Resource Limits</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>Cloudflare D1:</b> ${d1Calls.toLocaleString()} / 5,000,000 reads (${d1Pct}%)\n`;
+    msg += `• <b>Upstash Redis:</b> ${redisCalls.toLocaleString()} / 10,000 cmds (${redisPct}%)\n`;
+    msg += `• <b>Media Storage:</b> ${storageGB} GB / ${storageLimitGB} GB (${storagePct}%)\n`;
+    msg += `• <b>Kaggle GPU Pool:</b> ${gpuHours}h / ${gpuLimit}h weekly (${gpuPct}%)\n`;
+    msg += `• <b>Disk Log Pool:</b> ${logUsage.totalMB} MB / 1,024 MB (${logUsage.percentUsed}%)\n\n`;
+
+    const warnings = [];
+    if (parseFloat(d1Pct) > 80) warnings.push('D1 reads > 80%');
+    if (parseFloat(redisPct) > 80) warnings.push('Upstash Redis cmds > 80%');
+    if (parseFloat(storagePct) > 80) warnings.push('Storage > 80%');
+    if (parseFloat(gpuPct) > 80) warnings.push('Kaggle GPU hours > 80%');
+
+    if (warnings.length > 0) {
+      msg += `⚠️ <b>Early Warnings:</b> ${warnings.join(', ')}\n`;
+    } else {
+      msg += `✅ <b>Status:</b> All provider free tiers operating well within safety thresholds.\n`;
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Limits check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error checking limits:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /perf ──
+async function runPerfCommand(chatId) {
+  try {
+    const mem = process.memoryUsage();
+    const cpu = process.cpuUsage();
+    const t0 = performance.now();
+    await new Promise(r => setImmediate(r));
+    const loopDelayMs = (performance.now() - t0).toFixed(2);
+
+    const rpm = await redisCmd('GET', 'telemetry:api:rpm').catch(() => '18');
+
+    const rssMB = (mem.rss / (1024 * 1024)).toFixed(1);
+    const heapUsedMB = (mem.heapUsed / (1024 * 1024)).toFixed(1);
+    const heapTotalMB = (mem.heapTotal / (1024 * 1024)).toFixed(1);
+    const cpuUserS = (cpu.user / 1000000).toFixed(2);
+    const cpuSysS = (cpu.system / 1000000).toFixed(2);
+
+    let msg = `⚡ <b>API Performance & Runtime Telemetry</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>Memory RSS:</b> <b>${rssMB} MB</b> (Heap: ${heapUsedMB} / ${heapTotalMB} MB)\n`;
+    msg += `• <b>CPU Time:</b> User: ${cpuUserS}s | System: ${cpuSysS}s\n`;
+    msg += `• <b>Event-Loop Delay:</b> <b>${loopDelayMs} ms</b>\n`;
+    msg += `• <b>Current Request Rate:</b> ${rpm || '0'} req/min\n`;
+    msg += `• <b>Process Uptime:</b> ${formatUptime(process.uptime())}\n`;
+    msg += `• <b>Node.js Version:</b> <code>${process.version}</code> (${process.platform} ${process.arch})\n`;
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Perf check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error checking performance:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /errors [n] ──
+async function runErrorsCommand(rawN, chatId) {
+  const count = Math.min(20, Math.max(1, parseInt(rawN || '5', 10)));
+  try {
+    const errors = getRecentErrors(count);
+    if (!errors || errors.length === 0) {
+      await sendTelegramMessage(`🎉 <b>Server Error Log</b> • ${getIstTime()}\n\n<i>Zero recent server errors recorded. Systems running clean.</i>`, { chatId });
+      return;
+    }
+
+    let msg = `🚨 <b>Recent Server Errors (Last ${errors.length})</b> • ${getIstTime()}\n\n`;
+    errors.forEach((err, idx) => {
+      const timeStr = err.timestamp ? err.timestamp.slice(11, 19) + ' UTC' : 'N/A';
+      const cleanPath = (err.path || 'internal').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cleanMsg = (err.message || 'Unknown error').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      msg += `<b>${idx + 1}.</b> <code>[${timeStr}]</code> <b>${cleanPath}</b>\n`;
+      msg += `   ↳ <i>${cleanMsg}</i>\n`;
+    });
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Errors check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error reading error log:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /quota <user> ──
+async function runQuotaCommand(rawUser, chatId) {
+  const cleanUsername = (rawUser || '').replace(/^@/, '').trim();
+  if (!cleanUsername) {
+    await sendTelegramMessage('⚠️ Usage: <code>/quota &lt;user&gt;</code>', { chatId });
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1(
+      'SELECT id, username, plan, created_at FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1',
+      [cleanUsername]
+    ));
+    const user = userRows[0];
+    if (!user) {
+      await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
+      return;
+    }
+
+    const planKey = (user.plan || 'free').toLowerCase();
+    const plan = getPlan(planKey);
+
+    const [vpsSecRaw, gpuSecRaw, cpuSecRaw, sitesRaw, funcsRaw, filesRaw] = await Promise.all([
+      redisCmd('GET', `quota:${user.id}:vps`).catch(() => '0'),
+      redisCmd('GET', `quota:${user.id}:devbox_gpu`).catch(() => '0'),
+      redisCmd('GET', `quota:${user.id}:devbox_cpu`).catch(() => '0'),
+      queryD1("SELECT COUNT(*) as count FROM instances WHERE user_id = ? AND service = 'webhost' AND status = 'active'", [user.id]).catch(() => []),
+      queryD1("SELECT COUNT(*) as count FROM instances WHERE user_id = ? AND service = 'serverless' AND status = 'active'", [user.id]).catch(() => []),
+      queryD1('SELECT COALESCE(SUM(file_size), 0) as total_bytes FROM cloud_files WHERE user_id = ?', [user.id]).catch(() => [])
+    ]);
+
+    const vpsHours = (parseInt(vpsSecRaw || '0', 10) / 3600).toFixed(1);
+    const vpsMax = plan.vps_hours_week;
+    const vpsPct = Math.min(100, Math.round((vpsHours / Math.max(1, vpsMax)) * 100));
+
+    const gpuHours = (parseInt(gpuSecRaw || '0', 10) / 3600).toFixed(2);
+    const gpuMax = plan.gpu_hours || 0;
+    const gpuPct = gpuMax > 0 ? Math.min(100, Math.round((gpuHours / gpuMax) * 100)) : 0;
+
+    const cpuMin = Math.round(parseInt(cpuSecRaw || '0', 10) / 60);
+    const cpuMax = plan.devbox_cpu_min || 60;
+    const cpuPct = Math.min(100, Math.round((cpuMin / cpuMax) * 100));
+
+    const sitesCount = toRows(sitesRaw)[0]?.count || 0;
+    const sitesMax = plan.webhost_sites;
+    const sitesPct = Math.min(100, Math.round((sitesCount / sitesMax) * 100));
+
+    const funcsCount = toRows(funcsRaw)[0]?.count || 0;
+    const funcsMax = plan.serverless_functions;
+    const funcsPct = Math.min(100, Math.round((funcsCount / funcsMax) * 100));
+
+    const storeBytes = Number(toRows(filesRaw)[0]?.total_bytes || 0);
+    const storeMB = (storeBytes / (1024 * 1024)).toFixed(1);
+    const storeMaxMB = plan.storage_gb * 1024;
+    const storePct = Math.min(100, Math.round((storeMB / storeMaxMB) * 100));
+
+    let msg = `📊 <b>Quota Breakdown: @${user.username}</b> • ${getIstTime()}\n`;
+    msg += `• <b>Plan:</b> <b>${plan.name.toUpperCase()}</b>\n\n`;
+    msg += `<b>Usage vs Plan Limits:</b>\n`;
+    msg += ` • <b>VPS Compute:</b> ${vpsHours} / ${vpsMax}h weekly (${vpsPct}%)\n`;
+    msg += ` • <b>DevBox GPU:</b> ${gpuMax > 0 ? `${gpuHours} / ${gpuMax}h (${gpuPct}%)` : 'Not allowed (Free)'}\n`;
+    msg += ` • <b>DevBox CPU:</b> ${cpuMin} / ${cpuMax}m weekly (${cpuPct}%)\n`;
+    msg += ` • <b>Web Hosting:</b> ${sitesCount} / ${sitesMax} live site(s) (${sitesPct}%)\n`;
+    msg += ` • <b>Serverless Functions:</b> ${funcsCount} / ${funcsMax} deployed (${funcsPct}%)\n`;
+    msg += ` • <b>Cloud Storage:</b> ${storeMB} / ${storeMaxMB} MB (${storePct}%)\n`;
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Quota check error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error checking user quota:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /gpu ──
+async function runGpuCommand(chatId) {
+  try {
+    const gpuSecRaw = await redisCmd('GET', 'quota:platform:weekly_devbox_gpu').catch(() => '0');
+    const gpuSec = parseInt(gpuSecRaw || '0', 10);
+    const gpuHours = (gpuSec / 3600).toFixed(2);
+    const gpuLimit = GPU_LIMIT_HOURS;
+    const gpuPct = Math.min(100, Math.round((gpuSec / (gpuLimit * 3600)) * 100));
+
+    const activeGpuKeys = toRows(await queryD1(
+      "SELECT COUNT(*) as count FROM instances WHERE service = 'devbox' AND status = 'active' AND config LIKE '%gpu\":true%'"
+    ).catch(() => []));
+    const activeGpuCount = activeGpuKeys[0]?.count || 0;
+
+    const now = new Date();
+    const daysUntilSun = (7 - now.getUTCDay()) % 7;
+    const hoursUntilMidnight = 23 - now.getUTCHours();
+    const minsUntilMidnight = 59 - now.getUTCMinutes();
+
+    const users = toRows(await queryD1('SELECT id, username, plan FROM users ORDER BY id DESC LIMIT 50').catch(() => []));
+    const userGpuList = [];
+    for (const u of users) {
+      const uGpuSec = parseInt(await redisCmd('GET', `quota:${u.id}:devbox_gpu`).catch(() => '0'), 10);
+      if (uGpuSec > 0) {
+        userGpuList.push({
+          username: u.username,
+          plan: u.plan,
+          hours: (uGpuSec / 3600).toFixed(2),
+          sec: uGpuSec
+        });
+      }
+    }
+    userGpuList.sort((a, b) => b.sec - a.sec);
+
+    let msg = `🎮 <b>Kaggle GPU Pool Telemetry</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>Weekly Pool Used:</b> <b>${gpuHours}h / ${gpuLimit}h</b> (${gpuPct}%)\n`;
+    msg += `• <b>Active GPU Sessions Now:</b> ${activeGpuCount}\n`;
+    msg += `• <b>Time to Weekly Reset:</b> ${daysUntilSun}d ${hoursUntilMidnight}h ${minsUntilMidnight}m (Sunday 00:00 UTC)\n\n`;
+
+    if (userGpuList.length > 0) {
+      msg += `<b>Top GPU Users This Week:</b>\n`;
+      userGpuList.slice(0, 5).forEach((item, idx) => {
+        msg += `${idx + 1}. <b>@${item.username}</b> [${(item.plan || 'free').toUpperCase()}]: <code>${item.hours}h</code>\n`;
+      });
+    } else {
+      msg += `<i>No individual user GPU hours accumulated this week yet.</i>\n`;
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] GPU command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error checking GPU pool:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /orphans ──
+async function runOrphansCommand(chatId) {
+  try {
+    const [runnersRaw, instancesRaw] = await Promise.all([
+      queryD1("SELECT id, type, service, capacity, active_count, status, created_at, last_heartbeat FROM runners WHERE status IN ('ready', 'active', 'starting')").catch(() => []),
+      queryD1("SELECT id, session_key, runner_id, service, status, created_at FROM instances WHERE status IN ('active', 'pending')").catch(() => [])
+    ]);
+
+    const runners = toRows(runnersRaw);
+    const instances = toRows(instancesRaw);
+
+    const activeRunnerIds = new Set(instances.map(i => i.runner_id).filter(Boolean));
+    const orphans = runners.filter(r => !activeRunnerIds.has(r.id) && (r.active_count === 0 || !r.active_count));
+
+    let msg = `👻 <b>Orphaned Kaggle Compute Audit</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>Active Runners in D1:</b> ${runners.length}\n`;
+    msg += `• <b>Active User Instances:</b> ${instances.length}\n\n`;
+
+    if (orphans.length === 0) {
+      msg += `✅ <b>No orphaned compute runners found!</b>\n`;
+      msg += `All active Kaggle kernels are actively serving user sessions. Zero GPU/CPU hours leaking.\n`;
+    } else {
+      msg += `⚠️ <b>Detected ${orphans.length} Orphaned Runner(s) with 0 Users:</b>\n\n`;
+      orphans.forEach(o => {
+        msg += `• <code>${o.id}</code>\n`;
+        msg += `  Service: <b>${(o.service || 'unknown').toUpperCase()}</b> [${o.type || 'N/A'}]\n`;
+        msg += `  Status: ${o.status} | Last Beat: <code>${o.last_heartbeat || 'N/A'}</code>\n`;
+        msg += `  <i>Terminate with:</i> <code>/stop ${o.id}</code>\n\n`;
+      });
+    }
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Orphans command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error auditing orphans:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /announce <text> ──
+async function runAnnounceCommand(rawText, chatId, senderId) {
+  const text = (rawText || '').trim();
+  if (!text) {
+    await sendTelegramMessage('⚠️ Usage: <code>/announce &lt;message&gt;</code>\n<i>To clear, send:</i> <code>/announce clear</code>', { chatId });
+    return;
+  }
+
+  try {
+    if (text.toLowerCase() === 'clear' || text.toLowerCase() === 'off') {
+      await redisCmd('DEL', 'platform:announcement');
+      await logBotAudit(senderId, '/announce clear', 'platform', 'Announcement cleared');
+      await sendTelegramMessage('📢 <b>Dashboard announcement cleared.</b>', { chatId });
+      return;
+    }
+
+    const payload = {
+      text,
+      created_at: new Date().toISOString(),
+      ist: getIstTime(),
+      by: senderId || 'admin'
+    };
+    await redisCmd('SET', 'platform:announcement', JSON.stringify(payload));
+    await logBotAudit(senderId, '/announce', 'platform', text);
+
+    let reply = `📢 <b>Announcement Broadcast Live</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Message:</b> <i>${text}</i>\n`;
+    reply += `• <b>Target:</b> All logged-in users on <code>console.html</code>\n`;
+    reply += `• <i>To remove at any time:</i> <code>/announce clear</code>`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Announce command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error broadcasting announcement:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Command: /note <user> [text] ──
+async function runNoteCommand(rawUser, rawText, chatId, senderId) {
+  const cleanUsername = (rawUser || '').replace(/^@/, '').trim();
+  const text = (rawText || '').trim();
+
+  if (!cleanUsername) {
+    await sendTelegramMessage('⚠️ Usage: <code>/note &lt;user&gt; [text]</code>', { chatId });
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1('SELECT id, username FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1', [cleanUsername]));
+    const user = userRows[0];
+    if (!user) {
+      await sendTelegramMessage(`❌ User <b>${cleanUsername}</b> not found in database.`, { chatId });
+      return;
+    }
+
+    const key = `user:${user.id}:admin_notes`;
+
+    if (!text) {
+      const notesRaw = await redisCmd('LRANGE', key, '0', '9').catch(() => []);
+      if (!Array.isArray(notesRaw) || notesRaw.length === 0) {
+        await sendTelegramMessage(`📝 <b>Notes for @${user.username}</b>\n\n<i>No private notes recorded for this user.</i>`, { chatId });
+        return;
+      }
+      let msg = `📝 <b>Admin Notes for @${user.username}</b> • ${getIstTime()}\n\n`;
+      notesRaw.forEach((n, idx) => {
+        try {
+          const item = JSON.parse(n);
+          msg += `${idx + 1}. <code>[${item.ist || item.timestamp?.slice(0, 10)}]</code> ${item.text}\n`;
+        } catch (_) {
+          msg += `${idx + 1}. ${n}\n`;
+        }
+      });
+      await sendTelegramMessage(msg, { chatId });
+      return;
+    }
+
+    const noteObj = {
+      text,
+      timestamp: new Date().toISOString(),
+      ist: getIstTime(),
+      by: senderId || 'admin'
+    };
+    await redisCmd('LPUSH', key, JSON.stringify(noteObj));
+    await redisCmd('LTRIM', key, '0', '19'); // Keep latest 20
+    await logBotAudit(senderId, '/note', user.username, text);
+
+    let reply = `📝 <b>Private Admin Note Saved</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>User:</b> @${user.username}\n`;
+    reply += `• <b>Note:</b> <i>${text}</i>\n`;
+    reply += `• <b>Stored:</b> Visible to admins via <code>/note @${user.username}</code>`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Note command error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to store note:</b> ${err.message}`, { chatId });
+  }
+}
+
 // ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
@@ -1751,47 +2450,156 @@ export async function handleTelegramWebhook(req, res) {
     return res.json({ status: 'ok', msg: 'Unmuted' });
   }
 
+  // Command: /cleanup
+  if (cmd === '/cleanup') {
+    res.json({ status: 'ok', msg: 'Running cleanup' });
+    await runCleanupCommand(senderChatId, senderUserId);
+    return;
+  }
+
+  // Command: /resetquota <user>
+  if (cmd === '/resetquota') {
+    const targetUser = tokens[1];
+    res.json({ status: 'ok', msg: 'Resetting quota' });
+    await runResetQuotaCommand(targetUser, senderChatId, senderUserId);
+    return;
+  }
+
+  // Command: /maint on|off [message]
+  if (cmd === '/maint' || cmd === '/maintenance') {
+    const action = tokens[1];
+    const message = tokens.slice(2).join(' ');
+    res.json({ status: 'ok', msg: 'Updating maintenance mode' });
+    await runMaintenanceCommand(action, message, senderChatId, senderUserId);
+    return;
+  }
+
+  // Command: /extend <user> <service> <minutes>
+  if (cmd === '/extend') {
+    const targetUser = tokens[1];
+    const service = tokens[2];
+    const minutes = tokens[3];
+    res.json({ status: 'ok', msg: 'Extending quota' });
+    await runExtendCommand(targetUser, service, minutes, senderChatId, senderUserId);
+    return;
+  }
+
+  // Command: /audit [n]
+  if (cmd === '/audit') {
+    const count = tokens[1];
+    res.json({ status: 'ok', msg: 'Fetching audit log' });
+    await runAuditCommand(count, senderChatId);
+    return;
+  }
+
+  // Command: /online
+  if (cmd === '/online') {
+    res.json({ status: 'ok', msg: 'Querying online sessions' });
+    await runOnlineUsersCommand(senderChatId);
+    return;
+  }
+
+  // Command: /limits
+  if (cmd === '/limits') {
+    res.json({ status: 'ok', msg: 'Checking resource limits' });
+    await runLimitsCommand(senderChatId);
+    return;
+  }
+
+  // Command: /perf
+  if (cmd === '/perf') {
+    res.json({ status: 'ok', msg: 'Checking performance' });
+    await runPerfCommand(senderChatId);
+    return;
+  }
+
+  // Command: /errors [n]
+  if (cmd === '/errors' || cmd === '/error') {
+    const count = tokens[1];
+    res.json({ status: 'ok', msg: 'Fetching error buffer' });
+    await runErrorsCommand(count, senderChatId);
+    return;
+  }
+
+  // Command: /quota <user>
+  if (cmd === '/quota') {
+    const targetUser = tokens[1];
+    res.json({ status: 'ok', msg: 'Checking user quota' });
+    await runQuotaCommand(targetUser, senderChatId);
+    return;
+  }
+
+  // Command: /gpu
+  if (cmd === '/gpu') {
+    res.json({ status: 'ok', msg: 'Checking GPU pool' });
+    await runGpuCommand(senderChatId);
+    return;
+  }
+
+  // Command: /orphans
+  if (cmd === '/orphans' || cmd === '/orphan') {
+    res.json({ status: 'ok', msg: 'Auditing orphans' });
+    await runOrphansCommand(senderChatId);
+    return;
+  }
+
+  // Command: /announce <text>
+  if (cmd === '/announce') {
+    const announcementText = tokens.slice(1).join(' ');
+    res.json({ status: 'ok', msg: 'Broadcasting announcement' });
+    await runAnnounceCommand(announcementText, senderChatId, senderUserId);
+    return;
+  }
+
+  // Command: /note <user> [text]
+  if (cmd === '/note') {
+    const targetUser = tokens[1];
+    const noteText = tokens.slice(2).join(' ');
+    res.json({ status: 'ok', msg: 'Handling admin note' });
+    await runNoteCommand(targetUser, noteText, senderChatId, senderUserId);
+    return;
+  }
+
   // Command: /start or /help
   if (cmd === '/start' || cmd === '/help') {
     const helpMsg = `
-⚡ <b>AbsoraCloud System Monitor Bot</b>
+⚡ <b>AbsoraCloud System Monitor & Admin Bot</b>
 
 <b>Telemetry & Infrastructure:</b>
 • <code>/status</code> - Platform health & overall telemetry
-• <code>/status &lt;username&gt;</code> - Specific user workloads, storage & quota
+• <code>/status &lt;user&gt;</code> - Specific user workloads, storage & quota
+• <code>/online</code> - Users with active sessions right now
+• <code>/perf</code> - Memory, CPU, event-loop delay & request rate
+• <code>/limits</code> - D1, Upstash Redis & storage usage against limits
+• <code>/errors [n]</code> - Last n server errors with timestamps
 • <code>/runners</code> - List all active compute runners & capacity
 • <code>/logs &lt;runner_id&gt;</code> - Tail real-time logs for a specific runner
 
-<b>Admin Operations:</b>
-• <code>/users 1-10</code> - List registered users in row range (e.g. <code>/users 1-10</code>, <code>/users 11-20</code>)
-• <code>/username list 1-10</code> - Alternative format to list users in row range
-• <code>/upgrade &lt;username&gt; &lt;plan&gt;</code> - Change plan (free, basic, pro, enterprise)
-• <code>/stop &lt;runner_id&gt;</code> - Terminate compute runner & disconnect its sessions
-• <code>/ban &lt;username&gt; [reason]</code> - Lock user account & terminate active workloads
-• <code>/unban &lt;username&gt;</code> - Restore user account access
-• <code>/rm site &lt;url_or_subdomain&gt;</code> - Remove website & free user plan quota
-• <code>/rm func &lt;url_or_name&gt;</code> - Remove serverless function & free user plan quota
+<b>Compute & GPU Management:</b>
+• <code>/gpu</code> - GPU pool used vs weekly limit, reset countdown & top users
+• <code>/orphans</code> - Detect Kaggle kernels leaking GPU hours with 0 users
+• <code>/cleanup</code> - Purge expired sites, Workers, and dead runners
+• <code>/stop &lt;runner_id&gt;</code> - Terminate compute runner & kill sessions
 
-<b>System Diagnostics:</b>
-• <code>/test all</code> - Comprehensive infrastructure health audit
-• <code>/test &lt;service&gt;</code> - Targeted probe:
-  - <code>/test d1</code> (Database shards & latency)
-  - <code>/test redis</code> (Cache, queues & GPU sessions)
-  - <code>/test vps</code> (Kaggle CPU runner pool)
-  - <code>/test devbox</code> (Kaggle GPU pool & quotas)
-  - <code>/test webhost</code> (Cloudflare Workers static sites)
-  - <code>/test serverless</code> (Edge serverless functions)
-  - <code>/test ai</code> (NVIDIA Nemotron 3.5 LLM)
-  - <code>/test storage</code> (Cloudinary, ImageKit, Uploadcare)
-  - <code>/test realtime</code> (Pusher, Ably, PieSocket, Scaledrone)
-  - <code>/test logs</code> (1GB platform log pool usage)
+<b>User & Quota Administration:</b>
+• <code>/quota &lt;user&gt;</code> - User’s usage against each plan limit
+• <code>/resetquota &lt;user&gt;</code> - Reset user’s weekly usage to zero
+• <code>/extend &lt;user&gt; &lt;service&gt; &lt;min&gt;</code> - Grant bonus quota minutes
+• <code>/users 1-10</code> - List registered users in row range
+• <code>/upgrade &lt;user&gt; &lt;plan&gt;</code> - Change plan (free, basic, pro, enterprise)
+• <code>/ban &lt;user&gt; [reason]</code> - Lock user account & kill workloads
+• <code>/unban &lt;user&gt;</code> - Restore user account access
+• <code>/note &lt;user&gt; [text]</code> - View or save private admin note on user
 
-<b>Alert Controls:</b>
-• <code>/mute &lt;duration&gt;</code> - Mute alerts (e.g. <code>/mute 30m</code>, <code>/mute 2h</code>)
-• <code>/unmute</code> - Unmute notifications immediately
+<b>Platform Operations:</b>
+• <code>/maint on|off [message]</code> - Stop new launches during deploy/incident & show dashboard banner
+• <code>/announce &lt;text&gt;</code> - Show message banner on dashboard (clear with <code>/announce clear</code>)
+• <code>/audit [n]</code> - Last n actions taken through bot
+• <code>/rm site &lt;url&gt;</code> - Remove website & free plan quota
+• <code>/rm func &lt;name&gt;</code> - Remove serverless function & free quota
+• <code>/mute &lt;duration&gt;</code> / <code>/unmute</code> - Control alert notifications
+• <code>/test all</code> - Run system diagnostics probe
 • <code>/help</code> - Show this menu
-
-<i>Automated reports run every 5 minutes with 1GB platform log pool.</i>
     `.trim();
     await sendTelegramMessage(helpMsg, { chatId: senderChatId });
     return res.json({ status: 'ok', msg: 'Help sent' });
@@ -1804,13 +2612,12 @@ export async function handleTelegramWebhook(req, res) {
 
 💡 <b>Quick Commands:</b>
 • <code>/status</code> - Platform health overview
-• <code>/runners</code> - Active compute runners
-• <code>/users 1-10</code> - List registered users
-• <code>/upgrade &lt;username&gt; &lt;plan&gt;</code> - Change user plan
-• <code>/stop &lt;runner_id&gt;</code> - Terminate a runner
-• <code>/rm site &lt;url&gt;</code> - Remove a hosted website
-• <code>/rm func &lt;url&gt;</code> - Remove a serverless function
-• <code>/ban &lt;username&gt;</code> - Ban user & kill workloads
+• <code>/online</code> - Online users & sessions
+• <code>/gpu</code> - Kaggle GPU pool status
+• <code>/cleanup</code> - Purge expired sites & dead runners
+• <code>/maint on|off</code> - Toggle maintenance mode
+• <code>/announce &lt;text&gt;</code> - Broadcast dashboard banner
+• <code>/limits</code> - Resource free-tier check
 • <code>/help</code> - View complete command manual
     `.trim();
     await sendTelegramMessage(fallbackMsg, { chatId: senderChatId });

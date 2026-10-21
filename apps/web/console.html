@@ -194,6 +194,9 @@
     <!-- Main Hub Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-8 relative z-10">
 
+        <!-- Dynamic System Alert / Announcement Banner -->
+        <div id="system-banner-container" class="hidden flex flex-col gap-3"></div>
+
         <!-- Hero Header -->
         <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-pterodark-800/60">
             <div>
@@ -717,6 +720,49 @@
           const planName = quotas.plan_name || (userData.plan ? userData.plan.toUpperCase() + ' PLAN' : 'FREE PLAN');
           document.getElementById('nav-plan-badge').textContent = planName;
           document.getElementById('stat-tier').textContent = planName;
+        }
+
+        // Render Maintenance or Announcement Banners
+        const bannerContainer = document.getElementById('system-banner-container');
+        if (bannerContainer) {
+          bannerContainer.innerHTML = '';
+          let hasBanner = false;
+
+          if (authData.maintenance && authData.maintenance.enabled) {
+            hasBanner = true;
+            bannerContainer.innerHTML += `
+              <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs sm:text-sm flex items-center justify-between gap-4 backdrop-blur-md">
+                <div class="flex items-center gap-3">
+                  <span class="p-2 rounded-xl bg-amber-500/20 text-amber-400 font-bold"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                  <div>
+                    <strong class="font-bold text-amber-300">Maintenance Notice:</strong>
+                    <span>${authData.maintenance.message || 'System maintenance in progress. New launches are temporarily paused.'}</span>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold uppercase tracking-wider">MAINTENANCE ACTIVE</span>
+              </div>
+            `;
+          }
+
+          if (authData.announcement && authData.announcement.text) {
+            hasBanner = true;
+            bannerContainer.innerHTML += `
+              <div class="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 text-xs sm:text-sm flex items-center justify-between gap-4 backdrop-blur-md">
+                <div class="flex items-center gap-3">
+                  <span class="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 font-bold"><i class="fa-solid fa-bullhorn"></i></span>
+                  <div>
+                    <strong class="font-bold text-cyan-300">Announcement:</strong>
+                    <span>${authData.announcement.text}</span>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold uppercase tracking-wider">BROADCAST</span>
+              </div>
+            `;
+          }
+
+          if (hasBanner) {
+            bannerContainer.classList.remove('hidden');
+          }
         }
 
         // Populate Quota Bars

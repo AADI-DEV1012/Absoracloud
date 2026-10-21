@@ -163,7 +163,23 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       }
     };
 
-    res.json({ status: 'success', user, quotas });
+    let maintenance = null;
+    let announcement = null;
+    try {
+      const [maintRaw, annRaw] = await Promise.all([
+        redisCmd('GET', 'platform:maintenance').catch(() => null),
+        redisCmd('GET', 'platform:announcement').catch(() => null)
+      ]);
+      if (maintRaw) {
+        const parsed = JSON.parse(maintRaw);
+        if (parsed?.enabled) maintenance = parsed;
+      }
+      if (annRaw) {
+        announcement = JSON.parse(annRaw);
+      }
+    } catch (_) {}
+
+    res.json({ status: 'success', user, quotas, maintenance, announcement });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch user' });
   }
