@@ -8,6 +8,7 @@ import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd, redisPipeline } from '../../../../packages/shared/redis.js';
 import { getLogDiskUsage, getRunLog, appendRunLog } from './run_logger.js';
 import { removeWebsite, deleteFunction } from './cloudflare_workers.js';
+import { PLANS } from '../../../../packages/shared/plans.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -1499,6 +1500,71 @@ async function runRemoveFunctionCommand(rawTarget, chatId) {
   }
 }
 
+// ── Upgrade User Plan Command (/upgrade <username> <plan>) ──
+async function runUpgradeUserPlanCommand(rawUsername, rawPlan, chatId) {
+  const username = (rawUsername || '').trim();
+  const planKey = (rawPlan || '').toLowerCase().trim();
+
+  const validPlans = Object.keys(PLANS);
+
+  if (!username || !planKey) {
+    await sendTelegramMessage(
+      '⚠️ <b>Missing Arguments</b>\n' +
+      'Usage: <code>/upgrade &lt;username&gt; &lt;plan&gt;</code>\n\n' +
+      `<b>Available Plans:</b> <code>${validPlans.join(', ')}</code>\n` +
+      '<i>Example:</i> <code>/upgrade aadi pro</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  if (!PLANS[planKey]) {
+    await sendTelegramMessage(
+      `❌ <b>Invalid Plan:</b> <code>${planKey}</code>\n` +
+      `Available options: <code>${validPlans.join(', ')}</code>`,
+      { chatId }
+    );
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1('SELECT id, username, email, plan, role, created_at, locked_until FROM users WHERE username = ? COLLATE NOCASE', [username]));
+    if (userRows.length === 0) {
+      await sendTelegramMessage(`❌ <b>User Not Found:</b> <code>${username}</code>`, { chatId });
+      return;
+    }
+
+    const user = userRows[0];
+    const prevPlan = (user.plan || 'free').toLowerCase();
+    const newPlanDetails = PLANS[planKey];
+
+    // Update plan in D1 database
+    await executeD1('UPDATE users SET plan = ? WHERE id = ?', [planKey, user.id]);
+
+    let msg = `⭐ <b>User Plan Updated</b> • ${getIstTime()}\n\n`;
+    msg += `• <b>User:</b> 👤 <code>${user.username}</code> (ID: ${user.id})\n`;
+    if (user.email) {
+      msg += `• <b>Email:</b> <code>${user.email}</code>\n`;
+    }
+    msg += `• <b>Previous Tier:</b> [${prevPlan.toUpperCase()}]\n`;
+    msg += `• <b>New Tier:</b> 🚀 <b>[${planKey.toUpperCase()}]</b> ($${newPlanDetails.price}/mo)\n\n`;
+
+    msg += `<b>Allocated Plan Quotas:</b>\n`;
+    msg += `• <b>Storage:</b> ${newPlanDetails.storage_gb} GB persistent pool\n`;
+    msg += `• <b>VPS (CPU):</b> ${newPlanDetails.vps_hours_week}h/week (${newPlanDetails.vps_cpu} CPU, ${newPlanDetails.vps_ram_mb} MB RAM)\n`;
+    msg += `• <b>DevBox (GPU):</b> ${newPlanDetails.gpu_allowed ? `${newPlanDetails.gpu_hours}h weekly quota (T4×2)` : 'No GPU (CPU only)'}\n`;
+    msg += `• <b>Web Hosting:</b> ${newPlanDetails.webhost_sites} live site(s)\n`;
+    msg += `• <b>Serverless:</b> ${newPlanDetails.serverless_functions} function(s) (${newPlanDetails.serverless_code_limit_kb} KB code limit)\n\n`;
+
+    msg += `✅ <i>Tier updated in D1 database immediately. User can now launch upgraded workloads.</i>`;
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Upgrade user plan error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to update user plan:</b> ${err.message}`, { chatId });
+  }
+}
+
 // ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
@@ -1571,6 +1637,15 @@ export async function handleTelegramWebhook(req, res) {
     const targetUser = tokens[1];
     res.json({ status: 'ok', msg: 'Unbanning user' });
     await runUnbanUserCommand(targetUser, senderChatId);
+    return;
+  }
+
+  // Command: /upgrade <username> <plan>, /setplan <username> <plan>
+  if (cmd === '/upgrade' || cmd === '/setplan') {
+    const targetUser = tokens[1];
+    const targetPlan = tokens[2];
+    res.json({ status: 'ok', msg: 'Updating user plan' });
+    await runUpgradeUserPlanCommand(targetUser, targetPlan, senderChatId);
     return;
   }
 
@@ -1690,6 +1765,7 @@ export async function handleTelegramWebhook(req, res) {
 <b>Admin Operations:</b>
 • <code>/users 1-10</code> - List registered users in row range (e.g. <code>/users 1-10</code>, <code>/users 11-20</code>)
 • <code>/username list 1-10</code> - Alternative format to list users in row range
+• <code>/upgrade &lt;username&gt; &lt;plan&gt;</code> - Change plan (free, basic, pro, enterprise)
 • <code>/stop &lt;runner_id&gt;</code> - Terminate compute runner & disconnect its sessions
 • <code>/ban &lt;username&gt; [reason]</code> - Lock user account & terminate active workloads
 • <code>/unban &lt;username&gt;</code> - Restore user account access
@@ -1730,6 +1806,7 @@ export async function handleTelegramWebhook(req, res) {
 • <code>/status</code> - Platform health overview
 • <code>/runners</code> - Active compute runners
 • <code>/users 1-10</code> - List registered users
+• <code>/upgrade &lt;username&gt; &lt;plan&gt;</code> - Change user plan
 • <code>/stop &lt;runner_id&gt;</code> - Terminate a runner
 • <code>/rm site &lt;url&gt;</code> - Remove a hosted website
 • <code>/rm func &lt;url&gt;</code> - Remove a serverless function
