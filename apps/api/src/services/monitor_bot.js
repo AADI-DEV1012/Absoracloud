@@ -417,7 +417,7 @@ Alerts: ${activeAlertsToSend.join('; ')}
 
     let msg = `${statusIcon} <b>AbsoraCloud Monitor</b> ${statusLabel} • ${getIstTime()}\n`;
     msg += `<b>Health:</b> ${healthOk ? 'OK' : 'FAIL'} • <b>Latency:</b> ${latencyMs}ms • <b>Uptime:</b> ${formatUptime(currentUptime)}\n`;
-    msg += `<b>Infra:</b> D1 ${d1Ok ? '✅' : '❌'} | Redis ${redisOk ? '✅' : '❌'} | LogPool ${diskLogs.totalMB}MB/1GB (${diskLogs.percentUsed}%)\n`;
+    msg += `<b>Infra:</b> D1 ${d1Ok ? '✅' : '❌'} | Redis ${redisOk ? '✅' : '❌'} | LogVault ${diskLogs.totalMB}MB/10GB (${diskLogs.percentUsed}%)\n`;
     msg += `<b>Workloads:</b>\n`;
     msg += ` • VPS: ${vpsStats.active} active, ${vpsStats.pending} pending, ${vpsStats.failed} failed\n`;
     msg += ` • DevBox: ${devboxStats.active} active, ${devboxStats.pending} pending, ${devboxStats.failed} failed\n`;
@@ -590,7 +590,13 @@ async function runUserStatusCheck(rawUsername, chatId) {
     msg += `<b>Storage & Quotas:</b>\n`;
     msg += ` • Cloud Files: ${filesStats.file_count || 0} files (${storageFormatted})\n`;
     const logUsage = getLogDiskUsage();
-    msg += ` • Platform Log Pool: ${logUsage.totalMB}MB / 1GB shared (${logUsage.percentUsed}%)\n`;
+    const isBotUser = user.id === 9 || (user.username || '').toLowerCase() === 'absoracloud_bot';
+    if (isBotUser) {
+      msg += ` • 🤖 <b>Log Vault Capacity:</b> ${logUsage.totalMB}MB / 10GB (${logUsage.percentUsed}% - Auto-prunes at 9.5GB)\n`;
+      msg += ` • 📝 <b>Session Audit Logs:</b> ${logUsage.fileCount} logs (Keystrokes & Terminal Output synced to D1 & Redis)\n`;
+    } else {
+      msg += ` • Absoracloud_Bot Log Vault: ${logUsage.totalMB}MB / 10GB (${logUsage.percentUsed}%)\n`;
+    }
     msg += ` • DevBox GPU Used: ${gpuHours}h\n`;
 
     // Active workloads categorized by service with live URLs
@@ -796,10 +802,10 @@ function testRealtimeProbe() {
 
 function testLogDiskProbe() {
   const usage = getLogDiskUsage();
-  const ok = usage.totalBytes < (950 * 1024 * 1024);
+  const ok = usage.totalBytes < (9.5 * 1024 * 1024 * 1024);
   return {
     ok,
-    details: `${usage.totalMB}MB / 1GB (${usage.percentUsed}% | ${usage.fileCount} files)`
+    details: `${usage.totalMB}MB / 10GB (${usage.percentUsed}% | ${usage.fileCount} files)`
   };
 }
 
@@ -915,21 +921,22 @@ async function runSystemDiagnostics(targetRaw, chatId) {
     return;
   }
 
-  // 10. Single component test: Logs / Disk (Real 1GB Matrix)
+  // 10. Single component test: Logs / Disk (Absoracloud_Bot 10GB Vault)
   if (target === 'logs' || target === 'log' || target === 'disk') {
     const usage = getLogDiskUsage();
-    const ok = usage.totalBytes < (950 * 1024 * 1024);
+    const ok = usage.totalBytes < (9.5 * 1024 * 1024 * 1024);
     const usedBytesFormatted = Number(usage.totalBytes).toLocaleString();
     const maxBytesFormatted = Number(usage.maxBytes).toLocaleString();
     const freeBytesFormatted = Number(Math.max(0, usage.maxBytes - usage.totalBytes)).toLocaleString();
 
-    let msg = `🧪 <b>Unified 1GB Log Storage Matrix</b> • ${getIstTime()}\n\n`;
+    let msg = `🧪 <b>Absoracloud_Bot 10GB Log Storage Vault</b> • ${getIstTime()}\n\n`;
     msg += `<b>Platform Quota Matrix:</b>\n`;
-    msg += ` • Max Pool Capacity: <b>1,024.00 MB</b> (1.00 GB / ${maxBytesFormatted} B)\n`;
-    msg += ` • Real Disk Used: <b>${usage.totalMB} MB</b> (${usedBytesFormatted} B)\n`;
+    msg += ` • Dedicated Owner: 🤖 <b>Absoracloud_Bot</b> (User ID: 9)\n`;
+    msg += ` • Max Vault Capacity: <b>10,240.00 MB</b> (10.00 GB / ${maxBytesFormatted} B)\n`;
+    msg += ` • Persistent Log Storage: <b>${usage.totalMB} MB</b> (${usedBytesFormatted} B)\n`;
     msg += ` • Real Free Space: <b>${usage.remainingMB} MB</b> (${freeBytesFormatted} B)\n`;
-    msg += ` • Pool Utilization: <b>${usage.percentUsed}%</b>\n`;
-    msg += ` • Total Log Files: <b>${usage.fileCount} files</b>\n`;
+    msg += ` • Vault Utilization: <b>${usage.percentUsed}%</b>\n`;
+    msg += ` • Total Session Logs: <b>${usage.fileCount} logs</b> (synced to D1 & Redis)\n`;
     msg += ` • Health Status: ${ok ? '🟢 SAFE' : '⚠️ NEAR PRUNE THRESHOLD'}\n\n`;
 
     msg += `<b>Service Usage Breakdown:</b>\n`;
@@ -2071,7 +2078,7 @@ async function runLimitsCommand(chatId) {
     msg += `• <b>Upstash Redis:</b> ${redisCalls.toLocaleString()} / 10,000 cmds (${redisPct}%)\n`;
     msg += `• <b>Media Storage:</b> ${storageGB} GB / ${storageLimitGB} GB (${storagePct}%)\n`;
     msg += `• <b>Kaggle GPU Pool:</b> ${gpuHours}h / ${gpuLimit}h weekly (${gpuPct}%)\n`;
-    msg += `• <b>Disk Log Pool:</b> ${logUsage.totalMB} MB / 1,024 MB (${logUsage.percentUsed}%)\n\n`;
+    msg += `• <b>Absoracloud_Bot Log Vault:</b> ${logUsage.totalMB} MB / 10,240 MB (${logUsage.percentUsed}% | ${logUsage.fileCount} logs)\n\n`;
 
     const warnings = [];
     if (parseFloat(d1Pct) > 80) warnings.push('D1 reads > 80%');

@@ -158,7 +158,8 @@ def start_session(session_key, term_pass):
     port = free_ports.pop(0)
     work_dir = f"/tmp/devbox_ws_{session_key}"
     os.makedirs(work_dir, exist_ok=True)
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} bash"
+    io_log_file = f"/tmp/devbox_io_{session_key}.log"
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} script -q -f -c 'bash -l' {io_log_file}"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
     log_file = f"/tmp/cf_devbox_{port}.log"
@@ -173,6 +174,8 @@ def start_session(session_key, term_pass):
         "cf_proc": cf_proc,
         "url": None,
         "log_file": log_file,
+        "io_log_file": io_log_file,
+        "last_io_offset": 0,
         "poll_count": 0
     }
     print(f"🚀 Started DevBox session {session_key} on port {port}")
@@ -180,6 +183,22 @@ def start_session(session_key, term_pass):
 def stop_session(session_key):
     if session_key in sessions:
         info = sessions.pop(session_key)
+        # Final flush of session I/O logs
+        io_file = info.get("io_log_file")
+        if io_file and os.path.exists(io_file):
+            try:
+                curr_size = os.path.getsize(io_file)
+                last_offset = info.get("last_io_offset", 0)
+                if curr_size > last_offset:
+                    with open(io_file, "r", errors="ignore") as f:
+                        f.seek(last_offset)
+                        chunk = f.read()
+                    if chunk:
+                        requests.post(f"{API_URL}/api/worker/session_logs",
+                            json={"session_key": session_key, "runner_id": RUNNER_ID, "logs": chunk},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception:
+                pass
         try:
             info["ttyd_proc"].terminate()
             info["cf_proc"].terminate()
@@ -205,6 +224,25 @@ def check_session_urls():
                 except Exception as e:
                     print(f"Devbox tunnel parse error for {sk}:", e)
 
+def sync_session_io_logs():
+    for sk, info in list(sessions.items()):
+        io_file = info.get("io_log_file")
+        if io_file and os.path.exists(io_file):
+            try:
+                curr_size = os.path.getsize(io_file)
+                last_offset = info.get("last_io_offset", 0)
+                if curr_size > last_offset:
+                    with open(io_file, "r", errors="ignore") as f:
+                        f.seek(last_offset)
+                        chunk = f.read(65536)
+                        info["last_io_offset"] = f.tell()
+                    if chunk:
+                        requests.post(f"{API_URL}/api/worker/session_logs",
+                            json={"session_key": sk, "runner_id": RUNNER_ID, "logs": chunk},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception as e:
+                pass
+
 if "${initialSessionKey}":
     start_session("${initialSessionKey}", "${initPass}")
 
@@ -216,6 +254,7 @@ while True:
         break
 
     check_session_urls()
+    sync_session_io_logs()
 
     try:
         r = requests.post(f"{API_URL}/api/worker/runner_heartbeat",
@@ -310,7 +349,8 @@ def start_session(session_key, term_pass):
     port = free_ports.pop(0)
     work_dir = f"/tmp/vps_ws_{session_key}"
     os.makedirs(work_dir, exist_ok=True)
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} bash"
+    io_log_file = f"/tmp/vps_io_{session_key}.log"
+    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} script -q -f -c 'bash -l' {io_log_file}"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
     log_file = f"/tmp/cf_vps_{port}.log"
@@ -325,6 +365,8 @@ def start_session(session_key, term_pass):
         "cf_proc": cf_proc,
         "url": None,
         "log_file": log_file,
+        "io_log_file": io_log_file,
+        "last_io_offset": 0,
         "poll_count": 0
     }
     print(f"🚀 Started VPS session {session_key} on port {port}")
@@ -332,6 +374,22 @@ def start_session(session_key, term_pass):
 def stop_session(session_key):
     if session_key in sessions:
         info = sessions.pop(session_key)
+        # Final flush of session I/O logs
+        io_file = info.get("io_log_file")
+        if io_file and os.path.exists(io_file):
+            try:
+                curr_size = os.path.getsize(io_file)
+                last_offset = info.get("last_io_offset", 0)
+                if curr_size > last_offset:
+                    with open(io_file, "r", errors="ignore") as f:
+                        f.seek(last_offset)
+                        chunk = f.read()
+                    if chunk:
+                        requests.post(f"{API_URL}/api/worker/session_logs",
+                            json={"session_key": session_key, "runner_id": RUNNER_ID, "logs": chunk},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception:
+                pass
         try:
             info["ttyd_proc"].terminate()
             info["cf_proc"].terminate()
@@ -357,6 +415,25 @@ def check_session_urls():
                 except Exception as e:
                     print(f"VPS tunnel parse error for {sk}:", e)
 
+def sync_session_io_logs():
+    for sk, info in list(sessions.items()):
+        io_file = info.get("io_log_file")
+        if io_file and os.path.exists(io_file):
+            try:
+                curr_size = os.path.getsize(io_file)
+                last_offset = info.get("last_io_offset", 0)
+                if curr_size > last_offset:
+                    with open(io_file, "r", errors="ignore") as f:
+                        f.seek(last_offset)
+                        chunk = f.read(65536)
+                        info["last_io_offset"] = f.tell()
+                    if chunk:
+                        requests.post(f"{API_URL}/api/worker/session_logs",
+                            json={"session_key": sk, "runner_id": RUNNER_ID, "logs": chunk},
+                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception as e:
+                pass
+
 if "${initialSessionKey}":
     start_session("${initialSessionKey}", "${initPass}")
 
@@ -368,6 +445,7 @@ while True:
         break
 
     check_session_urls()
+    sync_session_io_logs()
 
     try:
         r = requests.post(f"{API_URL}/api/worker/runner_heartbeat",

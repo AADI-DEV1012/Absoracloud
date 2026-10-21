@@ -147,7 +147,7 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
     const fileBuffer = Buffer.from(content_base64, 'base64');
     const fileSize = fileBuffer.length;
 
-    // Check plan quota: 100% full storage allocated to user (logs managed in unified 1GB platform pool)
+    // Check plan quota: 100% full storage allocated to user (logs managed under Absoracloud_Bot 10GB vault)
     const plan = getPlan(req.user.plan || 'free');
     const totalStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
     const usableStorageBytes = totalStorageBytes;

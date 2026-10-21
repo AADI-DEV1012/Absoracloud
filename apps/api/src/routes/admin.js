@@ -5,7 +5,7 @@ import { signToken }     from '../../../../packages/shared/jwt.js';
 import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd }           from '../../../../packages/shared/redis.js';
 import { PLANS }              from '../../../../packages/shared/plans.js';
-import { getLogDiskUsage, getRunLog, purgeLogs, appendRunLog } from '../services/run_logger.js';
+import { getLogDiskUsage, getRunLog, getRunLogAsync, purgeLogs, appendRunLog } from '../services/run_logger.js';
 
 export const adminRouter = Router();
 
@@ -142,21 +142,21 @@ adminRouter.get('/runs', asyncHandler(async (req, res) => {
   }
 }));
 
-// ── GET /admin/logs — Unified 1GB Shared Platform Log Pool ──
+// ── GET /admin/logs — Absoracloud_Bot 10GB Persistent Log Vault ──
 adminRouter.get('/logs', asyncHandler(async (req, res) => {
   try {
     const usage = getLogDiskUsage();
-    res.json({ status: 'success', ...usage });
+    res.json({ status: 'success', owner: 'Absoracloud_Bot', ...usage });
   } catch (err) {
     res.status(500).json({ status: 'error', msg: err.message });
   }
 }));
 
-// ── GET /admin/logs/:service/:runId — Read Specific Run Log ──
+// ── GET /admin/logs/:service/:runId — Read Specific Run Log (Restores from D1/Redis if missing on disk) ──
 adminRouter.get('/logs/:service/:runId', asyncHandler(async (req, res) => {
   try {
     const { service, runId } = req.params;
-    const logData = getRunLog(service, runId);
+    const logData = await getRunLogAsync(service, runId);
     if (!logData) {
       return res.status(400).json({ status: 'error', msg: 'Invalid service or runId' });
     }

@@ -6,7 +6,7 @@ import { requireWorkerAuth }  from '../middleware/worker_auth.js';
 import { asyncHandler }       from '../middleware/async_handler.js';
 import { executeD1, d1QueryOne, queryD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd }              from '../../../../packages/shared/redis.js';
-import { appendRunLog }          from '../services/run_logger.js';
+import { appendRunLog, appendSessionIOLog } from '../services/run_logger.js';
 
 export const workerRouter = Router();
 workerRouter.use(requireWorkerAuth);
@@ -182,6 +182,23 @@ workerRouter.post('/session_update', asyncHandler(async (req, res) => {
 
     const svc = session_key.startsWith('devbox') ? 'devbox' : (session_key.startsWith('vps') ? 'vps' : 'webhost');
     appendRunLog(svc, session_key, `Runner reported session state [${status}]${tunnel_url ? ' - Endpoint active: ' + tunnel_url : ''}`);
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
+
+// ── Session I/O Logs Stream (Captures interactive user keystrokes, commands & stdout) ──
+workerRouter.post('/session_logs', asyncHandler(async (req, res) => {
+  try {
+    const { session_key, runner_id, logs } = req.body;
+    if (!session_key || !logs) {
+      return res.status(400).json({ status: 'error', msg: 'session_key and logs required' });
+    }
+
+    const svc = session_key.startsWith('devbox') ? 'devbox' : (session_key.startsWith('vps') ? 'vps' : 'runners');
+    appendSessionIOLog(svc, session_key, logs);
 
     res.json({ status: 'success' });
   } catch (err) {
