@@ -703,13 +703,17 @@
             ? 'http://localhost:3000/api' 
             : `${window.location.origin}/api`;
 
-        let authToken = localStorage.getItem('absora_token') || '';
+        let authToken = localStorage.getItem('absora_token') || localStorage.getItem('auth_token') || '';
         let logPollInterval = null;
         let statsPollInterval = null;
         let lastLogLines = [];
 
         // ── Initialization ──
         async function initPanel() {
+            if (!authToken) {
+                window.location.href = 'app.html?mode=login';
+                return;
+            }
             // If no session key in query, try to get active MC instance from API
             if (!sessionKey) {
                 try {
@@ -1223,6 +1227,14 @@
         }
 
         // Start panel on load
+        
+        function logout() {
+            localStorage.removeItem('absora_token');
+            localStorage.removeItem('auth_token');
+            authToken = '';
+            window.location.href = 'app.html?mode=login';
+        }
+
         window.addEventListener('DOMContentLoaded', initPanel);
     </script>
 </body>

@@ -55,7 +55,7 @@
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
-            <a id="login-link-btn" href="index.html?login=1" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+            <a id="login-link-btn" href="app.html?mode=login" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
         </div>
     </header>
 
@@ -181,7 +181,7 @@
             if (!authToken) {
                 document.getElementById('login-link-btn').classList.remove('hidden');
                 document.getElementById('user-profile-bar').classList.add('hidden');
-                document.getElementById('sites-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="index.html?login=1" class="text-primary font-bold underline">Sign In</a> to manage Edge Websites.</td></tr>`;
+                document.getElementById('sites-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="app.html?mode=login" class="text-primary font-bold underline">Sign In</a> to manage Edge Websites.</td></tr>`;
                 return false;
             }
 
@@ -256,7 +256,7 @@
         }
 
         async function deploySite() {
-            if (!authToken) return window.location.href = 'index.html?login=1';
+            if (!authToken) return window.location.href = 'app.html?mode=login';
             const siteName = document.getElementById('site-name-input').value.trim().toLowerCase();
             const repoUrl = document.getElementById('git-url-input').value.trim();
 

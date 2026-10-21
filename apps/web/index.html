@@ -1,1249 +1,838 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+
+<html class="dark" lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AbsoraCloud | Sliced Cloud Compute, GPU Workstations & Edge Infrastructure</title>
-    <meta name="description" content="Next-generation cloud infrastructure: sliced isolated VPS compute, hardware-accelerated Dual GPU workstations, zero cold-start edge functions, Git-connected web hosting, and multi-zone secure cloud storage.">
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>AbsoraCloud — Rent a corner of the sky</title>
+    <!-- Typography: Playfair Display, Geist, JetBrains Mono -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Material Symbols Outlined -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              surface: "#fdf8f8",
-              "surface-container": "#f7f3f2",
-              "surface-container-high": "#f1edec",
-              primary: "#1A1A1A",
-              secondary: "#5f5e5b",
-              border: "#E5E1DA",
-            },
-            fontFamily: {
-              sans: ["Inter", "sans-serif"],
-              heading: ["Sora", "sans-serif"],
-              mono: ["JetBrains Mono", "monospace"]
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#7e2c00",
+                        "surface-container-low": "#1a1b20",
+                        "on-secondary-fixed-variant": "#3e4757",
+                        "surface-dim": "#121318",
+                        "on-tertiary-fixed": "#1d1c12",
+                        "primary-fixed": "#ffdbcd",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#0d0e13",
+                        "inverse-primary": "#a53c00",
+                        "secondary-fixed": "#dae3f7",
+                        "on-surface-variant": "#dfc0b4",
+                        "on-error-container": "#ffdad6",
+                        "on-background": "#e3e2e9",
+                        "on-surface": "#e3e2e9",
+                        "tertiary-container": "#a5a193",
+                        "surface-container-highest": "#33343a",
+                        "background": "#121318",
+                        "outline-variant": "#584239",
+                        "surface-tint": "#ffb598",
+                        "tertiary": "#cbc6b7",
+                        "surface": "#121318",
+                        "on-secondary-fixed": "#131c2a",
+                        "surface-bright": "#38393e",
+                        "secondary-fixed-dim": "#bec7da",
+                        "on-tertiary": "#333026",
+                        "on-secondary-container": "#acb5c8",
+                        "inverse-surface": "#e3e2e9",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed": "#360f00",
+                        "on-primary-container": "#652200",
+                        "primary-fixed-dim": "#ffb598",
+                        "on-tertiary-container": "#3a382d",
+                        "error-container": "#93000a",
+                        "surface-variant": "#33343a",
+                        "primary": "#ffb598",
+                        "tertiary-fixed-dim": "#cbc6b7",
+                        "surface-container": "#1e1f25",
+                        "on-tertiary-fixed-variant": "#49473b",
+                        "secondary-container": "#3e4757",
+                        "inverse-on-surface": "#2f3036",
+                        "on-primary": "#591d00",
+                        "outline": "#a78b80",
+                        "primary-container": "#ff7a3d",
+                        "surface-container-high": "#292a2f",
+                        "on-secondary": "#283140",
+                        "secondary": "#bec7da",
+                        "tertiary-fixed": "#e8e2d3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "space-xl": "2.5rem",
+                        "gutter-mobile": "1rem",
+                        "space-lg": "1.5rem",
+                        "gutter": "1.5rem",
+                        "space-sm": "0.5rem",
+                        "space-3xl": "6rem",
+                        "margin": "3rem",
+                        "space-2xl": "4rem",
+                        "space-md": "1rem",
+                        "space-xs": "0.25rem",
+                        "margin-mobile": "1.25rem"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Playfair Display"],
+                        "display-mobile": ["Playfair Display"],
+                        "code-md": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "body-md": ["Geist"],
+                        "body-sm": ["Geist"],
+                        "display": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "code-sm": ["JetBrains Mono"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+                        "display-mobile": ["38px", { "lineHeight": "46px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+                        "code-md": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["10px", { "lineHeight": "14px", "letterSpacing": "0.14em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["15px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display": ["64px", { "lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "code-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0", "fontWeight": "500" }]
+                    }
+                }
             }
-          }
         }
-      }
     </script>
     <style>
-      :root {
-        --bg: #fdf8f8;
-        --s1: #ffffff;
-        --s2: #f1edec;
-        --s3: #ebe7e6;
-        --primary: #1A1A1A;
-        --dim: #8C8984;
-        --border: #E5E1DA;
-        --green: #16a34a;
-      }
-      body {
-        background-color: var(--bg);
-        color: var(--primary);
-        font-family: 'Inter', sans-serif;
-      }
-      .font-heading { font-family: 'Sora', sans-serif; }
-      .font-mono { font-family: 'JetBrains Mono', monospace; }
-      
-      #landing-hero {
-        position: relative;
-        background: radial-gradient(ellipse 90% 60% at 50% -5%, rgba(28,27,27,0.05) 0%, transparent 65%);
-      }
-      #landing-hero::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background-image: linear-gradient(rgba(28,27,27,0.03) 1px, transparent 1px),
-                         linear-gradient(90deg, rgba(28,27,27,0.03) 1px, transparent 1px);
-        background-size: 44px 44px;
-      }
-      .badge {
-        background: #f1edec;
-        border: 1px solid var(--border);
-        color: var(--primary);
-        font-size: .72rem;
-        font-weight: 700;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        padding: 5px 14px;
-        border-radius: 100px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .bdot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--green);
-        animation: pulse 2s infinite;
-      }
-      @keyframes pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,.4); }
-        50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); }
-      }
-      .hero-title {
-        font-family: 'Sora', sans-serif;
-        font-size: clamp(2.3rem, 4.8vw, 3.8rem);
-        font-weight: 700;
-        line-height: 1.1;
-        letter-spacing: -.03em;
-        color: #1A1A1A;
-      }
-      .grad { color: #8C8984; }
-      .hero-sub {
-        color: #8C8984;
-        font-size: 1rem;
-        max-width: 580px;
-        line-height: 1.65;
-        margin: 16px auto 32px auto;
-      }
-      .specs-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin: 0 auto 32px auto;
-        max-width: 640px;
-        width: 100%;
-      }
-      .spec-card {
-        background: #ffffff;
-        border: 1px solid var(--border);
-        padding: 18px;
-        border-radius: 12px;
-        text-align: center;
-        transition: all .22s cubic-bezier(0.16, 1, 0.3, 1);
-        cursor: default;
-        box-shadow: 0 2px 6px -1px rgba(0,0,0,0.03);
-      }
-      .spec-card:hover {
-        border-color: #8C8984;
-        transform: translateY(-2px);
-      }
-      .spec-icon {
-        font-size: 20px;
-        color: #1A1A1A;
-        margin-bottom: 8px;
-      }
-      .spec-val {
-        font-size: 1.05rem;
-        font-weight: 700;
-        font-family: 'Sora', sans-serif;
-      }
-      .spec-label {
-        color: #8C8984;
-        font-size: .78rem;
-        margin-top: 3px;
-      }
-      .cta-row {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        justify-content: center;
-      }
-      .cta-btn {
-        background: #1A1A1A;
-        color: #fff;
-        padding: 12px 28px;
-        border-radius: 10px;
-        font-size: .88rem;
-        font-weight: 700;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,.15);
-        transition: all .22s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-family: 'Inter', sans-serif;
-      }
-      .cta-btn:hover {
-        background: #404040;
-        transform: translateY(-1px);
-      }
-      .outline-btn {
-        background: #ffffff;
-        color: #1A1A1A;
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-size: .88rem;
-        font-weight: 600;
-        border: 1px solid var(--border);
-        cursor: pointer;
-        transition: all .2s;
-        font-family: 'Inter', sans-serif;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .outline-btn:hover {
-        background: #f1edec;
-        border-color: #747878;
-      }
-      .plans-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-      }
-      @media (max-width: 960px) {
-        .plans-grid { grid-template-columns: repeat(2, 1fr); }
-      }
-      @media (max-width: 640px) {
-        .specs-grid { grid-template-columns: 1fr; }
-        .plans-grid { grid-template-columns: 1fr; }
-        .cta-row { flex-direction: column; width: 100%; }
-        .cta-btn, .outline-btn { width: 100%; justify-content: center; }
-      }
-      .plan-card {
-        background: #ffffff;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        transition: .22s;
-        position: relative;
-        overflow: hidden;
-      }
-      .plan-card:hover { transform: translateY(-3px); }
-      .plan-card.current {
-        border-color: #1A1A1A;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-      }
-      .plan-name { font-size: 1.15rem; font-weight: 800; font-family: 'Sora', sans-serif; }
-      .plan-price { font-size: 1.8rem; font-weight: 800; font-family: 'Sora', sans-serif; line-height: 1; }
-      .plan-price span { font-size: .85rem; font-weight: 400; color: #8C8984; font-family: 'Inter', sans-serif; }
-      .plan-features { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
-      .plan-features li { font-size: .8rem; color: #8C8984; display: flex; align-items: center; gap: 8px; }
-      .plan-features li i { color: #16a34a; font-size: .75rem; }
-      .popular-tag {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        background: #1A1A1A;
-        color: #fff;
-        font-size: .62rem;
-        font-weight: 700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        padding: 3px 8px;
-        border-radius: 100px;
-      }
-      .glass-card {
-        background: #ffffff;
-        border: 1px solid var(--border);
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
-      }
-      .glass-card-hover {
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      .glass-card-hover:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.07);
-      }
-      .nav-tab.active {
-        background-color: #1A1A1A;
-        color: #ffffff;
-      }
-      .nav-tab.active i {
-        color: #ffffff;
-      }
+        /* Strict technical cartography rules */
+        body {
+            background-color: #05060A;
+            color: #E9E5DA;
+            overflow-x: hidden;
+        }
+
+        /* Subtle hair crosshairs */
+        .crosshair-corner {
+            position: relative;
+        }
+
+        .crosshair-corner::before {
+            content: "+";
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1;
+            color: #2A3648;
+            pointer-events: none;
+        }
+
+        /* Astrometry linework */
+        .border-astro {
+            border-color: #1E2633;
+        }
+
+        .border-astro-muted {
+            border-color: #141A24;
+        }
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-neutral-900 selection:text-white">
 
-    <!-- Global Top Navigation Bar -->
-    <header class="glass-card sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between border-b backdrop-blur-md bg-white/95">
-        <div class="flex items-center gap-6">
-            <a href="javascript:void(0)" onclick="navigateTo('landing')" class="flex items-center gap-2.5 group">
-                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs font-heading shadow-sm group-hover:scale-105 transition">
-                    <i class="fa-solid fa-cloud"></i>
-                </div>
-                <span class="font-heading font-extrabold text-base text-primary tracking-tight">AbsoraCloud</span>
-            </a>
-
-            <!-- Landing Navigation Links -->
-            <nav id="landing-nav-links" class="hidden md:flex items-center gap-5 text-xs font-semibold text-neutral-600">
-                <a href="features.html" class="hover:text-primary transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-bolt text-neutral-400"></i> Features
-                </a>
-                <a href="plans.html" class="hover:text-primary transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-tags text-neutral-400"></i> Plans
-                </a>
-                <a href="javascript:void(0)" onclick="navigateTo('terms')" class="hover:text-primary transition">Terms</a>
-                <a href="javascript:void(0)" onclick="navigateTo('refund')" class="hover:text-primary transition">Refund Policy</a>
-                <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 text-neutral-700">
-                    <i class="fa-brands fa-github text-sm"></i> GitHub
-                </a>
-            </nav>
-        </div>
-
-        <div class="flex items-center gap-4">
-            <!-- Platform Status Pill -->
-            <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-[11px] font-semibold text-neutral-700">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Edge Infrastructure Online</span>
+<body
+    class="bg-[#05060A] text-[#E9E5DA] selection:bg-primary-container selection:text-[#05060A] font-body-md text-body-md min-h-screen flex flex-col justify-between">
+    <!-- Interactive State Sim Pill: Top Utility Bar -->
+    <header class="w-full bg-[#08090E] border-b border-[#1E2633]/60 py-1.5 px-4 md:px-margin z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between font-code-sm text-code-sm text-[#868D9A]">
+            <div class="flex items-center gap-3">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                <span class="tracking-widest uppercase">STATION: MT_PALOMAR_OBS // LAT 33.3563° N</span>
             </div>
 
-            <!-- Auth / Console Navigation Area -->
-            <div id="nav-auth-area" class="flex items-center gap-2">
-                <button onclick="navigateTo('auth', 'login')" class="outline-btn text-xs" style="padding: 7px 16px;">
-                    Sign In
-                </button>
-                <button onclick="navigateTo('auth', 'register')" class="cta-btn text-xs" style="padding: 7px 18px;">
-                    Get Started Free
-                </button>
-            </div>
         </div>
     </header>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW 1: LANDING PAGE -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="view-landing" class="flex-1 flex flex-col">
-        <!-- Hero Section -->
-        <section id="landing-hero" class="pt-20 pb-20 px-6 max-w-6xl mx-auto w-full text-center">
-            <div class="badge">
-                <div class="bdot"></div>
-                <span>Unified Cloud Ecosystem — Free Community Tier Available</span>
-            </div>
-
-            <h1 class="hero-title mt-4">
-                <span class="grad">AbsoraCloud</span><br>Instant Cloud Compute & Workstations
-            </h1>
-
-            <p class="hero-sub">
-                Deploy sliced isolated VPS containers, hardware-accelerated Dual GPU workstations, sub-millisecond edge serverless functions, automated web hosting, and multi-zone secure cloud storage.
-            </p>
-
-            <div class="specs-grid">
-                <div class="spec-card">
-                    <i class="fa-solid fa-microchip spec-icon"></i>
-                    <div class="spec-val">AMD EPYC™</div>
-                    <div class="spec-label">Up to 4 Sliced Cores</div>
-                </div>
-                <div class="spec-card">
-                    <i class="fa-solid fa-bolt spec-icon text-purple-600"></i>
-                    <div class="spec-val">Dual GPU 32GB</div>
-                    <div class="spec-label">Nvidia Tesla T4 Workstation</div>
-                </div>
-                <div class="spec-card">
-                    <i class="fa-solid fa-network-wired spec-icon"></i>
-                    <div class="spec-val">10 Gbps Edge</div>
-                    <div class="spec-label">Global Low-Latency Ingress</div>
-                </div>
-            </div>
-
-            <div class="cta-row flex-wrap justify-center">
-                <button class="cta-btn" onclick="navigateTo('auth', 'register')">
-                    <i class="fa-solid fa-rocket"></i> Get Started Free
-                </button>
-                <button class="outline-btn" onclick="navigateTo('dashboard')">
-                    <i class="fa-solid fa-terminal"></i> Open Cloud Console
-                </button>
-                <a href="features.html" class="outline-btn">
-                    <i class="fa-solid fa-microchip"></i> Explore Features
+    <!-- TopNavBar (Shared Component Anchor) -->
+    <nav class="bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant/30">
+        <div class="w-full max-w-7xl mx-auto px-gutter flex items-center justify-between h-14">
+            <!-- Brand Logo -->
+            <a class="font-code-md text-code-md tracking-widest uppercase font-medium text-on-surface flex items-center gap-2 transition-colors duration-150 hover:text-primary"
+                href="index.html">
+                <span class="text-primary-container text-sm leading-none select-none">✦</span>
+                <span>AbsoraCloud</span>
+            </a>
+            <!-- Center Navigation Links -->
+            <div class="hidden md:flex items-center gap-8">
+                <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                    href="features.html">
+                    Features
                 </a>
-                <a href="plans.html" class="outline-btn">
-                    <i class="fa-solid fa-tags"></i> View Plans & Pricing
-                </a>
-                <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" rel="noopener noreferrer" class="outline-btn">
-                    <i class="fa-brands fa-github text-sm"></i> Star on GitHub
+                <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                    href="plans.html">
+                    Plans
                 </a>
             </div>
-
-            <!-- Feature & Plans Teaser Navigation Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14 text-left max-w-5xl mx-auto w-full">
-                <a href="features.html" class="group block p-6 rounded-2xl border border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-md transition">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-                            <i class="fa-solid fa-bolt text-amber-500"></i> Platform Architecture
-                        </span>
-                        <i class="fa-solid fa-arrow-right text-xs text-neutral-400 group-hover:text-primary group-hover:translate-x-1 transition"></i>
-                    </div>
-                    <h3 class="font-heading font-extrabold text-lg text-primary">Explore Enterprise Capabilities</h3>
-                    <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">Sliced isolated VPS containers, Dual Tesla T4 GPU 32GB ML workstations, sub-ms Edge Functions, automated WebHosting, and global S3-compatible cloud storage.</p>
-                    <div class="mt-4 text-xs font-bold text-primary flex items-center gap-1.5">
-                        Deep Dive into Features <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                    </div>
-                </a>
-
-                <a href="plans.html" class="group block p-6 rounded-2xl border border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-md transition">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-                            <i class="fa-solid fa-coins text-emerald-600"></i> Transparent Pricing
-                        </span>
-                        <i class="fa-solid fa-arrow-right text-xs text-neutral-400 group-hover:text-primary group-hover:translate-x-1 transition"></i>
-                    </div>
-                    <h3 class="font-heading font-extrabold text-lg text-primary">Plans for Every Scale</h3>
-                    <p class="text-xs text-neutral-500 mt-1.5 leading-relaxed">Free forever community tier, Starter at ₹99/mo, Pro at ₹299/mo, and Enterprise at ₹799/mo with full technical matrix and currency switcher.</p>
-                    <div class="mt-4 text-xs font-bold text-primary flex items-center gap-1.5">
-                        Compare All Plans <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                    </div>
-                </a>
-            </div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="mt-auto border-t border-neutral-200 py-10 px-6 text-xs text-neutral-500 bg-white">
-            <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                <div class="flex items-center gap-2 font-heading font-bold text-primary text-sm">
-                    <div class="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center text-xs">
-                        <i class="fa-solid fa-cloud"></i>
-                    </div>
-                    <span>AbsoraCloud V3</span>
-                </div>
-                <div class="flex flex-wrap items-center justify-center gap-6 font-medium">
-                    <a href="features.html" class="hover:text-primary transition">Features</a>
-                    <a href="plans.html" class="hover:text-primary transition">Plans</a>
-                    <a href="javascript:void(0)" onclick="navigateTo('terms')" class="hover:text-primary transition">Terms & Conditions</a>
-                    <a href="javascript:void(0)" onclick="navigateTo('refund')" class="hover:text-primary transition">Refund Policy</a>
-                    <a href="javascript:void(0)" onclick="navigateTo('privacy')" class="hover:text-primary transition">Privacy Policy</a>
-                    <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 font-bold">
-                        <i class="fa-brands fa-github text-sm"></i> GitHub Repo
+            <!-- Right Trailing Controls (Dynamically toggled) -->
+            <div class="flex items-center gap-5">
+                <!-- Signed-out Cluster -->
+                <div class="hidden items-center gap-4" id="nav-signed-out">
+                    <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                        href="app.html?mode=login">
+                        Sign in
+                    </a>
+                    <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm tracking-wider uppercase font-medium px-3.5 py-1.5 transition-all duration-150 ease-out hover:brightness-110 active:opacity-80"
+                        href="app.html?mode=register">
+                        Get started free
                     </a>
                 </div>
-                <div class="text-neutral-400 text-[11px]">
-                    &copy; 2026 AbsoraCloud Inc. All rights reserved.
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW: TERMS AND CONDITIONS -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="view-terms" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
-        <div class="mb-8 flex items-center justify-between">
-            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
-                <i class="fa-solid fa-arrow-left"></i> Back to Home
-            </button>
-            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
-        </div>
-
-        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
-            <div>
-                <span class="badge mb-3">Legal Agreement</span>
-                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Terms and Conditions</h1>
-                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Please read these Terms and Conditions carefully before provisioning or using any services provided by AbsoraCloud.</p>
-            </div>
-
-            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Acceptance of Terms</h3>
-                    <p>By registering for an account, accessing the AbsoraCloud web dashboard, or using our API endpoints, you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to these terms, you must not use or access any AbsoraCloud services.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Description of Cloud Services</h3>
-                    <p>AbsoraCloud provides high-performance computing infrastructure including multi-tenant sliced VPS cloud containers, hardware-accelerated Dual GPU DevBox workstations, AbsoraEdge serverless micro-functions, automated web hosting, and multi-zone secure cloud storage. All services are governed by resource quotas based on your subscription tier.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Acceptable Use Policy (AUP)</h3>
-                    <p>You agree to use AbsoraCloud infrastructure exclusively for lawful development, testing, and operational purposes. The following activities are strictly prohibited and will result in immediate permanent account termination without refund:</p>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
-                        <li>Cryptocurrency mining of any kind on CPU or GPU instances.</li>
-                        <li>Launching Denial-of-Service (DoS/DDoS) attacks, port scanning, or vulnerability exploits.</li>
-                        <li>Hosting or distributing malicious software, viruses, ransomware, or botnets.</li>
-                        <li>Hosting or transmitting unsolicited commercial bulk email (spam) or phishing pages.</li>
-                        <li>Distribution of pirated or copyright-infringing content without authorization.</li>
-                        <li>Attempting to bypass kernel sandbox cgroups or compromise host virtualization security.</li>
-                    </ul>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Fair-Share Resource Quotas & Scheduling</h3>
-                    <p>To preserve performance integrity for all users, compute instances are subject to maximum continuous session caps, weekly runtime limits, and storage boundaries as defined in your active plan. We reserve the right to throttle or suspend workloads that exceed their allocated hardware boundaries or degrade shared system capacity.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">5. Account Security & Credentials</h3>
-                    <p>You are solely responsible for safeguarding your login credentials, API authorization tokens, and private cryptographic keys. You must immediately notify AbsoraCloud of any unauthorized account activity. AbsoraCloud will not be liable for any loss resulting from compromised access keys.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">6. Service Availability & Maintenance</h3>
-                    <p>AbsoraCloud targets a 99.9% uptime availability across all core edge systems. Scheduled maintenance windows will be communicated via the dashboard status indicator. Ephemeral compute instances should not be treated as permanent persistent servers; users must maintain independent backups of critical data.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">7. Intellectual Property & Customer Data</h3>
-                    <p>You retain full and exclusive ownership of all software code, data models, and content deployed onto our platform. AbsoraCloud claims no ownership rights over your intellectual property.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">8. Disclaimers & Limitation of Liability</h3>
-                    <p>AbsoraCloud services are provided on an "AS IS" and "AS AVAILABLE" basis. To the maximum extent permitted by applicable law, AbsoraCloud disclaims all warranties, express or implied. Under no circumstances will AbsoraCloud be liable for indirect, incidental, punitive, or consequential damages arising from service interruptions or data loss.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">9. Modifications to Terms</h3>
-                    <p>We reserve the right to modify these Terms at any time. Continued use of the platform after updates are posted constitutes acceptance of the revised Terms.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">10. Contact Information</h3>
-                    <p>For questions regarding these Terms and Conditions, please contact us via our official repository at <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" class="text-primary font-bold underline">https://github.com/AADI-DEV1012/Absoracloud</a>.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW: REFUND POLICY -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="view-refund" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
-        <div class="mb-8 flex items-center justify-between">
-            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
-                <i class="fa-solid fa-arrow-left"></i> Back to Home
-            </button>
-            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
-        </div>
-
-        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
-            <div>
-                <span class="badge mb-3">Consumer Guarantee</span>
-                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Refund & Cancellation Policy</h1>
-                <p class="text-neutral-500 text-xs sm:text-sm mt-2">We strive to ensure complete customer satisfaction with our compute infrastructure. Review our transparent refund terms below.</p>
-            </div>
-
-            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. 7-Day Money-Back Guarantee</h3>
-                    <p>All paid subscription plans (Basic, Pro, and Enterprise) are eligible for a 100% money-back refund within seven (7) calendar days from the initial payment date if you are unsatisfied with service performance or infrastructure reliability.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Eligibility Criteria</h3>
-                    <p>To qualify for a refund under our 7-Day Money-Back Guarantee:</p>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
-                        <li>The request must be submitted within 7 days of the transaction timestamp.</li>
-                        <li>Your account must be in good standing without any violations of our Acceptable Use Policy.</li>
-                        <li>Accounts suspended for cryptocurrency mining, abuse, or unauthorized traffic are strictly ineligible for refunds.</li>
-                    </ul>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Non-Refundable Items & Services</h3>
-                    <p>The following items are consumable and strictly non-refundable:</p>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-neutral-600">
-                        <li>Consumed GPU burst compute hours that have already been allocated and executed.</li>
-                        <li>Over-quota bandwidth or custom dedicated domain registration fees paid to third-party registries.</li>
-                        <li>Subscription renewals beyond the initial 7-day purchase window.</li>
-                    </ul>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Subscription Cancellations</h3>
-                    <p>You can cancel your recurring plan at any time through the Cloud Console under the Plans tab. Upon cancellation, your account will remain active at the paid tier until the conclusion of the current billing cycle, with no subsequent charges incurred.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">5. How to Request a Refund</h3>
-                    <p>To initiate a refund, please open an inquiry with your account username, transaction reference number, and reason for the refund via our official support repository at <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" class="text-primary font-bold underline">https://github.com/AADI-DEV1012/Absoracloud</a>. Approved refunds are credited back to the original payment method within 3 to 5 business days.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">6. Chargeback Protection</h3>
-                    <p>If you encounter any billing discrepancy, we ask that you contact our support team first to resolve the matter promptly before filing a payment dispute or chargeback with your financial institution.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW: PRIVACY POLICY -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="view-privacy" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
-        <div class="mb-8 flex items-center justify-between">
-            <button onclick="navigateTo('landing')" class="outline-btn text-xs">
-                <i class="fa-solid fa-arrow-left"></i> Back to Home
-            </button>
-            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
-        </div>
-
-        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
-            <div>
-                <span class="badge mb-3">Data Privacy</span>
-                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Privacy Policy</h1>
-                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Your privacy is fundamental to our architecture. Learn how AbsoraCloud manages and protects your data.</p>
-            </div>
-
-            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Information We Collect</h3>
-                    <p>We only collect information strictly required to authenticate and deliver compute services: your username, email address, hashed credentials, and telemetry related to instance execution and quota usage.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Zero Data Selling Guarantee</h3>
-                    <p>AbsoraCloud does not sell, license, or monetize your personal information, source code, uploaded files, or compute workloads to any third-party advertisers or data brokers under any circumstances.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Storage & Encryption</h3>
-                    <p>All authentication tokens use cryptographically signed JSON Web Tokens (JWT). File assets stored in Multi-Zone Cloud Storage are partitioned by user ID and encrypted with modern cryptographic standards.</p>
-                </div>
-
-                <div class="pt-4">
-                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Account Deletion</h3>
-                    <p>You may request permanent deletion of your account, active compute sessions, and stored cloud files at any time by contacting support via our GitHub repository.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW 2: DEDICATED AUTH PAGE (LOGIN & REGISTER) -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="view-auth" class="hidden flex-1 flex items-center justify-center p-6 relative">
-        <div class="absolute w-80 h-80 bg-neutral-200/50 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-
-        <div class="glass-card rounded-3xl p-8 sm:p-10 max-w-md w-full shadow-2xl border border-neutral-200">
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-2xl mx-auto font-heading mb-3 shadow-sm">
-                    ☁️
-                </div>
-                <h2 id="auth-page-title" class="font-heading font-extrabold text-2xl text-primary">Welcome Back</h2>
-                <p id="auth-page-subtitle" class="text-xs text-neutral-500 mt-1">Sign in to your AbsoraCloud account to manage compute.</p>
-            </div>
-
-            <!-- Auth Mode Switcher -->
-            <div class="flex p-1 bg-neutral-100 rounded-xl mb-6">
-                <button id="tab-btn-login" onclick="setAuthTab('login')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary">
-                    Sign In
-                </button>
-                <button id="tab-btn-register" onclick="setAuthTab('register')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary">
-                    Create Account
-                </button>
-            </div>
-
-            <form onsubmit="handleAuthSubmit(event)" class="space-y-4 text-xs">
-                <div id="field-username-wrapper" class="hidden">
-                    <label class="font-semibold text-neutral-700 block mb-1">Username</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-user absolute left-3.5 top-3 text-neutral-400"></i>
-                        <input id="auth-username" type="text" pattern="[a-zA-Z0-9_]{3,20}" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="cloud_user">
+                <!-- Signed-in Cluster (Hidden by default) -->
+                <div class="hidden items-center gap-4" id="nav-signed-in">
+                    <div class="flex items-center gap-2 text-code-sm font-code-sm text-tertiary">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                        <span class="text-[#E9E5DA]" id="nav-user-name">alex@absora</span>
                     </div>
-                </div>
-
-                <div>
-                    <label id="label-email" class="font-semibold text-neutral-700 block mb-1">Email / Username</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-neutral-400"></i>
-                        <input id="auth-login-input" type="text" required class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.qzz.io">
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex justify-between mb-1">
-                        <label class="font-semibold text-neutral-700">Password</label>
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-neutral-400"></i>
-                        <input id="auth-password-input" type="password" required minlength="6" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="••••••••">
-                    </div>
-                </div>
-
-                <!-- Error Toast / Alert -->
-                <div id="auth-error-box" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
-
-                <button id="auth-submit-btn" type="submit" class="w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-neutral-800 transition shadow-sm flex items-center justify-center gap-2">
-                    <span>Sign In</span>
-                </button>
-            </form>
-
-            <div class="text-center mt-6">
-                <button onclick="navigateTo('landing')" class="text-xs text-neutral-400 hover:text-neutral-700 transition">
-                    ← Back to AbsoraCloud Website
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- VIEW 3: CLOUD DASHBOARD / CONSOLE -->
-    <!-- ══════════════════════════════════════════════ -->
-        <div id="view-dashboard" class="hidden flex-1 overflow-y-auto bg-[#faf8f8]">
-        <div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
-            <!-- Navigation Back to Home Button -->
-            <div class="flex items-center justify-between">
-                <button onclick="navigateTo('landing')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-neutral-300 hover:bg-neutral-100 hover:text-primary transition text-xs font-semibold text-neutral-700 shadow-xs">
-                    <i class="fa-solid fa-arrow-left"></i> Back to Home
-                </button>
-                <div class="text-xs text-neutral-400 font-medium hidden sm:block">
-                    AbsoraCloud Console &bull; All Cloud Services
-                </div>
-            </div>
-
-            <!-- Top Greeting & Quota Overview Banner -->
-            <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white border border-neutral-200 shadow-xs">
-                <div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-neutral-900 text-white uppercase tracking-wider">
-                            <i class="fa-solid fa-terminal text-[10px]"></i> Cloud Console
-                        </span>
-                        <span class="text-xs text-neutral-400 font-medium">&bull; Multi-Tenant Global Edge</span>
-                    </div>
-                    <h1 class="text-2xl sm:text-3xl font-heading font-extrabold text-primary">
-                        Welcome, <span id="console-username">Engineer</span>
-                    </h1>
-                    <p class="text-xs sm:text-sm text-neutral-500 mt-1 max-w-xl">
-                        Launch isolated Linux VPS runners, Dual GPU workstations, V8 edge functions, static web deployments, object storage, and realtime pub/sub streams.
-                    </p>
-                </div>
-
-                <div class="flex flex-wrap sm:flex-nowrap items-center gap-4 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-3 text-xs">
-                            <span class="text-neutral-500 font-medium">Active Tier:</span>
-                            <span id="user-plan-badge" class="font-bold text-primary uppercase">Free Community</span>
-                        </div>
-                        <div class="w-36 sm:w-44 bg-neutral-200 h-2 rounded-full overflow-hidden">
-                            <div id="quota-progress-bar" class="bg-primary h-full w-1/4 transition-all duration-300"></div>
-                        </div>
-                        <div class="text-[11px] text-neutral-400 flex justify-between">
-                            <span>VPS Quota:</span>
-                            <span id="quota-text" class="font-semibold text-neutral-700">4h / week</span>
-                        </div>
-                    </div>
-                    <a href="#pricing" onclick="navigateTo('landing');" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-neutral-800 transition whitespace-nowrap shadow-xs">
-                        Upgrade
+                    <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm tracking-wider uppercase font-medium px-3.5 py-1.5 transition-all duration-150 ease-out hover:brightness-110 active:opacity-80"
+                        href="console.html">
+                        Open dashboard
                     </a>
                 </div>
-            </div>
-
-            <!-- Floating Services Grid -->
-            <div>
-                <div class="flex items-center justify-between mb-5">
-                    <div>
-                        <h2 class="font-heading font-bold text-lg text-primary">Cloud Services & Workspaces</h2>
-                        <p class="text-xs text-neutral-500">Click any service card to open its dedicated management console.</p>
-                    </div>
-                    <span class="text-xs font-medium text-neutral-400">8 Services Available</span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- 1. VPS Cloud Compute -->
-                    <div onclick="window.location.href='vps.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-server"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                                    Compute
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-blue-600 transition">VPS Cloud Compute</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Multi-tenant Linux runner sliced by plan. Dedicated CPU & RAM with built-in interactive web terminal.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">AMD EPYC™</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Web Shell</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">4h/week Free</span>
-                            </div>
-                        </div>
-                        <a href="vps.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm group-hover:bg-blue-600">
-                            <span>Open VPS Console</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 2. DevBox GPU Workstation -->
-                    <div onclick="window.location.href='devbox.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-microchip"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase tracking-wider">
-                                    Dual GPU
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-purple-600 transition">DevBox (GPU)</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Hardware-accelerated Dual GPU cloud workstations with PyTorch, CUDA, VS Code Web, and JupyterLab.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-purple-50 text-[11px] font-medium text-purple-700">Tesla T4 32GB</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">VS Code Web</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">JupyterLab</span>
-                            </div>
-                        </div>
-                        <a href="devbox.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open DevBox Console</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 3. Edge Serverless Functions -->
-                    <div onclick="window.location.href='serverless.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-bolt"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
-                                    Serverless
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-amber-600 transition">Edge Functions</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Zero cold start JavaScript edge microservices deployed instantly to global endpoints with dedicated URLs.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-amber-50 text-[11px] font-medium text-amber-700">0ms Cold Start</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">V8 Engine</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Subdomains</span>
-                            </div>
-                        </div>
-                        <a href="serverless.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open Serverless Studio</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 4. Web Hosting -->
-                    <div onclick="window.location.href='webhosting.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-globe"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
-                                    Edge CDN
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-indigo-600 transition">Web Hosting</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Automated edge hosting for static sites and Single Page Applications with instant Git builds and custom subdomains.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Free Subdomain</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Auto SSL</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Global CDN</span>
-                            </div>
-                        </div>
-                        <a href="webhosting.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open Web Hosting</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 5. Cloud Storage -->
-                    <div onclick="window.location.href='cloudstorage.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 uppercase tracking-wider">
-                                    Storage
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-sky-600 transition">Cloud Storage</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Multi-zone object file storage with direct download links, CDN caching, and high durability for media & datasets.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-sky-50 text-[11px] font-medium text-sky-700">5GB Free</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">CDN URLs</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">REST API</span>
-                            </div>
-                        </div>
-                        <a href="cloudstorage.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open Cloud Storage</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 6. Realtime Sockets -->
-                    <div onclick="window.location.href='websocket.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-tower-broadcast"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-                                    WebSockets
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-emerald-600 transition">Realtime Sockets</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Low-latency bidirectional WebSocket pub/sub broker with channel isolation, event broadcast, and live monitor.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-[11px] font-medium text-emerald-700">Sub-50ms</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Live Monitor</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Multi-Channel</span>
-                            </div>
-                        </div>
-                        <a href="websocket.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
-                            <span>Open Realtime Hub</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 7. Subscription Plans & Limits -->
-                    <div onclick="window.location.href='plans.html'" class="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 border border-neutral-200 bg-white group cursor-pointer relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                 <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shadow-xs group-hover:scale-110 transition duration-300">
-                                    <i class="fa-solid fa-credit-card"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider">
-                                    Quotas
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-primary group-hover:text-rose-600 transition">Plans & Limits</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Review account quotas, active allocations, and upgrade to Pro or Enterprise for increased weekly runtime & GPUs.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Free Community</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Pro ₹299</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-100 text-[11px] font-medium text-neutral-600">Enterprise</span>
-                            </div>
-                        </div>
-                        <a href="plans.html" onclick="event.stopPropagation();" class="mt-6 w-full py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm group-hover:bg-rose-600">
-                            <span>View Pricing & Quotas</span>
-                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                        </a>
-                    </div>
-
-                    <!-- 8. Coming Soon -->
-                    <div class="glass-card rounded-3xl p-6 flex flex-col justify-between border border-dashed border-neutral-300 bg-neutral-50/70 relative overflow-hidden">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-xs">
-                                    <i class="fa-solid fa-clock-rotate-left"></i>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
-                                    Coming Soon
-                                </span>
-                            </div>
-                            <div>
-                                <h3 class="font-heading font-bold text-base text-neutral-700">Coming Soon.....</h3>
-                                <p class="text-xs text-neutral-500 mt-1.5 line-clamp-3 leading-relaxed">
-                                    Next-generation cloud infrastructure modules and advanced developer tooling are currently in active development.
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 pt-1">
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">In Development</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">Enterprise</span>
-                                <span class="px-2 py-0.5 rounded-md bg-neutral-200/60 text-[11px] font-medium text-neutral-600">Preview</span>
-                            </div>
-                        </div>
-                        <button disabled class="mt-6 w-full py-2.5 rounded-xl bg-neutral-200/70 text-neutral-400 text-xs font-semibold cursor-not-allowed flex items-center justify-center gap-2">
-                            <span>Coming Soon.....</span>
-                            <i class="fa-solid fa-hourglass-half text-[10px]"></i>
-                        </button>
-                    </div>
-                </div>
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden text-tertiary hover:text-on-surface p-1 focus:outline-none font-code-sm flex items-center justify-center" aria-label="Toggle Navigation">
+                    <span class="material-symbols-outlined text-xl">menu</span>
+                </button>
             </div>
         </div>
-    </div>
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-outline-variant/30 bg-[#08090E] px-gutter py-3 flex flex-col gap-3 font-code-sm text-code-sm">
+            <a class="text-tertiary uppercase tracking-wider hover:text-on-surface py-1" href="features.html">Features</a>
+            <a class="text-tertiary uppercase tracking-wider hover:text-on-surface py-1" href="plans.html">Plans</a>
+            <a class="text-tertiary uppercase tracking-wider hover:text-on-surface py-1" href="app.html?mode=login">Sign in</a>
+        </div>
+    </nav>
+    <!-- Hero Section -->
+    <main
+        class="relative min-h-[calc(100vh-3.5rem)] flex flex-col justify-between overflow-hidden border-b border-[#1E2633]">
+        <!-- 1. WebGL Galaxy Fragment Shader Background -->
+        <!-- STITCH_SHADER_START:ANIMATION_2 class="absolute inset-0 w-full h-full pointer-events-none" -->
+        <div class="absolute inset-0 w-full h-full pointer-events-none" style="display:block;">
+            <canvas id="shader-canvas-ANIMATION_2" style="display:block;width:100%;height:100%"></canvas>
+            <script>
+                    (function () {
+                        const canvas = document.getElementById('shader-canvas-ANIMATION_2');
 
-    <!-- Client-side Router & State Controller -->
-    <script>
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://absoracloud.onrender.com';
-        let authToken = localStorage.getItem('absora_token') || localStorage.getItem('auth_token');
-        let currentUser = null;
-        let currentAuthTab = 'login';
-
-        function navigateTo(viewId, subParam = null) {
-            document.getElementById('view-landing').classList.add('hidden');
-            document.getElementById('view-terms').classList.add('hidden');
-            document.getElementById('view-refund').classList.add('hidden');
-            document.getElementById('view-privacy').classList.add('hidden');
-            document.getElementById('view-auth').classList.add('hidden');
-            document.getElementById('view-dashboard').classList.add('hidden');
-
-            const landingNav = document.getElementById('landing-nav-links');
-
-            if (viewId === 'landing') {
-                document.getElementById('view-landing').classList.remove('hidden');
-                landingNav.classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (viewId === 'terms') {
-                document.getElementById('view-terms').classList.remove('hidden');
-                landingNav.classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (viewId === 'refund') {
-                document.getElementById('view-refund').classList.remove('hidden');
-                landingNav.classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (viewId === 'privacy') {
-                document.getElementById('view-privacy').classList.remove('hidden');
-                landingNav.classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (viewId === 'auth') {
-                document.getElementById('view-auth').classList.remove('hidden');
-                landingNav.classList.add('hidden');
-                setAuthTab(subParam || 'login');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (viewId === 'dashboard') {
-                if (!authToken) {
-                    navigateTo('auth', 'login');
-                    return;
-                }
-                if (subParam && ['vps', 'devbox', 'webhost', 'serverless', 'storage', 'realtime', 'admin', 'plans'].includes(subParam)) {
-                    switchDashboardTab(subParam);
-                    return;
-                }
-                document.getElementById('view-dashboard').classList.remove('hidden');
-                landingNav.classList.add('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                const consoleUser = document.getElementById('console-username');
-                if (consoleUser && currentUser) consoleUser.innerText = currentUser.username || 'Engineer';
-            }
-            updateNavbar();
-        }
-
-        // ── Auth Tab Switcher ──
-        function setAuthTab(tab) {
-            currentAuthTab = tab;
-            const errBox = document.getElementById('auth-error-box');
-            errBox.classList.add('hidden');
-
-            const title = document.getElementById('auth-page-title');
-            const subtitle = document.getElementById('auth-page-subtitle');
-            const btnLogin = document.getElementById('tab-btn-login');
-            const btnRegister = document.getElementById('tab-btn-register');
-            const userWrapper = document.getElementById('field-username-wrapper');
-            const submitText = document.querySelector('#auth-submit-btn span');
-
-            if (tab === 'login') {
-                title.innerText = "Welcome Back";
-                subtitle.innerText = "Sign in to your AbsoraCloud account to manage compute.";
-                btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
-                btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
-                userWrapper.classList.add('hidden');
-                submitText.innerText = "Sign In";
-            } else {
-                title.innerText = "Create Account";
-                subtitle.innerText = "Start deploying free sliced cloud instances in seconds.";
-                btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
-                btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
-                userWrapper.classList.remove('hidden');
-                submitText.innerText = "Create Free Account";
-            }
-        }
-
-        // ── Handle Auth Submission ──
-        async function handleAuthSubmit(e) {
-            e.preventDefault();
-            const errBox = document.getElementById('auth-error-box');
-            errBox.classList.add('hidden');
-
-            const loginVal = document.getElementById('auth-login-input').value.trim();
-            const passVal = document.getElementById('auth-password-input').value;
-            const userVal = document.getElementById('auth-username').value.trim();
-
-            const isRegister = currentAuthTab === 'register';
-            const endpoint = isRegister ? '/auth/register' : '/auth/login';
-
-            const payload = isRegister ? {
-                username: userVal || loginVal.split('@')[0],
-                email: loginVal.includes('@') ? loginVal : `${userVal}@absoracloud.user`,
-                password: passVal
-            } : {
-                login: loginVal,
-                username: loginVal,
-                email: loginVal,
-                password: passVal
-            };
-
-            const submitBtn = document.getElementById('auth-submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.classList.add('opacity-70');
-
-            try {
-                const res = await fetch(`${API_BASE}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (data.token) {
-                    authToken = data.token;
-                    localStorage.setItem('absora_token', authToken);
-                    localStorage.setItem('auth_token', authToken);
-                    currentUser = data.user;
-                    navigateTo('dashboard');
-                } else {
-                    errBox.innerText = data.msg || 'Authentication failed. Please check credentials.';
-                    errBox.classList.remove('hidden');
-                }
-            } catch (err) {
-                errBox.innerText = 'Unable to connect to API Gateway. Please try again.';
-                errBox.classList.remove('hidden');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70');
-            }
-        }
-
-        // ── Navbar Status & Links ──
-        function updateNavbar() {
-            const area = document.getElementById('nav-auth-area');
-            if (authToken) {
-                area.innerHTML = `
-                    <button onclick="navigateTo('dashboard')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-neutral-100 hover:bg-neutral-200 transition text-primary flex items-center gap-1.5">
-                        <i class="fa-solid fa-terminal text-[10px]"></i> Console
-                    </button>
-                    <div class="flex items-center gap-2 pl-2">
-                        <span class="text-xs font-bold text-neutral-800">${currentUser?.username || 'User'}</span>
-                        <button onclick="logout()" class="text-xs text-neutral-400 hover:text-red-600 transition" title="Sign Out">
-                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                        </button>
-                    </div>
-                `;
-            } else {
-                area.innerHTML = `
-                    <button onclick="navigateTo('auth', 'login')" class="px-4 py-2 text-xs font-semibold rounded-xl border border-neutral-300 hover:bg-neutral-100 transition">
-                        Sign In
-                    </button>
-                    <button onclick="navigateTo('auth', 'register')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-white hover:bg-neutral-800 transition shadow-sm">
-                        Get Started Free
-                    </button>
-                `;
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('absora_token');
-            localStorage.removeItem('auth_token');
-            authToken = null;
-            currentUser = null;
-            navigateTo('landing');
-        }
-
-        // ── Dashboard Controller ──
-                function switchDashboardTab(tabId) {
-            if (tabId === 'vps') { window.location.href = 'vps.html'; return; }
-            if (tabId === 'devbox') { window.location.href = 'devbox.html'; return; }
-            if (tabId === 'webhost') { window.location.href = 'webhosting.html'; return; }
-            if (tabId === 'serverless') { window.location.href = 'serverless.html'; return; }
-            if (tabId === 'storage') { window.location.href = 'cloudstorage.html'; return; }
-            if (tabId === 'realtime') { window.location.href = 'websocket.html'; return; }
-            if (tabId === 'admin') { window.location.href = 'admin.html'; return; }
-            if (tabId === 'plans') {
-                navigateTo('landing');
-                document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
-                return;
-            }
-        }
-
-        // Toast Notifications
-        function showToast(msg, type = 'info') {
-            const toast = document.getElementById('dashboard-toast');
-            const msgEl = document.getElementById('dashboard-toast-msg');
-            const iconEl = document.getElementById('dashboard-toast-icon');
-            if (!toast) return;
-
-            msgEl.innerText = msg;
-            toast.className = 'mb-6 p-4 rounded-2xl flex items-center justify-between text-xs transition duration-300 shadow-sm border ';
-            if (type === 'error') {
-                toast.className += 'bg-red-50 text-red-800 border-red-200';
-                if (iconEl) iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i>';
-            } else if (type === 'success') {
-                toast.className += 'bg-emerald-50 text-emerald-800 border-emerald-200';
-                if (iconEl) iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
-            } else {
-                toast.className += 'bg-blue-50 text-blue-800 border-blue-200';
-                if (iconEl) iconEl.innerHTML = '<i class="fa-solid fa-circle-info text-blue-500"></i>';
-            }
-            toast.classList.remove('hidden');
-        }
-
-        function hideToast() {
-            const toast = document.getElementById('dashboard-toast');
-            if (toast) toast.classList.add('hidden');
-        }
-
-        function copyToClipboard(text, label = 'link') {
-            if (!text) return;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Copied ' + label + ' to clipboard!', 'success');
-            }).catch(() => {
-                prompt('Copy ' + label + ':', text);
-            });
-        }
-
-        function upgradePlan(planKey) {
-            navigateTo('landing');
-            document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        async function init() {
-            // Hash router listener for direct links (#terms, #refund, #pricing, etc.)
-            window.addEventListener('hashchange', () => {
-                const hash = window.location.hash.replace('#', '');
-                if (hash === 'terms') navigateTo('terms');
-                else if (hash === 'refund') navigateTo('refund');
-                else if (hash === 'privacy') navigateTo('privacy');
-                else if (hash === 'dashboard') navigateTo('dashboard');
-                else if (hash === 'features' || hash === 'pricing') navigateTo('landing');
-            });
-
-            if (window.location.hash === '#dashboard') navigateTo('dashboard');
-            else if (window.location.hash === '#terms') navigateTo('terms');
-            else if (window.location.hash === '#refund') navigateTo('refund');
-            else if (window.location.hash === '#privacy') navigateTo('privacy');
-
-            if (authToken) {
-                try {
-                    const res = await fetch(`${API_BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-                    const data = await res.json();
-                    if (data.user) {
-                        currentUser = data.user;
-                        const consoleUser = document.getElementById('console-username');
-                        if (consoleUser) consoleUser.innerText = currentUser.username || 'Engineer';
-                        const planEl = document.getElementById('user-plan-badge');
-                        if (planEl) planEl.innerText = `${currentUser.plan} Tier`;
-                        if (data.quotas && data.quotas.vps) {
-                            const vpsQ = data.quotas.vps;
-                            const bar = document.getElementById('quota-progress-bar');
-                            const qText = document.getElementById('quota-text');
-                            if (bar) bar.style.width = `${Math.min(100, Math.max(0, vpsQ.percent || 0))}%`;
-                            if (qText) qText.innerText = `${vpsQ.weekly_used_hours || 0}h / ${vpsQ.weekly_max_hours || 4}h`;
+                        // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+                        // This fires on initial layout and whenever the element is resized.
+                        function syncSize() {
+                            const w = canvas.clientWidth || 1280;
+                            const h = canvas.clientHeight || 720;
+                            if (canvas.width !== w || canvas.height !== h) {
+                                canvas.width = w;
+                                canvas.height = h;
+                            }
                         }
-                    } else {
-                        localStorage.removeItem('absora_token');
-                        localStorage.removeItem('auth_token');
-                        authToken = null;
-                    }
-                } catch(e) {}
-            }
-            updateNavbar();
+                        if (typeof ResizeObserver !== 'undefined') {
+                            new ResizeObserver(syncSize).observe(canvas);
+                        }
+                        syncSize();
+
+                        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                        if (!gl) return;
+                        const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+                        const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+// Hash functions for star field and celestial procedural noise
+float hash21(vec2 p) {
+    p = fract(p * vec2(234.34, 435.345));
+    p += dot(p, p + 34.23);
+    return fract(p.x * p.y);
+}
+
+// 2D Rotation matrix
+mat2 rot(float a) {
+    float s = sin(a), c = cos(a);
+    return mat2(c, -s, s, c);
+}
+
+// Simple 2D Value Noise for galactic dust lanes
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    mat2 m = rot(0.8);
+    for (int i = 0; i < 4; i++) {
+        v += amp * noise(p);
+        p = m * p * 2.02;
+        amp *= 0.5;
+    }
+    return v;
+}
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
+    vec2 mouseNorm = (u_mouse / u_resolution - 0.5) * 0.08;
+
+    // Palette:
+    // Near-black ink #05060A
+    vec3 col = vec3(0.02, 0.024, 0.038);
+
+    // Subtle parallax shift with mouse and gentle time drift
+    vec2 pHero = uv - mouseNorm;
+
+    // -----------------------------------------------------------
+    // 1. THREE-TIER UNIFORM-FREE STARFIELD
+    // -----------------------------------------------------------
+    // Layer 1: Tiny distant faint stars
+    vec2 grid1 = (uv + mouseNorm * 0.3) * 140.0;
+    vec2 id1 = floor(grid1);
+    float h1 = hash21(id1);
+    if (h1 > 0.965) {
+        vec2 gpos1 = fract(grid1) - 0.5;
+        float d1 = length(gpos1);
+        float star1 = smoothstep(0.12, 0.01, d1) * (0.35 + 0.3 * sin(u_time * 1.5 + h1 * 40.0));
+        col += vec3(0.88, 0.86, 0.82) * star1 * 0.45;
+    }
+
+    // Layer 2: Medium starlight pinpricks with sparse clustering
+    vec2 grid2 = (uv + mouseNorm * 0.6) * 65.0;
+    vec2 id2 = floor(grid2);
+    float h2 = hash21(id2 + 17.3);
+    if (h2 > 0.982) {
+        vec2 gpos2 = fract(grid2) - 0.5;
+        float d2 = length(gpos2);
+        float star2 = smoothstep(0.14, 0.01, d2) * (0.6 + 0.4 * sin(u_time * 2.0 + h2 * 60.0));
+        col += vec3(0.92, 0.90, 0.85) * star2 * 0.65;
+    }
+
+    // Layer 3: Occasional soft bright stars with subtle warm ember or soft white glow
+    vec2 grid3 = (uv + mouseNorm * 1.0) * 22.0;
+    vec2 id3 = floor(grid3);
+    float h3 = hash21(id3 + 91.7);
+    if (h3 > 0.988) {
+        vec2 gpos3 = fract(grid3) - 0.5;
+        float d3 = length(gpos3);
+        float core = smoothstep(0.12, 0.01, d3);
+        float halo = smoothstep(0.45, 0.01, d3) * 0.25;
+        vec3 starCol = (h3 > 0.994) ? vec3(1.0, 0.55, 0.28) : vec3(0.94, 0.92, 0.87);
+        col += starCol * (core + halo) * (0.7 + 0.3 * sin(u_time * 1.2 + h3 * 30.0));
+    }
+
+    // -----------------------------------------------------------
+    // 2. LARGE SPIRAL GALAXY (Right / Upper Right tilt, realistic dust lanes)
+    // -----------------------------------------------------------
+    // Position galaxy center towards the right side of the canvas
+    vec2 gCenter = vec2(0.38, 0.08) + mouseNorm * 0.4;
+    vec2 gUV = pHero - gCenter;
+
+    // Apply tilt and perspective squish to mimic tilted disk
+    gUV = rot(-0.42) * gUV;
+    gUV.y *= 2.1; // Elliptical projection of inclined disk
+
+    float r = length(gUV);
+    float angle = atan(gUV.y, gUV.x);
+
+    if (r < 1.1) {
+        // Spiral arm logarithmic winding
+        float spiralWinding = 4.0;
+        float arms = sin(angle * 2.0 - log(r + 0.001) * spiralWinding + u_time * 0.04);
+        arms = smoothstep(-0.2, 0.8, arms);
+
+        // Dust lane turbulence using FBM
+        float dust = fbm(gUV * 6.0 + vec2(u_time * 0.02, -u_time * 0.01));
+        float dustMask = smoothstep(0.2, 0.6, dust);
+
+        // Core glow: dense, warm off-white, gradual falloff
+        float coreGlow = exp(-r * 6.5) * 1.6;
+        float diskGlow = exp(-r * 2.4) * 0.65 * (arms * (0.8 + 0.4 * (1.0 - dustMask)));
+
+        // Color grading for galaxy: warm starlight core (#E9E5DA), slate-blue dust rim, subtle ember warmth in dense core
+        vec3 gCoreCol = vec3(0.96, 0.92, 0.84);
+        vec3 gArmCol  = vec3(0.35, 0.42, 0.52);
+        vec3 gEmber   = vec3(0.95, 0.48, 0.24);
+
+        vec3 galaxyCol = mix(gArmCol, gCoreCol, exp(-r * 4.0));
+        galaxyCol = mix(galaxyCol, gEmber, exp(-r * 9.0) * 0.4);
+
+        float intensity = coreGlow + diskGlow;
+        col += galaxyCol * intensity * 0.95;
+    }
+
+    // -----------------------------------------------------------
+    // 3. RINGED PLANET IN FOREGROUND (Partly cropped bottom-right)
+    // -----------------------------------------------------------
+    vec2 planetCenter = vec2(0.58, -0.42) + mouseNorm * 0.85;
+    vec2 pUV = uv - planetCenter;
+    float pr = length(pUV);
+    float planetRadius = 0.22;
+
+    // Ring system coordinates (tilted ring plane)
+    vec2 ringUV = rot(-0.35) * pUV;
+    ringUV.y *= 3.4; // thin inclined ring
+    float ringR = length(ringUV);
+
+    // Behind-planet ring rendering
+    if (ringR > 0.26 && ringR < 0.46 && ringUV.y > 0.0) {
+        float ringTexture = sin(ringR * 120.0) * 0.5 + 0.5;
+        float ringAlpha = smoothstep(0.26, 0.28, ringR) * smoothstep(0.46, 0.43, ringR);
+        vec3 ringColor = vec3(0.65, 0.60, 0.52) * (0.5 + 0.5 * ringTexture);
+        col = mix(col, ringColor, ringAlpha * 0.7);
+    }
+
+    // Planet body
+    if (pr < planetRadius) {
+        // Spherical surface normal
+        float z = sqrt(planetRadius * planetRadius - pr * pr);
+        vec3 normal = normalize(vec3(pUV, z));
+        // Light direction coming from galaxy core
+        vec3 lightDir = normalize(vec3(-0.6, 0.7, 0.5));
+        float diff = max(dot(normal, lightDir), 0.0);
+
+        // Atmospheric rim lighting
+        float rim = 1.0 - max(dot(normal, vec3(0.0, 0.0, 1.0)), 0.0);
+        rim = pow(rim, 3.5);
+
+        // Planet surface bands
+        float bands = sin(pUV.y * 50.0 + noise(pUV * 20.0) * 4.0) * 0.5 + 0.5;
+        vec3 planetBase = mix(vec3(0.14, 0.16, 0.20), vec3(0.26, 0.28, 0.32), bands);
+        vec3 litPlanet = planetBase * (diff * 1.2 + 0.04) + vec3(0.5, 0.6, 0.7) * rim * 0.7;
+
+        col = litPlanet;
+    }
+
+    // In-front ring rendering (casting shadow or overlaying planet body)
+    if (ringR > 0.26 && ringR < 0.46 && ringUV.y <= 0.0) {
+        float ringTexture = sin(ringR * 120.0) * 0.5 + 0.5;
+        float ringAlpha = smoothstep(0.26, 0.28, ringR) * smoothstep(0.46, 0.43, ringR);
+        vec3 ringColor = vec3(0.70, 0.65, 0.56) * (0.5 + 0.5 * ringTexture);
+        col = mix(col, ringColor, ringAlpha * 0.85);
+    }
+
+    // -----------------------------------------------------------
+    // 4. OBSERVATORY STAR-CHART RETICLE & COORDINATE TICKS (1px linework)
+    // -----------------------------------------------------------
+    // Reticle circle around celestial core
+    float reticleDist = abs(length(uv - vec2(0.38, 0.08)) - 0.34);
+    if (reticleDist < 0.0018) {
+        col += vec3(0.22, 0.28, 0.36) * 0.4;
+    }
+
+    // Subtle fine film grain
+    float grain = (hash21(gl_FragCoord.xy + fract(u_time * 2.1)) - 0.5) * 0.035;
+    col += grain;
+
+    // Clamp dark floor to near-black ink
+    col = max(col, vec3(0.02, 0.024, 0.038));
+
+    gl_FragColor = vec4(col, 1.0);
+}`;
+                        function cs(type, src) {
+                            const s = gl.createShader(type);
+                            gl.shaderSource(s, src);
+                            gl.compileShader(s);
+                            return s;
+                        }
+                        const prog = gl.createProgram();
+                        gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+                        gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+                        gl.linkProgram(prog);
+                        gl.useProgram(prog);
+                        const buf = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+                        const pos = gl.getAttribLocation(prog, 'a_position');
+                        gl.enableVertexAttribArray(pos);
+                        gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+                        const uTime = gl.getUniformLocation(prog, 'u_time');
+                        const uRes = gl.getUniformLocation(prog, 'u_resolution');
+                        const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+                        // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+                        // Shaders that need normalized coords should use: u_mouse / u_resolution.
+                        let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+                        window.addEventListener('mousemove', (event) => {
+                            const rect = canvas.getBoundingClientRect();
+                            if (rect.width && rect.height) {
+                                const nx = (event.clientX - rect.left) / rect.width;
+                                const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+                                mouse.x = nx * canvas.width;
+                                mouse.y = ny * canvas.height;
+                            }
+                        });
+
+                        function render(t) {
+                            if (typeof ResizeObserver === 'undefined') syncSize();
+                            gl.viewport(0, 0, canvas.width, canvas.height);
+                            if (uTime) gl.uniform1f(uTime, t * 0.001);
+                            if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+                            if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+                            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                            requestAnimationFrame(render);
+                        }
+                        render(0);
+                    })();
+            </script>
+        </div>
+        <!-- STITCH_SHADER_END:ANIMATION_2 -->
+        <!-- Star Chart Grids & Watermark Reticles -->
+        <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 md:p-margin">
+            <!-- Top Astrometric Coordinates Reticle -->
+            <div class="flex justify-between items-start">
+                <div class="font-code-sm text-code-sm text-[#868D9A]/70 uppercase tracking-widest flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-tertiary">RA 04h 12m 38s</span>
+                        <span class="text-[#1E2633]">·</span>
+                        <span class="text-tertiary">DEC +28° 01' 14"</span>
+                        <span class="text-[#1E2633]">·</span>
+                        <span class="text-[#868D9A]">EPOCH J2025.0</span>
+                    </div>
+                    <div class="text-[10px] text-[#868D9A]/50 tracking-widest">OBS_REF: 42.195° W // CAM_FOV: 1.4°
+                        ARCHIVAL</div>
+                </div>
+                <div class="hidden lg:flex items-center gap-3 text-right font-code-sm text-code-sm text-[#868D9A]/60">
+                    <span class="tracking-widest uppercase">FRAME 094-α</span>
+                    <span class="inline-block w-2.5 h-2.5 border border-[#2A3648] relative">
+                        <span class="absolute inset-x-0 top-1/2 h-[1px] bg-[#2A3648]"></span>
+                        <span class="absolute inset-y-0 left-1/2 w-[1px] bg-[#2A3648]"></span>
+                    </span>
+                </div>
+            </div>
+            <!-- Bottom Coordinate Compass Mark -->
+            <div class="flex justify-between items-end">
+                <div class="font-code-sm text-code-sm text-[#868D9A]/50 uppercase tracking-widest hidden md:block">
+                    POLAR ALIGNMENT: 99.987% · ZENITH 01:44:12 UTC
+                </div>
+                <div class="font-code-sm text-code-sm text-[#868D9A]/60 uppercase tracking-wider text-right">
+                    CATALOG REF: NGC-224-CLS
+                </div>
+            </div>
+        </div>
+        <!-- Hero Content (Asymmetric left alignment with vast open sky field) -->
+        <div
+            class="relative z-10 w-full max-w-7xl mx-auto px-gutter py-12 md:py-space-2xl my-auto flex flex-col items-start justify-center">
+            <!-- Observatory Mission Badge -->
+            <div class="inline-flex items-center gap-2 border border-[#1E2633] bg-[#05060A]/90 px-3 py-1 mb-8">
+                <span class="w-1.5 h-1.5 rounded-none bg-primary-container"></span>
+                <span class="font-label-caps text-label-caps uppercase text-[#E9E5DA] tracking-widest">
+                    MISSION CONTROL // CLOUD PLATFORM
+                </span>
+            </div>
+            <!-- Poetic Serif Headline -->
+            <h1
+                class="font-display text-display-mobile md:text-display text-[#E9E5DA] max-w-3xl leading-[1.08] mb-6 font-normal tracking-tight">
+                Rent a corner of the sky.
+            </h1>
+            <!-- One Descriptive Line -->
+            <p class="font-body-lg text-body-lg text-[#9CA3AF] max-w-xl mb-10 font-normal">
+                Servers, GPUs, hosting and functions. Launch in minutes, start free.
+            </p>
+            <!-- Three Distinct Actions Hierarchy -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 w-full sm:w-auto">
+                <!-- 1. Primary: Ember Orange -->
+                <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm uppercase tracking-wider font-medium px-6 py-3 text-center transition-all duration-150 hover:brightness-110 active:opacity-90"
+                    href="app.html?mode=register">
+                    Get started free
+                </a>
+                <!-- 2. Secondary: Crisp 1px Border Button -->
+                <a class="border border-[#2A3648] bg-transparent text-[#E9E5DA] font-code-sm text-code-sm uppercase tracking-wider px-6 py-3 text-center transition-colors duration-150 hover:bg-[#11141E] hover:border-[#868D9A]"
+                    href="app.html?mode=login">
+                    Sign in
+                </a>
+                <!-- 3. Tertiary: Understated Text Link -->
+                <a class="flex items-center justify-center sm:justify-start gap-1.5 px-4 py-3 font-code-sm text-code-sm uppercase tracking-wider text-tertiary hover:text-on-surface transition-colors duration-150"
+                    href="console.html">
+                    <span>Dashboard</span>
+                    <span class="text-sm">→</span>
+                </a>
+            </div>
+            <!-- Technical Micro Footnote -->
+            <div class="flex items-center gap-2 font-code-sm text-code-sm text-[#868D9A]">
+                <span>No card needed</span>
+                <span class="text-[#1E2633]">·</span>
+                <span>VPS ready in under a minute</span>
+            </div>
+        </div>
+        <!-- Continuous Astrometric Ticks along the bottom border -->
+        <div class="w-full border-t border-[#1E2633] bg-[#05060A]/80 py-2 px-gutter">
+            <div
+                class="max-w-7xl mx-auto flex items-center justify-between text-[10px] font-code-sm text-[#868D9A]/50 tracking-widest uppercase overflow-hidden">
+                <span>+00°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+15°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+30°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+45°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+60°00'00"</span>
+            </div>
+        </div>
+    </main>
+    <!-- Services Strip (Constellation Line) -->
+    <section class="w-full bg-[#07090F] border-b border-[#1E2633] py-10">
+        <div class="w-full max-w-7xl mx-auto px-gutter">
+            <!-- Cartographic Header Label -->
+            <div class="flex items-center justify-between mb-8">
+                <span class="font-label-caps text-label-caps uppercase text-[#868D9A] tracking-widest">
+                    CATALOG_INDEX // 06 CORE PRIMITIVES
+                </span>
+                <span class="font-code-sm text-code-sm text-[#868D9A]/60 uppercase">
+                    CLICK_TO_INSPECT_MATRIX
+                </span>
+            </div>
+            <!-- Single horizontal row of services connected by a 1px constellation line -->
+            <div class="relative overflow-x-auto pb-4 pt-2 -mx-gutter px-gutter no-scrollbar">
+                <!-- Continuous 1px celestial constellation line with node dots -->
+                <div class="min-w-[760px] relative">
+                    <!-- Continuous Hairline -->
+                    <div class="absolute top-[23px] left-8 right-8 h-[1px] bg-[#1E2633] z-0"></div>
+                    <!-- Services Grid Row -->
+                    <div class="grid grid-cols-6 gap-6 relative z-10">
+                        <!-- 01. VPS -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="vps.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">01.
+                                    COMPUTE</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                VPS
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Cloud terminal</span>
+                        </a>
+                        <!-- 02. DevBox -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="devbox.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">02.
+                                    ACCELERATED</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                DevBox
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">GPU on paid plans</span>
+                        </a>
+                        <!-- 03. WebHost -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="webhosting.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">03.
+                                    EDGE</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                WebHost
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Static sites</span>
+                        </a>
+                        <!-- 04. Serverless -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="serverless.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">04.
+                                    DISPATCH</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Serverless
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Edge functions</span>
+                        </a>
+                        <!-- 05. Storage -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="cloudstorage.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">05.
+                                    BLOB</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Storage
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Files and links</span>
+                        </a>
+                        <!-- 06. Realtime -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="websocket.html">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">06.
+                                    WEBSOCKET</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Realtime
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">WebSocket channels</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- One Closing Band -->
+    <section class="w-full bg-[#05060A] py-20 md:py-space-2xl border-b border-[#1E2633] relative">
+        <!-- Fine technical tick crosshairs in corners -->
+        <div class="max-w-7xl mx-auto px-gutter relative">
+            <div class="border border-[#1E2633] p-8 md:p-14 relative bg-[#090B12]">
+                <!-- Registration corner marks -->
+                <span class="absolute -top-1.5 -left-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -top-1.5 -right-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -bottom-1.5 -left-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -bottom-1.5 -right-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <div>
+                        <div class="font-label-caps text-label-caps text-tertiary uppercase tracking-widest mb-3">
+                            ZERO CONFIGURATION TIER
+                        </div>
+                        <h2
+                            class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-[#E9E5DA] tracking-tight">
+                            Your first server is free.
+                        </h2>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                        <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm uppercase tracking-wider font-medium px-6 py-3 text-center transition-all duration-150 hover:brightness-110 active:opacity-90"
+                            href="app.html?mode=register">
+                            Get started free
+                        </a>
+                    </div>
+                </div>
+                <!-- Telemetry bar embedded in closure -->
+                <div
+                    class="mt-8 pt-6 border-t border-[#1E2633]/60 flex flex-wrap items-center justify-between gap-4 font-code-sm text-code-sm text-[#868D9A]">
+                    <div class="flex items-center gap-4">
+                        <span>FREE PLAN / NO CARD / VPS IN UNDER A MINUTE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Quiet Observatory Footer (Shared Component Anchor) -->
+    <footer class="bg-surface-container-lowest border-t border-outline-variant/30 py-space-lg">
+        <div
+            class="w-full max-w-7xl mx-auto px-gutter flex flex-col md:flex-row items-center justify-between gap-space-md">
+            <!-- Copyright & System Status -->
+            <div
+                class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 font-code-sm text-code-sm text-tertiary text-center sm:text-left">
+                <span>© 2026 AbsoraCloud · absoracloud.qzz.io</span>
+            </div>
+            <!-- Footer Navigation Cluster -->
+            <div class="flex flex-wrap items-center justify-center gap-6 font-code-sm text-code-sm">
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="features.html">Features</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="plans.html">Plans</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="app.html?mode=login">Sign in</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="console.html">Dashboard</a>
+            </div>
+
+        </div>
+    </footer>
+    <!-- Real Auth Verification & Mobile Menu Logic -->
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if (menu) menu.classList.toggle('hidden');
         }
 
-        init();
+        (async function checkAuth() {
+            const token = localStorage.getItem('absora_token') || localStorage.getItem('auth_token');
+            const signedOutCluster = document.getElementById('nav-signed-out');
+            const signedInCluster = document.getElementById('nav-signed-in');
+            const userNameEl = document.getElementById('nav-user-name');
+
+            if (token) {
+                try {
+                    const res = await fetch('https://absoracloud.onrender.com/auth/me', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    const data = await res.json();
+                    if (res.ok && data && (data.user || data.username)) {
+                        const username = (data.user && data.user.username) || data.username || 'User';
+                        if (userNameEl) userNameEl.innerText = username;
+                        signedInCluster.classList.remove('hidden');
+                        signedInCluster.classList.add('flex');
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            // Fallback / unauthenticated: show signed-out cluster
+            signedOutCluster.classList.remove('hidden');
+            signedOutCluster.classList.add('flex');
+        })();
     </script>
 </body>
+
 </html>

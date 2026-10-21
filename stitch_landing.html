@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>AbsoraCloud — Rent a corner of the sky</title>
+    <!-- Typography: Playfair Display, Geist, JetBrains Mono -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Material Symbols Outlined -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#7e2c00",
+                        "surface-container-low": "#1a1b20",
+                        "on-secondary-fixed-variant": "#3e4757",
+                        "surface-dim": "#121318",
+                        "on-tertiary-fixed": "#1d1c12",
+                        "primary-fixed": "#ffdbcd",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#0d0e13",
+                        "inverse-primary": "#a53c00",
+                        "secondary-fixed": "#dae3f7",
+                        "on-surface-variant": "#dfc0b4",
+                        "on-error-container": "#ffdad6",
+                        "on-background": "#e3e2e9",
+                        "on-surface": "#e3e2e9",
+                        "tertiary-container": "#a5a193",
+                        "surface-container-highest": "#33343a",
+                        "background": "#121318",
+                        "outline-variant": "#584239",
+                        "surface-tint": "#ffb598",
+                        "tertiary": "#cbc6b7",
+                        "surface": "#121318",
+                        "on-secondary-fixed": "#131c2a",
+                        "surface-bright": "#38393e",
+                        "secondary-fixed-dim": "#bec7da",
+                        "on-tertiary": "#333026",
+                        "on-secondary-container": "#acb5c8",
+                        "inverse-surface": "#e3e2e9",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed": "#360f00",
+                        "on-primary-container": "#652200",
+                        "primary-fixed-dim": "#ffb598",
+                        "on-tertiary-container": "#3a382d",
+                        "error-container": "#93000a",
+                        "surface-variant": "#33343a",
+                        "primary": "#ffb598",
+                        "tertiary-fixed-dim": "#cbc6b7",
+                        "surface-container": "#1e1f25",
+                        "on-tertiary-fixed-variant": "#49473b",
+                        "secondary-container": "#3e4757",
+                        "inverse-on-surface": "#2f3036",
+                        "on-primary": "#591d00",
+                        "outline": "#a78b80",
+                        "primary-container": "#ff7a3d",
+                        "surface-container-high": "#292a2f",
+                        "on-secondary": "#283140",
+                        "secondary": "#bec7da",
+                        "tertiary-fixed": "#e8e2d3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "space-xl": "2.5rem",
+                        "gutter-mobile": "1rem",
+                        "space-lg": "1.5rem",
+                        "gutter": "1.5rem",
+                        "space-sm": "0.5rem",
+                        "space-3xl": "6rem",
+                        "margin": "3rem",
+                        "space-2xl": "4rem",
+                        "space-md": "1rem",
+                        "space-xs": "0.25rem",
+                        "margin-mobile": "1.25rem"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Playfair Display"],
+                        "display-mobile": ["Playfair Display"],
+                        "code-md": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "body-md": ["Geist"],
+                        "body-sm": ["Geist"],
+                        "display": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "code-sm": ["JetBrains Mono"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+                        "display-mobile": ["38px", { "lineHeight": "46px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+                        "code-md": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["10px", { "lineHeight": "14px", "letterSpacing": "0.14em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["15px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display": ["64px", { "lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "code-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Strict technical cartography rules */
+        body {
+            background-color: #05060A;
+            color: #E9E5DA;
+            overflow-x: hidden;
+        }
+
+        /* Subtle hair crosshairs */
+        .crosshair-corner {
+            position: relative;
+        }
+
+        .crosshair-corner::before {
+            content: "+";
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1;
+            color: #2A3648;
+            pointer-events: none;
+        }
+
+        /* Astrometry linework */
+        .border-astro {
+            border-color: #1E2633;
+        }
+
+        .border-astro-muted {
+            border-color: #141A24;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-[#05060A] text-[#E9E5DA] selection:bg-primary-container selection:text-[#05060A] font-body-md text-body-md min-h-screen flex flex-col justify-between">
+    <!-- Interactive State Sim Pill: Top Utility Bar -->
+    <header class="w-full bg-[#08090E] border-b border-[#1E2633]/60 py-1.5 px-4 md:px-margin z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between font-code-sm text-code-sm text-[#868D9A]">
+            <div class="flex items-center gap-3">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                <span class="tracking-widest uppercase">STATION: MT_PALOMAR_OBS // LAT 33.3563° N</span>
+            </div>
+            <!-- Mode Toggle Controller -->
+            <div class="flex items-center gap-2">
+                <span class="uppercase tracking-wider hidden sm:inline text-tertiary">SESSION SIMULATOR:</span>
+                <div class="inline-flex items-center border border-[#1E2633] p-0.5 rounded-none bg-[#05060A]">
+                    <button
+                        class="px-2.5 py-0.5 text-code-sm font-code-sm uppercase transition-colors bg-[#1E2633] text-[#E9E5DA]"
+                        id="btn-state-signed-out" onclick="setSessionState(false)">
+                        Signed Out
+                    </button>
+                    <button
+                        class="px-2.5 py-0.5 text-code-sm font-code-sm uppercase transition-colors text-[#868D9A] hover:text-[#E9E5DA]"
+                        id="btn-state-signed-in" onclick="setSessionState(true)">
+                        Signed In
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- TopNavBar (Shared Component Anchor) -->
+    <nav class="bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant/30">
+        <div class="w-full max-w-7xl mx-auto px-gutter flex items-center justify-between h-14">
+            <!-- Brand Logo -->
+            <a class="font-code-md text-code-md tracking-widest uppercase font-medium text-on-surface flex items-center gap-2 transition-colors duration-150 hover:text-primary"
+                href="#">
+                <span class="text-primary-container text-sm leading-none select-none">✦</span>
+                <span>AbsoraCloud</span>
+            </a>
+            <!-- Center Navigation Links -->
+            <div class="hidden md:flex items-center gap-8">
+                <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                    href="#features">
+                    Features
+                </a>
+                <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                    href="#plans">
+                    Plans
+                </a>
+            </div>
+            <!-- Right Trailing Controls (Dynamically toggled) -->
+            <div class="flex items-center gap-5">
+                <!-- Signed-out Cluster -->
+                <div class="flex items-center gap-4" id="nav-signed-out">
+                    <a class="text-tertiary font-code-sm text-code-sm tracking-wider uppercase hover:text-on-surface transition-colors"
+                        href="#signin">
+                        Sign in
+                    </a>
+                    <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm tracking-wider uppercase font-medium px-3.5 py-1.5 transition-all duration-150 ease-out hover:brightness-110 active:opacity-80"
+                        href="#get-started">
+                        Get started free
+                    </a>
+                </div>
+                <!-- Signed-in Cluster (Hidden by default) -->
+                <div class="hidden items-center gap-4" id="nav-signed-in">
+                    <div class="flex items-center gap-2 text-code-sm font-code-sm text-tertiary">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                        <span class="text-[#E9E5DA]">alex@absora</span>
+                        <span class="text-[#868D9A]">~ sysop</span>
+                    </div>
+                    <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm tracking-wider uppercase font-medium px-3.5 py-1.5 transition-all duration-150 ease-out hover:brightness-110 active:opacity-80"
+                        href="#dashboard">
+                        Open dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- Hero Section -->
+    <main
+        class="relative min-h-[calc(100vh-3.5rem)] flex flex-col justify-between overflow-hidden border-b border-[#1E2633]">
+        <!-- 1. WebGL Galaxy Fragment Shader Background -->
+        <!-- STITCH_SHADER_START:ANIMATION_2 class="absolute inset-0 w-full h-full pointer-events-none" -->
+        <div class="absolute inset-0 w-full h-full pointer-events-none" style="display:block;">
+            <canvas id="shader-canvas-ANIMATION_2" style="display:block;width:100%;height:100%"></canvas>
+            <script>
+                    (function () {
+                        const canvas = document.getElementById('shader-canvas-ANIMATION_2');
+
+                        // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+                        // This fires on initial layout and whenever the element is resized.
+                        function syncSize() {
+                            const w = canvas.clientWidth || 1280;
+                            const h = canvas.clientHeight || 720;
+                            if (canvas.width !== w || canvas.height !== h) {
+                                canvas.width = w;
+                                canvas.height = h;
+                            }
+                        }
+                        if (typeof ResizeObserver !== 'undefined') {
+                            new ResizeObserver(syncSize).observe(canvas);
+                        }
+                        syncSize();
+
+                        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                        if (!gl) return;
+                        const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+                        const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+// Hash functions for star field and celestial procedural noise
+float hash21(vec2 p) {
+    p = fract(p * vec2(234.34, 435.345));
+    p += dot(p, p + 34.23);
+    return fract(p.x * p.y);
+}
+
+// 2D Rotation matrix
+mat2 rot(float a) {
+    float s = sin(a), c = cos(a);
+    return mat2(c, -s, s, c);
+}
+
+// Simple 2D Value Noise for galactic dust lanes
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    mat2 m = rot(0.8);
+    for (int i = 0; i < 4; i++) {
+        v += amp * noise(p);
+        p = m * p * 2.02;
+        amp *= 0.5;
+    }
+    return v;
+}
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
+    vec2 mouseNorm = (u_mouse / u_resolution - 0.5) * 0.08;
+
+    // Palette:
+    // Near-black ink #05060A
+    vec3 col = vec3(0.02, 0.024, 0.038);
+
+    // Subtle parallax shift with mouse and gentle time drift
+    vec2 pHero = uv - mouseNorm;
+
+    // -----------------------------------------------------------
+    // 1. THREE-TIER UNIFORM-FREE STARFIELD
+    // -----------------------------------------------------------
+    // Layer 1: Tiny distant faint stars
+    vec2 grid1 = (uv + mouseNorm * 0.3) * 140.0;
+    vec2 id1 = floor(grid1);
+    float h1 = hash21(id1);
+    if (h1 > 0.965) {
+        vec2 gpos1 = fract(grid1) - 0.5;
+        float d1 = length(gpos1);
+        float star1 = smoothstep(0.12, 0.01, d1) * (0.35 + 0.3 * sin(u_time * 1.5 + h1 * 40.0));
+        col += vec3(0.88, 0.86, 0.82) * star1 * 0.45;
+    }
+
+    // Layer 2: Medium starlight pinpricks with sparse clustering
+    vec2 grid2 = (uv + mouseNorm * 0.6) * 65.0;
+    vec2 id2 = floor(grid2);
+    float h2 = hash21(id2 + 17.3);
+    if (h2 > 0.982) {
+        vec2 gpos2 = fract(grid2) - 0.5;
+        float d2 = length(gpos2);
+        float star2 = smoothstep(0.14, 0.01, d2) * (0.6 + 0.4 * sin(u_time * 2.0 + h2 * 60.0));
+        col += vec3(0.92, 0.90, 0.85) * star2 * 0.65;
+    }
+
+    // Layer 3: Occasional soft bright stars with subtle warm ember or soft white glow
+    vec2 grid3 = (uv + mouseNorm * 1.0) * 22.0;
+    vec2 id3 = floor(grid3);
+    float h3 = hash21(id3 + 91.7);
+    if (h3 > 0.988) {
+        vec2 gpos3 = fract(grid3) - 0.5;
+        float d3 = length(gpos3);
+        float core = smoothstep(0.12, 0.01, d3);
+        float halo = smoothstep(0.45, 0.01, d3) * 0.25;
+        vec3 starCol = (h3 > 0.994) ? vec3(1.0, 0.55, 0.28) : vec3(0.94, 0.92, 0.87);
+        col += starCol * (core + halo) * (0.7 + 0.3 * sin(u_time * 1.2 + h3 * 30.0));
+    }
+
+    // -----------------------------------------------------------
+    // 2. LARGE SPIRAL GALAXY (Right / Upper Right tilt, realistic dust lanes)
+    // -----------------------------------------------------------
+    // Position galaxy center towards the right side of the canvas
+    vec2 gCenter = vec2(0.38, 0.08) + mouseNorm * 0.4;
+    vec2 gUV = pHero - gCenter;
+
+    // Apply tilt and perspective squish to mimic tilted disk
+    gUV = rot(-0.42) * gUV;
+    gUV.y *= 2.1; // Elliptical projection of inclined disk
+
+    float r = length(gUV);
+    float angle = atan(gUV.y, gUV.x);
+
+    if (r < 1.1) {
+        // Spiral arm logarithmic winding
+        float spiralWinding = 4.0;
+        float arms = sin(angle * 2.0 - log(r + 0.001) * spiralWinding + u_time * 0.04);
+        arms = smoothstep(-0.2, 0.8, arms);
+
+        // Dust lane turbulence using FBM
+        float dust = fbm(gUV * 6.0 + vec2(u_time * 0.02, -u_time * 0.01));
+        float dustMask = smoothstep(0.2, 0.6, dust);
+
+        // Core glow: dense, warm off-white, gradual falloff
+        float coreGlow = exp(-r * 6.5) * 1.6;
+        float diskGlow = exp(-r * 2.4) * 0.65 * (arms * (0.8 + 0.4 * (1.0 - dustMask)));
+
+        // Color grading for galaxy: warm starlight core (#E9E5DA), slate-blue dust rim, subtle ember warmth in dense core
+        vec3 gCoreCol = vec3(0.96, 0.92, 0.84);
+        vec3 gArmCol  = vec3(0.35, 0.42, 0.52);
+        vec3 gEmber   = vec3(0.95, 0.48, 0.24);
+
+        vec3 galaxyCol = mix(gArmCol, gCoreCol, exp(-r * 4.0));
+        galaxyCol = mix(galaxyCol, gEmber, exp(-r * 9.0) * 0.4);
+
+        float intensity = coreGlow + diskGlow;
+        col += galaxyCol * intensity * 0.95;
+    }
+
+    // -----------------------------------------------------------
+    // 3. RINGED PLANET IN FOREGROUND (Partly cropped bottom-right)
+    // -----------------------------------------------------------
+    vec2 planetCenter = vec2(0.58, -0.42) + mouseNorm * 0.85;
+    vec2 pUV = uv - planetCenter;
+    float pr = length(pUV);
+    float planetRadius = 0.22;
+
+    // Ring system coordinates (tilted ring plane)
+    vec2 ringUV = rot(-0.35) * pUV;
+    ringUV.y *= 3.4; // thin inclined ring
+    float ringR = length(ringUV);
+
+    // Behind-planet ring rendering
+    if (ringR > 0.26 && ringR < 0.46 && ringUV.y > 0.0) {
+        float ringTexture = sin(ringR * 120.0) * 0.5 + 0.5;
+        float ringAlpha = smoothstep(0.26, 0.28, ringR) * smoothstep(0.46, 0.43, ringR);
+        vec3 ringColor = vec3(0.65, 0.60, 0.52) * (0.5 + 0.5 * ringTexture);
+        col = mix(col, ringColor, ringAlpha * 0.7);
+    }
+
+    // Planet body
+    if (pr < planetRadius) {
+        // Spherical surface normal
+        float z = sqrt(planetRadius * planetRadius - pr * pr);
+        vec3 normal = normalize(vec3(pUV, z));
+        // Light direction coming from galaxy core
+        vec3 lightDir = normalize(vec3(-0.6, 0.7, 0.5));
+        float diff = max(dot(normal, lightDir), 0.0);
+
+        // Atmospheric rim lighting
+        float rim = 1.0 - max(dot(normal, vec3(0.0, 0.0, 1.0)), 0.0);
+        rim = pow(rim, 3.5);
+
+        // Planet surface bands
+        float bands = sin(pUV.y * 50.0 + noise(pUV * 20.0) * 4.0) * 0.5 + 0.5;
+        vec3 planetBase = mix(vec3(0.14, 0.16, 0.20), vec3(0.26, 0.28, 0.32), bands);
+        vec3 litPlanet = planetBase * (diff * 1.2 + 0.04) + vec3(0.5, 0.6, 0.7) * rim * 0.7;
+
+        col = litPlanet;
+    }
+
+    // In-front ring rendering (casting shadow or overlaying planet body)
+    if (ringR > 0.26 && ringR < 0.46 && ringUV.y <= 0.0) {
+        float ringTexture = sin(ringR * 120.0) * 0.5 + 0.5;
+        float ringAlpha = smoothstep(0.26, 0.28, ringR) * smoothstep(0.46, 0.43, ringR);
+        vec3 ringColor = vec3(0.70, 0.65, 0.56) * (0.5 + 0.5 * ringTexture);
+        col = mix(col, ringColor, ringAlpha * 0.85);
+    }
+
+    // -----------------------------------------------------------
+    // 4. OBSERVATORY STAR-CHART RETICLE & COORDINATE TICKS (1px linework)
+    // -----------------------------------------------------------
+    // Reticle circle around celestial core
+    float reticleDist = abs(length(uv - vec2(0.38, 0.08)) - 0.34);
+    if (reticleDist < 0.0018) {
+        col += vec3(0.22, 0.28, 0.36) * 0.4;
+    }
+
+    // Subtle fine film grain
+    float grain = (hash21(gl_FragCoord.xy + fract(u_time * 2.1)) - 0.5) * 0.035;
+    col += grain;
+
+    // Clamp dark floor to near-black ink
+    col = max(col, vec3(0.02, 0.024, 0.038));
+
+    gl_FragColor = vec4(col, 1.0);
+}`;
+                        function cs(type, src) {
+                            const s = gl.createShader(type);
+                            gl.shaderSource(s, src);
+                            gl.compileShader(s);
+                            return s;
+                        }
+                        const prog = gl.createProgram();
+                        gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+                        gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+                        gl.linkProgram(prog);
+                        gl.useProgram(prog);
+                        const buf = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+                        const pos = gl.getAttribLocation(prog, 'a_position');
+                        gl.enableVertexAttribArray(pos);
+                        gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+                        const uTime = gl.getUniformLocation(prog, 'u_time');
+                        const uRes = gl.getUniformLocation(prog, 'u_resolution');
+                        const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+                        // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+                        // Shaders that need normalized coords should use: u_mouse / u_resolution.
+                        let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+                        window.addEventListener('mousemove', (event) => {
+                            const rect = canvas.getBoundingClientRect();
+                            if (rect.width && rect.height) {
+                                const nx = (event.clientX - rect.left) / rect.width;
+                                const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+                                mouse.x = nx * canvas.width;
+                                mouse.y = ny * canvas.height;
+                            }
+                        });
+
+                        function render(t) {
+                            if (typeof ResizeObserver === 'undefined') syncSize();
+                            gl.viewport(0, 0, canvas.width, canvas.height);
+                            if (uTime) gl.uniform1f(uTime, t * 0.001);
+                            if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+                            if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+                            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                            requestAnimationFrame(render);
+                        }
+                        render(0);
+                    })();
+            </script>
+        </div>
+        <!-- STITCH_SHADER_END:ANIMATION_2 -->
+        <!-- Star Chart Grids & Watermark Reticles -->
+        <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 md:p-margin">
+            <!-- Top Astrometric Coordinates Reticle -->
+            <div class="flex justify-between items-start">
+                <div class="font-code-sm text-code-sm text-[#868D9A]/70 uppercase tracking-widest flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-tertiary">RA 04h 12m 38s</span>
+                        <span class="text-[#1E2633]">·</span>
+                        <span class="text-tertiary">DEC +28° 01' 14"</span>
+                        <span class="text-[#1E2633]">·</span>
+                        <span class="text-[#868D9A]">EPOCH J2025.0</span>
+                    </div>
+                    <div class="text-[10px] text-[#868D9A]/50 tracking-widest">OBS_REF: 42.195° W // CAM_FOV: 1.4°
+                        ARCHIVAL</div>
+                </div>
+                <div class="hidden lg:flex items-center gap-3 text-right font-code-sm text-code-sm text-[#868D9A]/60">
+                    <span class="tracking-widest uppercase">FRAME 094-α</span>
+                    <span class="inline-block w-2.5 h-2.5 border border-[#2A3648] relative">
+                        <span class="absolute inset-x-0 top-1/2 h-[1px] bg-[#2A3648]"></span>
+                        <span class="absolute inset-y-0 left-1/2 w-[1px] bg-[#2A3648]"></span>
+                    </span>
+                </div>
+            </div>
+            <!-- Bottom Coordinate Compass Mark -->
+            <div class="flex justify-between items-end">
+                <div class="font-code-sm text-code-sm text-[#868D9A]/50 uppercase tracking-widest hidden md:block">
+                    POLAR ALIGNMENT: 99.987% · ZENITH 01:44:12 UTC
+                </div>
+                <div class="font-code-sm text-code-sm text-[#868D9A]/60 uppercase tracking-wider text-right">
+                    CATALOG REF: NGC-224-CLS
+                </div>
+            </div>
+        </div>
+        <!-- Hero Content (Asymmetric left alignment with vast open sky field) -->
+        <div
+            class="relative z-10 w-full max-w-7xl mx-auto px-gutter py-12 md:py-space-2xl my-auto flex flex-col items-start justify-center">
+            <!-- Observatory Mission Badge -->
+            <div class="inline-flex items-center gap-2 border border-[#1E2633] bg-[#05060A]/90 px-3 py-1 mb-8">
+                <span class="w-1.5 h-1.5 rounded-none bg-primary-container"></span>
+                <span class="font-label-caps text-label-caps uppercase text-[#E9E5DA] tracking-widest">
+                    MISSION CONTROL // CLOUD RUNTIME V4
+                </span>
+            </div>
+            <!-- Poetic Serif Headline -->
+            <h1
+                class="font-display text-display-mobile md:text-display text-[#E9E5DA] max-w-3xl leading-[1.08] mb-6 font-normal tracking-tight">
+                Rent a corner of the sky.
+            </h1>
+            <!-- One Descriptive Line -->
+            <p class="font-body-lg text-body-lg text-[#9CA3AF] max-w-xl mb-10 font-normal">
+                Servers, GPUs, hosting and functions. Launch in minutes, start free.
+            </p>
+            <!-- Three Distinct Actions Hierarchy -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 w-full sm:w-auto">
+                <!-- 1. Primary: Ember Orange -->
+                <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm uppercase tracking-wider font-medium px-6 py-3 text-center transition-all duration-150 hover:brightness-110 active:opacity-90"
+                    href="#get-started">
+                    Get started free
+                </a>
+                <!-- 2. Secondary: Crisp 1px Border Button -->
+                <a class="border border-[#2A3648] bg-transparent text-[#E9E5DA] font-code-sm text-code-sm uppercase tracking-wider px-6 py-3 text-center transition-colors duration-150 hover:bg-[#11141E] hover:border-[#868D9A]"
+                    href="#signin">
+                    Sign in
+                </a>
+                <!-- 3. Tertiary: Understated Text Link -->
+                <a class="flex items-center justify-center sm:justify-start gap-1.5 px-4 py-3 font-code-sm text-code-sm uppercase tracking-wider text-tertiary hover:text-on-surface transition-colors duration-150"
+                    href="#dashboard">
+                    <span>Dashboard</span>
+                    <span class="text-sm">→</span>
+                </a>
+            </div>
+            <!-- Technical Micro Footnote -->
+            <div class="flex items-center gap-2 font-code-sm text-code-sm text-[#868D9A]">
+                <span>No card needed</span>
+                <span class="text-[#1E2633]">·</span>
+                <span>VPS ready in about <strong class="text-primary-container font-normal">40 seconds</strong></span>
+            </div>
+        </div>
+        <!-- Continuous Astrometric Ticks along the bottom border -->
+        <div class="w-full border-t border-[#1E2633] bg-[#05060A]/80 py-2 px-gutter">
+            <div
+                class="max-w-7xl mx-auto flex items-center justify-between text-[10px] font-code-sm text-[#868D9A]/50 tracking-widest uppercase overflow-hidden">
+                <span>+00°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+15°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+30°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+45°00'00"</span>
+                <span class="hidden sm:inline">| | | | |</span>
+                <span>+60°00'00"</span>
+            </div>
+        </div>
+    </main>
+    <!-- Services Strip (Constellation Line) -->
+    <section class="w-full bg-[#07090F] border-b border-[#1E2633] py-10" id="features">
+        <div class="w-full max-w-7xl mx-auto px-gutter">
+            <!-- Cartographic Header Label -->
+            <div class="flex items-center justify-between mb-8">
+                <span class="font-label-caps text-label-caps uppercase text-[#868D9A] tracking-widest">
+                    CATALOG_INDEX // 06 CORE PRIMITIVES
+                </span>
+                <span class="font-code-sm text-code-sm text-[#868D9A]/60 uppercase">
+                    CLICK_TO_INSPECT_MATRIX
+                </span>
+            </div>
+            <!-- Single horizontal row of services connected by a 1px constellation line -->
+            <div class="relative overflow-x-auto pb-4 pt-2 -mx-gutter px-gutter no-scrollbar">
+                <!-- Continuous 1px celestial constellation line with node dots -->
+                <div class="min-w-[760px] relative">
+                    <!-- Continuous Hairline -->
+                    <div class="absolute top-[23px] left-8 right-8 h-[1px] bg-[#1E2633] z-0"></div>
+                    <!-- Services Grid Row -->
+                    <div class="grid grid-cols-6 gap-6 relative z-10">
+                        <!-- 01. VPS -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#vps">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">01.
+                                    COMPUTE</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                VPS
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Dedicated KVM</span>
+                        </a>
+                        <!-- 02. DevBox -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#devbox">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">02.
+                                    ACCELERATED</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                DevBox
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">GPU Workspace</span>
+                        </a>
+                        <!-- 03. WebHost -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#webhost">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">03.
+                                    EDGE</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                WebHost
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Static &amp; SSR</span>
+                        </a>
+                        <!-- 04. Serverless -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#serverless">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">04.
+                                    DISPATCH</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Serverless
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">0ms Cold Starts</span>
+                        </a>
+                        <!-- 05. Storage -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#storage">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">05.
+                                    BLOB</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Storage
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">S3-Compatible</span>
+                        </a>
+                        <!-- 06. Realtime -->
+                        <a class="group flex flex-col items-start focus:outline-none" href="#realtime">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-[#07090F] border border-[#2A3648] group-hover:border-primary-container group-hover:bg-primary-container transition-colors duration-150 flex items-center justify-center">
+                                    <span class="w-1 h-1 bg-[#1E2633] group-hover:bg-[#05060A] rounded-full"></span>
+                                </span>
+                                <span
+                                    class="font-code-sm text-code-sm text-[#868D9A] group-hover:text-primary transition-colors">06.
+                                    WEBSOCKET</span>
+                            </div>
+                            <span
+                                class="font-headline-md text-headline-md font-normal text-[#E9E5DA] group-hover:text-primary-container transition-colors duration-150">
+                                Realtime
+                            </span>
+                            <span class="font-code-sm text-code-sm text-[#868D9A] mt-1">Pub/Sub Mesh</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- One Closing Band -->
+    <section class="w-full bg-[#05060A] py-20 md:py-space-2xl border-b border-[#1E2633] relative" id="plans">
+        <!-- Fine technical tick crosshairs in corners -->
+        <div class="max-w-7xl mx-auto px-gutter relative">
+            <div class="border border-[#1E2633] p-8 md:p-14 relative bg-[#090B12]">
+                <!-- Registration corner marks -->
+                <span class="absolute -top-1.5 -left-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -top-1.5 -right-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -bottom-1.5 -left-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <span class="absolute -bottom-1.5 -right-1.5 text-xs text-[#2A3648] select-none font-mono">+</span>
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <div>
+                        <div class="font-label-caps text-label-caps text-tertiary uppercase tracking-widest mb-3">
+                            ZERO CONFIGURATION TIER
+                        </div>
+                        <h2
+                            class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-[#E9E5DA] tracking-tight">
+                            Your first server is free.
+                        </h2>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                        <a class="bg-primary-container text-[#05060A] font-code-sm text-code-sm uppercase tracking-wider font-medium px-6 py-3 text-center transition-all duration-150 hover:brightness-110 active:opacity-90"
+                            href="#get-started">
+                            Get started free
+                        </a>
+                        <a class="text-tertiary hover:text-[#E9E5DA] font-code-sm text-code-sm uppercase tracking-wider px-2 py-3 flex items-center justify-center gap-1.5 transition-colors"
+                            href="#quickstart">
+                            <span>Read quickstart guide</span>
+                            <span>→</span>
+                        </a>
+                    </div>
+                </div>
+                <!-- Telemetry bar embedded in closure -->
+                <div
+                    class="mt-8 pt-6 border-t border-[#1E2633]/60 flex flex-wrap items-center justify-between gap-4 font-code-sm text-code-sm text-[#868D9A]">
+                    <div class="flex items-center gap-4">
+                        <span>UPTIME: 99.998%</span>
+                        <span class="text-[#1E2633]">/</span>
+                        <span>PROVISION TIME: ~40s</span>
+                        <span class="text-[#1E2633]">/</span>
+                        <span>ZERO INGRESS CHARGES</span>
+                    </div>
+                    <div class="text-tertiary font-mono">
+                        NODE-ALLOC: US-EAST-1 // EU-CENTRAL-1
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Quiet Observatory Footer (Shared Component Anchor) -->
+    <footer class="bg-surface-container-lowest border-t border-outline-variant/30 py-space-lg">
+        <div
+            class="w-full max-w-7xl mx-auto px-gutter flex flex-col md:flex-row items-center justify-between gap-space-md">
+            <!-- Copyright & System Status -->
+            <div
+                class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 font-code-sm text-code-sm text-tertiary text-center sm:text-left">
+                <span>© 2025 AbsoraCloud · absoracloud.qzz.io · All systems nominal</span>
+            </div>
+            <!-- Footer Navigation Cluster -->
+            <div class="flex flex-wrap items-center justify-center gap-6 font-code-sm text-code-sm">
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#features">Features</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#plans">Plans</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#signin">Sign in</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#dashboard">Dashboard</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#status">Status</a>
+                <a class="text-tertiary font-code-sm text-code-sm hover:text-on-surface transition-colors"
+                    href="#telemetry">Telemetry</a>
+            </div>
+            <!-- Latency & Cluster Ping Telemetry Pill -->
+            <div
+                class="flex items-center gap-2 font-code-sm text-code-sm text-[#868D9A] border border-[#1E2633] px-2.5 py-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                <span>US-EAST-1 · 12ms · NOMINAL</span>
+            </div>
+        </div>
+    </footer>
+    <!-- Inline Interaction Logic for Session State Switcher -->
+    <script>
+        function setSessionState(isSignedIn) {
+            const signedOutCluster = document.getElementById('nav-signed-out');
+            const signedInCluster = document.getElementById('nav-signed-in');
+            const btnSignedOut = document.getElementById('btn-state-signed-out');
+            const btnSignedIn = document.getElementById('btn-state-signed-in');
+
+            if (isSignedIn) {
+                signedOutCluster.classList.add('hidden');
+                signedOutCluster.classList.remove('flex');
+                signedInCluster.classList.remove('hidden');
+                signedInCluster.classList.add('flex');
+
+                btnSignedIn.classList.add('bg-[#1E2633]', 'text-[#E9E5DA]');
+                btnSignedIn.classList.remove('text-[#868D9A]');
+                btnSignedOut.classList.remove('bg-[#1E2633]', 'text-[#E9E5DA]');
+                btnSignedOut.classList.add('text-[#868D9A]');
+            } else {
+                signedInCluster.classList.add('hidden');
+                signedInCluster.classList.remove('flex');
+                signedOutCluster.classList.remove('hidden');
+                signedOutCluster.classList.add('flex');
+
+                btnSignedOut.classList.add('bg-[#1E2633]', 'text-[#E9E5DA]');
+                btnSignedOut.classList.remove('text-[#868D9A]');
+                btnSignedIn.classList.remove('bg-[#1E2633]', 'text-[#E9E5DA]');
+                btnSignedIn.classList.add('text-[#868D9A]');
+            }
+        }
+    </script>
+</body>
+
+</html>

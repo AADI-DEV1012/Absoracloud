@@ -37,7 +37,7 @@
     <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
         <div class="flex items-center gap-6">
             <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-base tracking-tight text-primary" title="Back to Home Website"><span class="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs shadow-xs"><i class="fa-solid fa-cloud"></i></span><span>AbsoraCloud</span></a>
-            <a href="index.html#dashboard" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs" title="Return to All Services Hub">
+            <a href="console.html" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs" title="Return to All Services Hub">
                 <i class="fa-solid fa-arrow-left"></i> All Services
             </a>
             <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
@@ -58,7 +58,7 @@
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
-            <a id="login-link-btn" href="index.html?login=1" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+            <a id="login-link-btn" href="app.html?mode=login" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
         </div>
     </header>
 
@@ -184,7 +184,7 @@
             if (!authToken) {
                 document.getElementById('login-link-btn').classList.remove('hidden');
                 document.getElementById('user-profile-bar').classList.add('hidden');
-                document.getElementById('sites-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="index.html?login=1" class="text-primary font-bold underline">Sign In</a> to manage Edge Websites.</td></tr>`;
+                document.getElementById('sites-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="app.html?mode=login" class="text-primary font-bold underline">Sign In</a> to manage Edge Websites.</td></tr>`;
                 return false;
             }
 
@@ -259,7 +259,7 @@
         }
 
         async function deploySite() {
-            if (!authToken) return window.location.href = 'index.html?login=1';
+            if (!authToken) return window.location.href = 'app.html?mode=login';
             const siteName = document.getElementById('site-name-input').value.trim().toLowerCase();
             const repoUrl = document.getElementById('git-url-input').value.trim();
 
