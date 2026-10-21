@@ -7,6 +7,7 @@ import { performance } from 'perf_hooks';
 import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd, redisPipeline } from '../../../../packages/shared/redis.js';
 import { getLogDiskUsage, getRunLog, appendRunLog } from './run_logger.js';
+import { removeWebsite, deleteFunction } from './cloudflare_workers.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -1267,6 +1268,237 @@ async function runUsersListCommand(rangeArg, chatId) {
   }
 }
 
+// ── Remove Website Command (/rm site <url_or_subdomain>) ──
+async function runRemoveWebsiteCommand(rawTarget, chatId) {
+  const target = (rawTarget || '').trim();
+  if (!target) {
+    await sendTelegramMessage(
+      '⚠️ <b>Missing Website Identifier</b>\n' +
+      'Usage: <code>/rm site &lt;url_or_subdomain&gt;</code>\n\n' +
+      '<i>Examples:</i>\n' +
+      '• <code>/rm site https://absohost-myblog.aadibabaji12345.workers.dev</code>\n' +
+      '• <code>/rm site myblog</code>\n\n' +
+      '<i>Copy URL directly from:</i> <code>/status &lt;username&gt;</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  try {
+    // 1. Fetch active/deploying webhost instances
+    const instances = toRows(await queryD1(
+      "SELECT i.id, i.user_id, i.session_key, i.public_url, i.config, i.status, u.username " +
+      "FROM instances i LEFT JOIN users u ON i.user_id = u.id " +
+      "WHERE i.service = 'webhost' AND i.status != 'dismissed' ORDER BY i.id DESC"
+    ));
+
+    // Normalize target: remove http://, https://, trailing slashes
+    const cleanTarget = target.replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+
+    // 2. Locate matching instance
+    let matchedInst = null;
+    let matchedSiteName = null;
+
+    for (const inst of instances) {
+      let cfg = {};
+      try { cfg = JSON.parse(inst.config || '{}'); } catch (_) {}
+      const siteName = (cfg.site_name || '').toLowerCase();
+      const pubUrl = (inst.public_url || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+      const sessKey = (inst.session_key || '').toLowerCase();
+
+      if (
+        (pubUrl && (pubUrl === cleanTarget || cleanTarget.includes(pubUrl) || pubUrl.includes(cleanTarget))) ||
+        (siteName && (siteName === cleanTarget || cleanTarget === `absohost-${siteName}`)) ||
+        (sessKey && sessKey === cleanTarget)
+      ) {
+        matchedInst = inst;
+        matchedSiteName = cfg.site_name || siteName;
+        break;
+      }
+    }
+
+    if (!matchedInst) {
+      // Fallback: check if target is a raw subdomain name or URL without active D1 record
+      const fallbackName = cleanTarget.replace(/^absohost-/, '').split('.')[0];
+      if (fallbackName && /^[a-z0-9-]{3,30}$/.test(fallbackName)) {
+        try {
+          await removeWebsite(fallbackName);
+          await sendTelegramMessage(
+            `🗑️ <b>Website Purged from Cloudflare</b> • ${getIstTime()}\n\n` +
+            `• Target: <code>${target}</code>\n` +
+            `• Cloudflare Worker: <code>absohost-${fallbackName}</code> (Deleted)\n` +
+            `<i>Note: No active database instance matched, but Cloudflare Worker was purged.</i>`,
+            { chatId }
+          );
+          return;
+        } catch (_) {}
+      }
+
+      await sendTelegramMessage(
+        `❌ <b>Website Not Found:</b> <code>${target}</code>\n\n` +
+        `<i>Tip: Run <code>/status &lt;username&gt;</code> to verify live website URLs.</i>`,
+        { chatId }
+      );
+      return;
+    }
+
+    let cfg = {};
+    try { cfg = JSON.parse(matchedInst.config || '{}'); } catch (_) {}
+    const finalSiteName = matchedSiteName || cfg.site_name || cleanTarget.replace(/^absohost-/, '').split('.')[0];
+
+    // 3. Delete from Cloudflare Edge
+    let cfDeleted = false;
+    if (finalSiteName) {
+      try {
+        await removeWebsite(finalSiteName);
+        cfDeleted = true;
+      } catch (cfErr) {
+        console.warn(`[MonitorBot] CF removeWebsite note for ${finalSiteName}:`, cfErr.message);
+      }
+    }
+
+    // 4. Update D1
+    await executeD1("UPDATE instances SET status = 'dismissed', stopped_at = datetime('now') WHERE id = ?", [matchedInst.id]);
+
+    // 5. Redis cleanup
+    if (matchedInst.session_key) {
+      await redisCmd('SET', `kill:${matchedInst.session_key}`, '1', 'EX', '300');
+      await redisCmd('DEL', `session:${matchedInst.session_key}`);
+    }
+
+    let reply = `🗑️ <b>Website Removed</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Site Name:</b> <code>${finalSiteName}</code>\n`;
+    reply += `• <b>Owner:</b> 👤 <code>${matchedInst.username || `User #${matchedInst.user_id}`}</code>\n`;
+    if (matchedInst.public_url) {
+      reply += `• <b>URL:</b> <code>${matchedInst.public_url}</code>\n`;
+    }
+    reply += `• <b>Cloudflare Worker:</b> <code>absohost-${finalSiteName}</code> ${cfDeleted ? '✅ (Deleted)' : '⚠️ (Purged)'}\n`;
+    reply += `• <b>Status:</b> 🟢 Dismissed &amp; site slot restored to user quota.`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Remove website error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to remove website:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Remove Serverless Function Command (/rm func <url_or_func_name>) ──
+async function runRemoveFunctionCommand(rawTarget, chatId) {
+  const target = (rawTarget || '').trim();
+  if (!target) {
+    await sendTelegramMessage(
+      '⚠️ <b>Missing Function Identifier</b>\n' +
+      'Usage: <code>/rm func &lt;url_or_func_name&gt;</code>\n\n' +
+      '<i>Examples:</i>\n' +
+      '• <code>/rm func https://abso-fn-1-myfunc.aadibabaji12345.workers.dev</code>\n' +
+      '• <code>/rm func myfunc</code>\n\n' +
+      '<i>Copy URL directly from:</i> <code>/status &lt;username&gt;</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  try {
+    // 1. Fetch active serverless instances
+    const instances = toRows(await queryD1(
+      "SELECT i.id, i.user_id, i.session_key, i.public_url, i.config, i.status, u.username " +
+      "FROM instances i LEFT JOIN users u ON i.user_id = u.id " +
+      "WHERE i.service = 'serverless' AND i.status != 'dismissed' ORDER BY i.id DESC"
+    ));
+
+    // Normalize target: remove http://, https://, trailing slashes
+    const cleanTarget = target.replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+
+    // 2. Locate matching instance
+    let matchedInst = null;
+    let matchedFuncName = null;
+
+    for (const inst of instances) {
+      let cfg = {};
+      try { cfg = JSON.parse(inst.config || '{}'); } catch (_) {}
+      const funcName = (cfg.func_name || '').toLowerCase();
+      const pubUrl = (inst.public_url || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+      const sessKey = (inst.session_key || '').toLowerCase();
+      const workerPrefix = `abso-fn-${inst.user_id}-${funcName}`;
+
+      if (
+        (pubUrl && (pubUrl === cleanTarget || cleanTarget.includes(pubUrl) || pubUrl.includes(cleanTarget))) ||
+        (funcName && (funcName === cleanTarget || cleanTarget === workerPrefix)) ||
+        (sessKey && sessKey === cleanTarget)
+      ) {
+        matchedInst = inst;
+        matchedFuncName = cfg.func_name || funcName;
+        break;
+      }
+    }
+
+    if (!matchedInst) {
+      // Fallback: check if cleanTarget matches abso-fn-(\d+)-([a-z0-9-]+)
+      const directMatch = cleanTarget.match(/abso-fn-(\d+)-([a-z0-9-]+)/i);
+      if (directMatch) {
+        const uId = directMatch[1];
+        const fName = directMatch[2];
+        try {
+          await deleteFunction(uId, fName);
+          await sendTelegramMessage(
+            `🗑️ <b>Function Purged from Cloudflare</b> • ${getIstTime()}\n\n` +
+            `• Target: <code>${target}</code>\n` +
+            `• Cloudflare Worker: <code>abso-fn-${uId}-${fName}</code> (Deleted)\n` +
+            `<i>Note: No active database instance matched, but Cloudflare Worker was purged.</i>`,
+            { chatId }
+          );
+          return;
+        } catch (_) {}
+      }
+
+      await sendTelegramMessage(
+        `❌ <b>Serverless Function Not Found:</b> <code>${target}</code>\n\n` +
+        `<i>Tip: Run <code>/status &lt;username&gt;</code> to verify live function URLs.</i>`,
+        { chatId }
+      );
+      return;
+    }
+
+    let cfg = {};
+    try { cfg = JSON.parse(matchedInst.config || '{}'); } catch (_) {}
+    const finalFuncName = matchedFuncName || cfg.func_name || 'function';
+
+    // 3. Delete from Cloudflare
+    let cfDeleted = false;
+    if (matchedInst.user_id && finalFuncName) {
+      try {
+        await deleteFunction(matchedInst.user_id, finalFuncName);
+        cfDeleted = true;
+      } catch (cfErr) {
+        console.warn(`[MonitorBot] CF deleteFunction note for ${finalFuncName}:`, cfErr.message);
+      }
+    }
+
+    // 4. Update D1
+    await executeD1("UPDATE instances SET status = 'dismissed', stopped_at = datetime('now') WHERE id = ?", [matchedInst.id]);
+
+    // 5. Redis cleanup
+    if (matchedInst.session_key) {
+      await redisCmd('SET', `kill:${matchedInst.session_key}`, '1', 'EX', '300');
+      await redisCmd('DEL', `session:${matchedInst.session_key}`);
+    }
+
+    let reply = `🗑️ <b>Serverless Function Removed</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Function Name:</b> <code>${finalFuncName}</code>\n`;
+    reply += `• <b>Owner:</b> 👤 <code>${matchedInst.username || `User #${matchedInst.user_id}`}</code>\n`;
+    if (matchedInst.public_url) {
+      reply += `• <b>Endpoint:</b> <code>${matchedInst.public_url}</code>\n`;
+    }
+    reply += `• <b>Cloudflare Worker:</b> <code>abso-fn-${matchedInst.user_id}-${finalFuncName}</code> ${cfDeleted ? '✅ (Deleted)' : '⚠️ (Purged)'}\n`;
+    reply += `• <b>Status:</b> 🟢 Dismissed &amp; function slot restored to user quota.`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Remove function error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to remove function:</b> ${err.message}`, { chatId });
+  }
+}
+
 // ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
@@ -1339,6 +1571,50 @@ export async function handleTelegramWebhook(req, res) {
     const targetUser = tokens[1];
     res.json({ status: 'ok', msg: 'Unbanning user' });
     await runUnbanUserCommand(targetUser, senderChatId);
+    return;
+  }
+
+  // Command: /rm site <url_or_subdomain>, /rm func <url_or_name>, /del ..., /remove ...
+  if (cmd === '/rm' || cmd === '/del' || cmd === '/remove') {
+    const subType = (tokens[1] || '').toLowerCase();
+    const target = tokens.slice(2).join(' ').trim();
+
+    if (subType === 'site' || subType === 'website' || subType === 'web') {
+      res.json({ status: 'ok', msg: 'Removing website' });
+      await runRemoveWebsiteCommand(target, senderChatId);
+      return;
+    }
+
+    if (subType === 'func' || subType === 'function' || subType === 'fn') {
+      res.json({ status: 'ok', msg: 'Removing serverless function' });
+      await runRemoveFunctionCommand(target, senderChatId);
+      return;
+    }
+
+    // If no subtype or invalid subtype, show usage instructions
+    await sendTelegramMessage(
+      '⚠️ <b>Remove Command Usage:</b>\n\n' +
+      '• <code>/rm site &lt;url_or_subdomain&gt;</code> - Remove a hosted website\n' +
+      '• <code>/rm func &lt;url_or_name&gt;</code> - Remove a serverless function\n\n' +
+      '<i>Copy the live URL directly from:</i> <code>/status &lt;username&gt;</code>',
+      { chatId: senderChatId }
+    );
+    return res.json({ status: 'ok', msg: 'Usage sent' });
+  }
+
+  // Shorthands: /rmsite <target>, /delsite <target>
+  if (cmd === '/rmsite' || cmd === '/delsite') {
+    const target = tokens.slice(1).join(' ').trim();
+    res.json({ status: 'ok', msg: 'Removing website' });
+    await runRemoveWebsiteCommand(target, senderChatId);
+    return;
+  }
+
+  // Shorthands: /rmfunc <target>, /delfunc <target>
+  if (cmd === '/rmfunc' || cmd === '/delfunc') {
+    const target = tokens.slice(1).join(' ').trim();
+    res.json({ status: 'ok', msg: 'Removing serverless function' });
+    await runRemoveFunctionCommand(target, senderChatId);
     return;
   }
 
@@ -1417,6 +1693,8 @@ export async function handleTelegramWebhook(req, res) {
 • <code>/stop &lt;runner_id&gt;</code> - Terminate compute runner & disconnect its sessions
 • <code>/ban &lt;username&gt; [reason]</code> - Lock user account & terminate active workloads
 • <code>/unban &lt;username&gt;</code> - Restore user account access
+• <code>/rm site &lt;url_or_subdomain&gt;</code> - Remove website & free user plan quota
+• <code>/rm func &lt;url_or_name&gt;</code> - Remove serverless function & free user plan quota
 
 <b>System Diagnostics:</b>
 • <code>/test all</code> - Comprehensive infrastructure health audit
@@ -1453,6 +1731,8 @@ export async function handleTelegramWebhook(req, res) {
 • <code>/runners</code> - Active compute runners
 • <code>/users 1-10</code> - List registered users
 • <code>/stop &lt;runner_id&gt;</code> - Terminate a runner
+• <code>/rm site &lt;url&gt;</code> - Remove a hosted website
+• <code>/rm func &lt;url&gt;</code> - Remove a serverless function
 • <code>/ban &lt;username&gt;</code> - Ban user & kill workloads
 • <code>/help</code> - View complete command manual
     `.trim();
