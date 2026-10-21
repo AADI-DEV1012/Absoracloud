@@ -4,9 +4,9 @@
 // Runs every 5 minutes with Redis distributed lock & strictly read-only checks.
 
 import { performance } from 'perf_hooks';
-import { queryD1 } from '../../../../packages/shared/d1.js';
+import { queryD1, executeD1 } from '../../../../packages/shared/d1.js';
 import { redisCmd, redisPipeline } from '../../../../packages/shared/redis.js';
-import { getLogDiskUsage, getRunLog } from './run_logger.js';
+import { getLogDiskUsage, getRunLog, appendRunLog } from './run_logger.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -1036,7 +1036,238 @@ async function runRunnerLogsCheck(rawTargetId, chatId) {
   }
 }
 
-// ── Telegram Webhook Handler (/status, /test, /runner, /logs, /mute) ──
+// ── Stop Runner Command (/stop <runner_id>) ──
+async function runStopRunnerCommand(rawRunnerId, chatId) {
+  const runnerId = (rawRunnerId || '').trim();
+  if (!runnerId) {
+    await sendTelegramMessage(
+      '⚠️ <b>Missing Runner ID</b>\nUsage: <code>/stop &lt;runner_id&gt;</code>\n<i>Example:</i> <code>/stop runner-123</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  try {
+    const rows = toRows(await queryD1('SELECT id, type, service, status, capacity, active_count FROM runners WHERE id = ?', [runnerId]));
+    const runner = rows[0];
+
+    // 1. Dispatch kill flags to Redis
+    await redisCmd('SET', `kill:runner:${runnerId}`, '1', 'EX', '300');
+    await redisCmd('SREM', 'runners:active', runnerId);
+    await redisCmd('DEL', `runner:${runnerId}`);
+
+    // 2. Mark dead in D1
+    if (runner) {
+      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runnerId]);
+    }
+
+    // 3. Find and disconnect attached active/pending instances
+    const orphaned = toRows(await queryD1(
+      "SELECT id, session_key, service, user_id FROM instances WHERE runner_id = ? AND status IN ('active', 'pending')",
+      [runnerId]
+    ).catch(() => []));
+
+    for (const inst of orphaned) {
+      await executeD1("UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE id = ?", [inst.id]);
+      if (inst.session_key) {
+        await redisCmd('SET', `kill:${inst.session_key}`, '1', 'EX', '300');
+        await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'disconnected', 'error', 'Terminated by administrator via Telegram Bot');
+        try {
+          appendRunLog(inst.service || 'vps', inst.session_key, `Runner ${runnerId} stopped by administrator via Telegram Bot.`, 'WARN');
+        } catch (_) {}
+      }
+    }
+
+    let reply = `🛑 <b>Runner Terminated</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
+    if (runner) {
+      reply += `• <b>Service:</b> ${(runner.service || 'unknown').toUpperCase()} [${runner.type || 'N/A'}]\n`;
+      reply += `• <b>Previous Status:</b> <code>${runner.status}</code>\n`;
+    } else {
+      reply += `• <i>Note:</i> Runner was not recorded in D1, but Redis kill flags were dispatched.\n`;
+    }
+    reply += `• <b>Disconnected Sessions:</b> ${orphaned.length} instance(s)\n`;
+    reply += `• <b>State:</b> 🔴 Marked <b>DEAD</b> in D1 &amp; purged from Redis pool.`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Stop runner error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to stop runner:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Ban User Command (/ban <username> [reason]) ──
+async function runBanUserCommand(rawUsername, reasonText, chatId) {
+  const username = (rawUsername || '').trim();
+  if (!username) {
+    await sendTelegramMessage(
+      '⚠️ <b>Missing Username</b>\nUsage: <code>/ban &lt;username&gt; [optional reason]</code>\n<i>Example:</i> <code>/ban baduser spamming workloads</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1('SELECT id, username, email, plan, role, locked_until FROM users WHERE username = ? COLLATE NOCASE', [username]));
+    if (userRows.length === 0) {
+      await sendTelegramMessage(`❌ <b>User Not Found:</b> <code>${username}</code>`, { chatId });
+      return;
+    }
+
+    const user = userRows[0];
+    const reason = (reasonText || 'Violating Terms of Service (Banned via Monitor Bot)').trim();
+
+    // 1. Insert ban audit record
+    await executeD1('INSERT INTO bans (username, service, reason) VALUES (?, ?, ?)', [user.username, 'all', reason]).catch(() => {});
+
+    // 2. Lock user account for 100 years
+    await executeD1("UPDATE users SET locked_until = datetime('now', '+100 years') WHERE id = ?", [user.id]);
+
+    // 3. Stop active instances
+    const activeSessions = toRows(await queryD1(
+      "SELECT id, session_key, service FROM instances WHERE user_id = ? AND status = 'active'",
+      [user.id]
+    ).catch(() => []));
+
+    for (const sess of activeSessions) {
+      if (sess.session_key) {
+        await redisCmd('SET', `kill:${sess.session_key}`, '1', 'EX', '300');
+        await redisCmd('HSET', `session:${sess.session_key}`, 'status', 'stopped', 'error', 'User banned by admin');
+        try {
+          appendRunLog(sess.service || 'vps', sess.session_key, `User ${user.username} banned by administrator. Session killed.`, 'WARN');
+        } catch (_) {}
+      }
+    }
+
+    if (activeSessions.length > 0) {
+      await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE user_id = ? AND status = 'active'", [user.id]);
+    }
+
+    let reply = `🚫 <b>User Banned</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Username:</b> <code>${user.username}</code> (ID: ${user.id})\n`;
+    reply += `• <b>Email:</b> ${user.email || 'N/A'}\n`;
+    reply += `• <b>Plan:</b> ${(user.plan || 'free').toUpperCase()}\n`;
+    reply += `• <b>Reason:</b> <i>${reason}</i>\n`;
+    reply += `• <b>Stopped Workloads:</b> ${activeSessions.length} active session(s)\n`;
+    reply += `• <b>Account Status:</b> 🔴 Locked for 100 years\n\n`;
+    reply += `<i>To unban later, send:</i> <code>/unban ${user.username}</code>`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Ban user error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to ban user:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Unban User Command (/unban <username>) ──
+async function runUnbanUserCommand(rawUsername, chatId) {
+  const username = (rawUsername || '').trim();
+  if (!username) {
+    await sendTelegramMessage('⚠️ <b>Missing Username</b>\nUsage: <code>/unban &lt;username&gt;</code>', { chatId });
+    return;
+  }
+
+  try {
+    const userRows = toRows(await queryD1('SELECT id, username, locked_until FROM users WHERE username = ? COLLATE NOCASE', [username]));
+    if (userRows.length === 0) {
+      await sendTelegramMessage(`❌ <b>User Not Found:</b> <code>${username}</code>`, { chatId });
+      return;
+    }
+
+    const user = userRows[0];
+    await executeD1("UPDATE users SET locked_until = NULL WHERE id = ?", [user.id]);
+    await executeD1("DELETE FROM bans WHERE username = ?", [user.username]).catch(() => {});
+
+    let reply = `✅ <b>User Unbanned</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Username:</b> <code>${user.username}</code> (ID: ${user.id})\n`;
+    reply += `• <b>Account Status:</b> 🟢 Active (Lock lifted).`;
+
+    await sendTelegramMessage(reply, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Unban user error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Failed to unban user:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Users Registry List Command (/users 1-10, /username list 1-10) ──
+async function runUsersListCommand(rangeArg, chatId) {
+  try {
+    let startRow = 1;
+    let endRow = 10;
+
+    const cleanArg = (rangeArg || '').trim();
+    const match = cleanArg.match(/^(\d+)(?:[-–—:\s]+(\d+))?$/);
+    if (match) {
+      const p1 = parseInt(match[1], 10);
+      const p2 = match[2] ? parseInt(match[2], 10) : null;
+      if (p2 !== null) {
+        startRow = Math.max(1, Math.min(p1, p2));
+        endRow = Math.max(p1, p2);
+      } else {
+        startRow = 1;
+        endRow = Math.max(1, p1);
+      }
+    }
+
+    // Limit maximum window to 30 rows per Telegram message
+    if (endRow - startRow + 1 > 30) {
+      endRow = startRow + 29;
+    }
+
+    const limit = endRow - startRow + 1;
+    const offset = startRow - 1;
+
+    // Fetch total count and users for requested slice
+    const [totalRes, usersRes] = await Promise.all([
+      queryD1('SELECT COUNT(*) as cnt FROM users'),
+      queryD1('SELECT id, username, email, plan, role, created_at, locked_until FROM users ORDER BY id ASC LIMIT ? OFFSET ?', [limit, offset])
+    ]);
+
+    const totalUsers = toRows(totalRes)[0]?.cnt || 0;
+    const users = toRows(usersRes);
+
+    if (users.length === 0) {
+      await sendTelegramMessage(
+        `ℹ️ <b>No users found in row range ${startRow}-${endRow}.</b>\nTotal registered users: <b>${totalUsers}</b>.\nTry: <code>/users 1-${Math.min(10, totalUsers)}</code>`,
+        { chatId }
+      );
+      return;
+    }
+
+    let msg = `👥 <b>AbsoraCloud Users Registry</b> • ${getIstTime()}\n`;
+    msg += `<b>Displaying Rows:</b> ${startRow}–${startRow + users.length - 1} of <b>${totalUsers} total</b>\n\n`;
+
+    const now = new Date();
+    users.forEach((u, idx) => {
+      const rowNum = startRow + idx;
+      const isLocked = u.locked_until && new Date(u.locked_until) > now;
+      const statusBadge = isLocked ? '🔴 <b>BANNED</b>' : (u.role === 'admin' ? '⭐ <b>ADMIN</b>' : '🟢 <b>Active</b>');
+      const planBadge = (u.plan || 'free').toUpperCase();
+      const dateSnippet = u.created_at ? u.created_at.split('T')[0] : 'N/A';
+
+      msg += `<b>${rowNum}.</b> 👤 <code>${u.username}</code> [${planBadge}] (ID: ${u.id})\n`;
+      msg += `    Status: ${statusBadge} | 📅 ${dateSnippet}\n`;
+      if (u.email) {
+        msg += `    📧 <code>${u.email}</code>\n`;
+      }
+      msg += `\n`;
+    });
+
+    const nextStart = startRow + users.length;
+    if (nextStart <= totalUsers) {
+      msg += `💡 <i>Next page:</i> <code>/users ${nextStart}-${Math.min(nextStart + 9, totalUsers)}</code>\n\n`;
+    }
+    msg += `<i>Inspect user telemetry:</i> <code>/status &lt;username&gt;</code>\n`;
+    msg += `<i>Ban user:</i> <code>/ban &lt;username&gt;</code>`;
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Users list error:', err.message);
+    await sendTelegramMessage(`⚠️ <b>Error fetching users list:</b> ${err.message}`, { chatId });
+  }
+}
+
+// ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
   const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
@@ -1061,12 +1292,14 @@ export async function handleTelegramWebhook(req, res) {
     return res.json({ status: 'ok', msg: 'Unauthorized' });
   }
 
-  const text = String(message.text || '').replace(/[\u00A0\s]+/g, ' ').trim();
+  const rawText = String(message.text || '').replace(/[\u00A0\s]+/g, ' ').trim();
+  const tokens = rawText.split(/\s+/);
+  const firstWord = (tokens[0] || '').toLowerCase();
+  const cmd = firstWord.replace(/@\w+/i, '');
 
   // Command: /status or /status <username>
-  if (text.startsWith('/status')) {
-    const parts = text.split(/\s+/);
-    const targetUser = parts[1];
+  if (cmd === '/status') {
+    const targetUser = tokens[1];
     if (targetUser) {
       res.json({ status: 'ok', msg: 'Dispatching user status' });
       await runUserStatusCheck(targetUser, senderChatId);
@@ -1077,35 +1310,74 @@ export async function handleTelegramWebhook(req, res) {
     return;
   }
 
-  // Command: /runner active, /runners active, /runners, /runner
-  if (text.startsWith('/runner') || text.startsWith('/runners')) {
+  // Command: /runner or /runners
+  if (cmd === '/runner' || cmd === '/runners') {
     res.json({ status: 'ok', msg: 'Querying runners' });
     await runRunnersCheck(senderChatId);
     return;
   }
 
+  // Command: /stop <runner_id> or /kill <runner_id>
+  if (cmd === '/stop' || cmd === '/kill') {
+    const targetId = tokens[1];
+    res.json({ status: 'ok', msg: 'Terminating runner' });
+    await runStopRunnerCommand(targetId, senderChatId);
+    return;
+  }
+
+  // Command: /ban <username> [reason]
+  if (cmd === '/ban') {
+    const targetUser = tokens[1];
+    const reason = tokens.slice(2).join(' ');
+    res.json({ status: 'ok', msg: 'Banning user' });
+    await runBanUserCommand(targetUser, reason, senderChatId);
+    return;
+  }
+
+  // Command: /unban <username>
+  if (cmd === '/unban') {
+    const targetUser = tokens[1];
+    res.json({ status: 'ok', msg: 'Unbanning user' });
+    await runUnbanUserCommand(targetUser, senderChatId);
+    return;
+  }
+
+  // Command: /users [range], /usernames [range], /username list [range], /user list [range]
+  if (cmd === '/users' || cmd === '/usernames' || ((cmd === '/username' || cmd === '/user') && tokens[1]?.toLowerCase() === 'list')) {
+    const rangeArg = ((cmd === '/username' || cmd === '/user') && tokens[1]?.toLowerCase() === 'list')
+      ? tokens.slice(2).join(' ')
+      : tokens.slice(1).join(' ');
+    res.json({ status: 'ok', msg: 'Fetching users registry' });
+    await runUsersListCommand(rangeArg, senderChatId);
+    return;
+  }
+
+  // Shorthand: /username <name> or /user <name> (checks user status)
+  if ((cmd === '/username' || cmd === '/user') && tokens[1]) {
+    res.json({ status: 'ok', msg: 'Dispatching user status' });
+    await runUserStatusCheck(tokens[1], senderChatId);
+    return;
+  }
+
   // Command: /logs <runner_id> or /log <runner_id>
-  if (text.startsWith('/logs') || text.startsWith('/log')) {
-    const parts = text.split(/\s+/);
-    const targetId = parts[1];
+  if (cmd === '/logs' || cmd === '/log') {
+    const targetId = tokens[1];
     res.json({ status: 'ok', msg: 'Fetching runner logs' });
     await runRunnerLogsCheck(targetId, senderChatId);
     return;
   }
 
   // Command: /test [target] (e.g. /test all, /test redis, /test d1, /test vps, etc.)
-  if (text.startsWith('/test')) {
-    const parts = text.split(/\s+/);
-    const target = parts[1] || 'all';
+  if (cmd === '/test') {
+    const target = tokens[1] || 'all';
     res.json({ status: 'ok', msg: `Running diagnostic probe for ${target}` });
     await runSystemDiagnostics(target, senderChatId);
     return;
   }
 
   // Command: /mute <duration> (e.g. /mute 1h, /mute 30m)
-  if (text.startsWith('/mute')) {
-    const parts = text.split(' ');
-    const duration = parts[1] || '1h';
+  if (cmd === '/mute') {
+    const duration = tokens[1] || '1h';
     let seconds = 3600;
 
     if (duration.endsWith('m')) {
@@ -1122,22 +1394,29 @@ export async function handleTelegramWebhook(req, res) {
   }
 
   // Command: /unmute
-  if (text.startsWith('/unmute')) {
+  if (cmd === '/unmute') {
     await redisCmd('DEL', 'monitor:muted').catch(() => {});
     await sendTelegramMessage('🔔 Monitor notifications unmuted.', { chatId: senderChatId });
     return res.json({ status: 'ok', msg: 'Unmuted' });
   }
 
   // Command: /start or /help
-  if (text.startsWith('/start') || text.startsWith('/help')) {
+  if (cmd === '/start' || cmd === '/help') {
     const helpMsg = `
 ⚡ <b>AbsoraCloud System Monitor Bot</b>
 
-<b>Telemetry & Status:</b>
+<b>Telemetry & Infrastructure:</b>
 • <code>/status</code> - Platform health & overall telemetry
 • <code>/status &lt;username&gt;</code> - Specific user workloads, storage & quota
-• <code>/runner active</code> - List all active compute runners & capacity
+• <code>/runners</code> - List all active compute runners & capacity
 • <code>/logs &lt;runner_id&gt;</code> - Tail real-time logs for a specific runner
+
+<b>Admin Operations:</b>
+• <code>/users 1-10</code> - List registered users in row range (e.g. <code>/users 1-10</code>, <code>/users 11-20</code>)
+• <code>/username list 1-10</code> - Alternative format to list users in row range
+• <code>/stop &lt;runner_id&gt;</code> - Terminate compute runner & disconnect its sessions
+• <code>/ban &lt;username&gt; [reason]</code> - Lock user account & terminate active workloads
+• <code>/unban &lt;username&gt;</code> - Restore user account access
 
 <b>System Diagnostics:</b>
 • <code>/test all</code> - Comprehensive infrastructure health audit
@@ -1153,7 +1432,7 @@ export async function handleTelegramWebhook(req, res) {
   - <code>/test realtime</code> (Pusher, Ably, PieSocket, Scaledrone)
   - <code>/test logs</code> (1GB platform log pool usage)
 
-<b>Controls:</b>
+<b>Alert Controls:</b>
 • <code>/mute &lt;duration&gt;</code> - Mute alerts (e.g. <code>/mute 30m</code>, <code>/mute 2h</code>)
 • <code>/unmute</code> - Unmute notifications immediately
 • <code>/help</code> - Show this menu
@@ -1162,6 +1441,23 @@ export async function handleTelegramWebhook(req, res) {
     `.trim();
     await sendTelegramMessage(helpMsg, { chatId: senderChatId });
     return res.json({ status: 'ok', msg: 'Help sent' });
+  }
+
+  // Fallback for unknown slash command
+  if (cmd.startsWith('/')) {
+    const fallbackMsg = `
+❓ <b>Unknown command:</b> <code>${tokens[0]}</code>
+
+💡 <b>Quick Commands:</b>
+• <code>/status</code> - Platform health overview
+• <code>/runners</code> - Active compute runners
+• <code>/users 1-10</code> - List registered users
+• <code>/stop &lt;runner_id&gt;</code> - Terminate a runner
+• <code>/ban &lt;username&gt;</code> - Ban user & kill workloads
+• <code>/help</code> - View complete command manual
+    `.trim();
+    await sendTelegramMessage(fallbackMsg, { chatId: senderChatId });
+    return res.json({ status: 'ok', msg: 'Unknown command help sent' });
   }
 
   res.json({ status: 'ok' });
