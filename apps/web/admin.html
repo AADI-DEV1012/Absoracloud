@@ -318,7 +318,7 @@
         </section>
 
         <!-- ══════════════════════════════════════════════════════ -->
-        <!-- TAB 3: DISK LOGS EXPLORER (1GB POOL) -->
+        <!-- TAB 3: DISK LOGS EXPLORER (1GB UNIFIED POOL) -->
         <!-- ══════════════════════════════════════════════════════ -->
         <section id="pane-logs" class="hidden space-y-4">
             <!-- Quota & Storage Breakdown -->
@@ -326,10 +326,10 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="font-heading font-bold text-base text-primary">Disk Log Storage Engine</h2>
+                            <h2 class="font-heading font-bold text-base text-primary">Platform Log Storage Engine</h2>
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">UNIFIED 1GB POOL</span>
                         </div>
-                        <p class="text-xs text-neutral-500 mt-0.5">Unified 1GB log pool across all services. Auto-prunes when reaching 950MB to protect host filesystem.</p>
+                        <p class="text-xs text-neutral-500 mt-0.5">Unified 1GB log pool across all workloads. Users retain 100% of their storage plan. Auto-prunes oldest logs when reaching 950MB.</p>
                     </div>
                     <button onclick="purgeAllLogs()" class="px-3.5 py-1.5 rounded-xl border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition text-xs font-bold flex items-center gap-1.5">
                         <i class="fa-solid fa-trash-can"></i> Purge All Logs

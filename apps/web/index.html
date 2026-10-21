@@ -166,6 +166,7 @@
             scrollbar-width: none;  /* Firefox */
         }
     </style>
+    <script src="auth.js"></script>
 </head>
 
 <body
@@ -807,20 +808,22 @@ void main() {
         }
 
         (async function checkAuth() {
-            const token = localStorage.getItem('absora_token') || localStorage.getItem('auth_token');
+            const token = getToken();
             const signedOutCluster = document.getElementById('nav-signed-out');
             const signedInCluster = document.getElementById('nav-signed-in');
             const userNameEl = document.getElementById('nav-user-name');
 
             if (token) {
                 try {
-                    const res = await fetch('https://absoracloud.onrender.com/auth/me', {
+                    const res = await fetch(`${API_BASE}/auth/me`, {
                         headers: { 'Authorization': 'Bearer ' + token }
                     });
                     const data = await res.json();
                     if (res.ok && data && (data.user || data.username)) {
                         const username = (data.user && data.user.username) || data.username || 'User';
                         if (userNameEl) userNameEl.innerText = username;
+                        signedOutCluster.classList.add('hidden');
+                        signedOutCluster.classList.remove('flex');
                         signedInCluster.classList.remove('hidden');
                         signedInCluster.classList.add('flex');
                         return;
@@ -829,6 +832,8 @@ void main() {
             }
 
             // Fallback / unauthenticated: show signed-out cluster
+            signedInCluster.classList.add('hidden');
+            signedInCluster.classList.remove('flex');
             signedOutCluster.classList.remove('hidden');
             signedOutCluster.classList.add('flex');
         })();

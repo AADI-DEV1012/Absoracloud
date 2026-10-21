@@ -98,6 +98,7 @@
         border-radius: 100px;
       }
     </style>
+    <script src="auth.js"></script>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-neutral-900 selection:text-white">
 
@@ -131,13 +132,20 @@
             </nav>
         </div>
 
-        <div class="flex items-center gap-3">
-            <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
-                Sign In
-            </a>
-            <a href="app.html?mode=register" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs">
-                Get Started Free
-            </a>
+        <div class="flex items-center gap-3" id="plans-auth-nav">
+            <div id="plans-signed-out" class="flex items-center gap-3">
+                <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
+                    Sign In
+                </a>
+                <a href="app.html?mode=register" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs">
+                    Get Started Free
+                </a>
+            </div>
+            <div id="plans-signed-in" class="hidden items-center gap-3">
+                <a href="console.html" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-terminal text-[11px]"></i> Open dashboard
+                </a>
+            </div>
         </div>
     </header>
 
@@ -596,6 +604,37 @@
           });
         }
       }
+    </script>
+
+    <script>
+        (async function checkPlansAuth() {
+            const token = getToken();
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.user) {
+                    // Update header nav
+                    const signedOut = document.getElementById('plans-signed-out');
+                    const signedIn = document.getElementById('plans-signed-in');
+                    if (signedOut) signedOut.classList.add('hidden');
+                    if (signedIn) {
+                        signedIn.classList.remove('hidden');
+                        signedIn.classList.add('flex');
+                    }
+
+                    // Update plan cards buttons to point to console.html
+                    document.querySelectorAll('a[href^="app.html?mode=register"]').forEach(btn => {
+                        btn.href = 'console.html';
+                        btn.setAttribute('title', 'Select in Dashboard Console');
+                    });
+                }
+            } catch (e) {}
+        })();
     </script>
 </body>
 </html>

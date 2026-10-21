@@ -80,6 +80,7 @@
         border-color: #8C8984;
       }
     </style>
+    <script src="auth.js"></script>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-neutral-900 selection:text-white">
 
@@ -113,13 +114,20 @@
             </nav>
         </div>
 
-        <div class="flex items-center gap-3">
-            <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
-                Sign In
-            </a>
-            <a href="plans.html" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs">
-                View Plans
-            </a>
+        <div class="flex items-center gap-3" id="features-auth-nav">
+            <div id="features-signed-out" class="flex items-center gap-3">
+                <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
+                    Sign In
+                </a>
+                <a href="plans.html" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs">
+                    View Plans
+                </a>
+            </div>
+            <div id="features-signed-in" class="hidden items-center gap-3">
+                <a href="console.html" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-terminal text-[11px]"></i> Open dashboard
+                </a>
+            </div>
         </div>
     </header>
 
@@ -426,5 +434,29 @@
         </div>
     </footer>
 
+
+    <script>
+        (async function checkFeaturesAuth() {
+            const token = getToken();
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.user) {
+                    const signedOut = document.getElementById('features-signed-out');
+                    const signedIn = document.getElementById('features-signed-in');
+                    if (signedOut) signedOut.classList.add('hidden');
+                    if (signedIn) {
+                        signedIn.classList.remove('hidden');
+                        signedIn.classList.add('flex');
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
 </body>
 </html>

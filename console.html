@@ -123,6 +123,7 @@
         animation: softFloat 4s ease-in-out infinite;
       }
     </style>
+    <script src="auth.js"></script>
 </head>
 <body class="min-h-screen flex flex-col relative selection:bg-cyan-500 selection:text-white">
 
@@ -696,104 +697,75 @@
 
       // Real auth check & user profile initialization
       (async function initConsole() {
-        currentToken = localStorage.getItem('absora_token') || localStorage.getItem('auth_token');
-        if (!currentToken) {
-          window.location.href = 'app.html?mode=login';
-          return;
+        const authData = await requireLogin();
+        if (!authData) return;
+
+        currentToken = getToken();
+        userData = authData.user;
+        const quotas = authData.quotas || {};
+
+        // Populate User Info
+        if (userData && userData.username) {
+          const initial = userData.username.charAt(0).toUpperCase();
+          document.getElementById('user-avatar-initial').textContent = initial;
+          document.getElementById('nav-username').textContent = userData.username;
+          document.getElementById('welcome-username').textContent = userData.username;
+
+          const planName = quotas.plan_name || (userData.plan ? userData.plan.toUpperCase() + ' PLAN' : 'FREE PLAN');
+          document.getElementById('nav-plan-badge').textContent = planName;
+          document.getElementById('stat-tier').textContent = planName;
         }
 
-        try {
-          const res = await fetch('/auth/me', {
-            headers: {
-              'Authorization': 'Bearer ' + currentToken
-            }
-          });
+        // Populate Quota Bars
+        // VPS
+        if (quotas.vps) {
+          const vpsUsed = quotas.vps.hours_used || '0.0';
+          const vpsMax = quotas.vps.hours_max || 4;
+          const vpsPct = quotas.vps.percent || 0;
+          document.getElementById('stat-vps-hours').textContent = `${vpsUsed} / ${vpsMax} hrs`;
+          document.getElementById('stat-vps-bar').style.width = `${vpsPct}%`;
+          document.getElementById('quota-vps-txt').textContent = `${vpsUsed} / ${vpsMax} hrs`;
+          document.getElementById('quota-vps-bar').style.width = `${vpsPct}%`;
+        }
 
-          if (!res.ok) {
-            // Token expired or invalid
-            localStorage.removeItem('absora_token');
-            localStorage.removeItem('auth_token');
-            window.location.href = 'app.html?mode=login';
-            return;
-          }
+        // DevBox GPU
+        if (quotas.devbox) {
+          const devUsed = quotas.devbox.gpu_minutes_used || 0;
+          const devMax = quotas.devbox.gpu_minutes_max || 60;
+          const devPct = quotas.devbox.percent || 0;
+          document.getElementById('quota-devbox-txt').textContent = `${devUsed} / ${devMax} min`;
+          document.getElementById('quota-devbox-bar').style.width = `${devPct}%`;
+        }
 
-          const data = await res.json();
-          userData = data.user;
-          const quotas = data.quotas || {};
+        // Serverless Functions
+        if (quotas.serverless) {
+          const srvUsed = quotas.serverless.used_count || 0;
+          const srvMax = quotas.serverless.max_count || 3;
+          const srvPct = quotas.serverless.percent || 0;
+          document.getElementById('quota-serverless-txt').textContent = `${srvUsed} / ${srvMax} active`;
+          document.getElementById('quota-serverless-bar').style.width = `${srvPct}%`;
+        }
 
-          // Populate User Info
-          if (userData && userData.username) {
-            const initial = userData.username.charAt(0).toUpperCase();
-            document.getElementById('user-avatar-initial').textContent = initial;
-            document.getElementById('nav-username').textContent = userData.username;
-            document.getElementById('welcome-username').textContent = userData.username;
+        // Web Hosting
+        if (quotas.webhost) {
+          const webUsed = quotas.webhost.used_count || 0;
+          const webMax = quotas.webhost.max_count || 2;
+          const webPct = quotas.webhost.percent || 0;
+          document.getElementById('quota-webhost-txt').textContent = `${webUsed} / ${webMax} sites`;
+          document.getElementById('quota-webhost-bar').style.width = `${webPct}%`;
+        }
 
-            const planName = quotas.plan_name || (userData.plan ? userData.plan.toUpperCase() + ' PLAN' : 'FREE PLAN');
-            document.getElementById('nav-plan-badge').textContent = planName;
-            document.getElementById('stat-tier').textContent = planName;
-          }
-
-          // Populate Quota Bars
-          // VPS
-          if (quotas.vps) {
-            const vpsUsed = quotas.vps.hours_used || '0.0';
-            const vpsMax = quotas.vps.hours_max || 4;
-            const vpsPct = quotas.vps.percent || 0;
-            document.getElementById('stat-vps-hours').textContent = `${vpsUsed} / ${vpsMax} hrs`;
-            document.getElementById('stat-vps-bar').style.width = `${vpsPct}%`;
-            document.getElementById('quota-vps-txt').textContent = `${vpsUsed} / ${vpsMax} hrs`;
-            document.getElementById('quota-vps-bar').style.width = `${vpsPct}%`;
-          }
-
-          // DevBox GPU
-          if (quotas.devbox) {
-            const devUsed = quotas.devbox.gpu_minutes_used || 0;
-            const devMax = quotas.devbox.gpu_minutes_max || 60;
-            const devPct = quotas.devbox.percent || 0;
-            document.getElementById('quota-devbox-txt').textContent = `${devUsed} / ${devMax} min`;
-            document.getElementById('quota-devbox-bar').style.width = `${devPct}%`;
-          }
-
-          // Serverless Functions
-          if (quotas.serverless) {
-            const srvUsed = quotas.serverless.used_count || 0;
-            const srvMax = quotas.serverless.max_count || 3;
-            const srvPct = quotas.serverless.percent || 0;
-            document.getElementById('quota-serverless-txt').textContent = `${srvUsed} / ${srvMax} active`;
-            document.getElementById('quota-serverless-bar').style.width = `${srvPct}%`;
-          }
-
-          // Web Hosting
-          if (quotas.webhost) {
-            const webUsed = quotas.webhost.used_count || 0;
-            const webMax = quotas.webhost.max_count || 2;
-            const webPct = quotas.webhost.percent || 0;
-            document.getElementById('quota-webhost-txt').textContent = `${webUsed} / ${webMax} sites`;
-            document.getElementById('quota-webhost-bar').style.width = `${webPct}%`;
-          }
-
-          // Storage
-          if (quotas.storage) {
-            const storeUsed = quotas.storage.used_mb || '0.0';
-            const storeMax = quotas.storage.usable_gb || 5;
-            const storePct = quotas.storage.percent || 0;
-            document.getElementById('stat-storage').textContent = `${storeUsed} MB / ${storeMax} GB`;
-            document.getElementById('stat-storage-bar').style.width = `${storePct}%`;
-            document.getElementById('quota-storage-txt').textContent = `${storeUsed} MB / ${storeMax} GB`;
-            document.getElementById('quota-storage-bar').style.width = `${storePct}%`;
-          }
-
-        } catch (e) {
-          console.warn('Could not query /auth/me:', e);
+        // Storage
+        if (quotas.storage) {
+          const storeUsed = quotas.storage.used_mb || '0.0';
+          const storeMax = quotas.storage.usable_gb || 5;
+          const storePct = quotas.storage.percent || 0;
+          document.getElementById('stat-storage').textContent = `${storeUsed} MB / ${storeMax} GB`;
+          document.getElementById('stat-storage-bar').style.width = `${storePct}%`;
+          document.getElementById('quota-storage-txt').textContent = `${storeUsed} MB / ${storeMax} GB`;
+          document.getElementById('quota-storage-bar').style.width = `${storePct}%`;
         }
       })();
-
-      // Global Logout
-      function logout() {
-        localStorage.removeItem('absora_token');
-        localStorage.removeItem('auth_token');
-        window.location.href = 'index.html';
-      }
 
       // Filter Services by Category
       function filterServices(category) {

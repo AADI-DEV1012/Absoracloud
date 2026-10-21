@@ -30,6 +30,7 @@
       .font-mono { font-family: 'JetBrains Mono', monospace; }
       .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
     </style>
+    <script src="auth.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -180,8 +181,8 @@
     </footer>
 
     <script>
-        const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
-        const authToken = localStorage.getItem('auth_token');
+        // API_BASE provided by auth.js
+        const authToken = getToken();
 
         const TEMPLATES = {
             hello: `export default {
@@ -256,18 +257,8 @@
         }
 
         async function initAuth() {
-            if (!authToken) {
-                document.getElementById('login-link-btn').classList.remove('hidden');
-                document.getElementById('user-profile-bar').classList.add('hidden');
-                document.getElementById('functions-table-body').innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">Please <a href="app.html?mode=login" class="text-primary font-bold underline">Sign In</a> to manage Edge Functions.</td></tr>`;
-                return false;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const data = await res.json();
+            const data = await requireLogin();
+            if (!data) return false;
                 if (data.status === 'success' && data.user) {
                     document.getElementById('login-link-btn').classList.add('hidden');
                     document.getElementById('user-profile-bar').classList.remove('hidden');
@@ -379,11 +370,7 @@
             } catch(e) {}
         }
 
-        function logout() {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('auth_user');
-            window.location.reload();
-        }
+        // logout() provided globally by auth.js
 
         document.addEventListener('DOMContentLoaded', async () => {
             applyTemplate();
