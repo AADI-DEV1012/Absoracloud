@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -59,7 +59,7 @@
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
-            <a id="login-link-btn" href="app.html?mode=login" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+            <a id="login-link-btn" href="app.html?mode=login" class="hidden px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
         </div>
     </header>
 
@@ -179,26 +179,27 @@
         }
 
         async function initAuth() {
+            if (!getToken()) {
+                const loginBtn = document.getElementById('login-link-btn');
+                if (loginBtn) loginBtn.classList.remove('hidden');
+            }
             const data = await requireLogin();
-            if (!data) return false;
-                if (data.status === 'success' && data.user) {
-                    document.getElementById('login-link-btn').classList.add('hidden');
-                    document.getElementById('user-profile-bar').classList.remove('hidden');
-                    document.getElementById('user-name').innerText = data.user.username;
-                    document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+            if (!data || !data.user) return false;
 
-                    // Update Real Quotas
-                    if (data.quotas && data.quotas.storage) {
-                        const s = data.quotas.storage;
-                        document.getElementById('storage-quota-text').innerText = `${s.used_mb} MB / ${s.usable_gb || s.max_gb.toFixed(2)} GB Full Quota`;
-                        document.getElementById('storage-quota-percent').innerText = `${s.percent}%`;
-                        document.getElementById('storage-quota-bar').style.width = `${s.percent}%`;
-                        document.getElementById('storage-files-count').innerText = `${s.file_count} Files Stored`;
-                    }
-                    return true;
-                }
-            } catch(e) {}
-            return false;
+            document.getElementById('login-link-btn').classList.add('hidden');
+            document.getElementById('user-profile-bar').classList.remove('hidden');
+            document.getElementById('user-name').innerText = data.user.username;
+            document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+
+            // Update Real Quotas
+            if (data.quotas && data.quotas.storage) {
+                const s = data.quotas.storage;
+                document.getElementById('storage-quota-text').innerText = `${s.used_mb} MB / ${s.usable_gb || s.max_gb.toFixed(2)} GB Full Quota`;
+                document.getElementById('storage-quota-percent').innerText = `${s.percent}%`;
+                document.getElementById('storage-quota-bar').style.width = `${s.percent}%`;
+                document.getElementById('storage-files-count').innerText = `${s.file_count} Files Stored`;
+            }
+            return true;
         }
 
         async function fetchFiles() {

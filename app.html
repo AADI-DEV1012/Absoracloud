@@ -532,10 +532,17 @@
                             window.location.href = getRedirectTarget();
                             return;
                         }
+                        clearToken();
+                    } else if (res.status === 401 || res.status === 403) {
+                        clearToken();
+                    } else if (typeof showWakeupBanner === 'function') {
+                        showWakeupBanner('Server is waking up. Session will restore when ready.', true, () => init());
                     }
-                    clearToken();
                 } catch (e) {
                     // In case API is temporarily offline, keep user on form
+                    if (typeof showWakeupBanner === 'function') {
+                        showWakeupBanner('Connection error. Server is waking up.', true, () => init());
+                    }
                 }
             }
 

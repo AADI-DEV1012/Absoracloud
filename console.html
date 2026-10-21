@@ -171,7 +171,7 @@
                 </div>
 
                 <!-- User Profile & Logout -->
-                <div id="user-profile-menu" class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-pterodark-800">
+                <div id="user-profile-menu" class="hidden flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-pterodark-800">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center border border-white/10" id="user-avatar-initial">
                             U
@@ -698,7 +698,10 @@
       // Real auth check & user profile initialization
       (async function initConsole() {
         const authData = await requireLogin();
-        if (!authData) return;
+        if (!authData || !authData.user) return;
+
+        const userMenu = document.getElementById('user-profile-menu');
+        if (userMenu) userMenu.classList.remove('hidden');
 
         currentToken = getToken();
         userData = authData.user;

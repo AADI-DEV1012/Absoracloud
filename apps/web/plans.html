@@ -133,7 +133,7 @@
         </div>
 
         <div class="flex items-center gap-3" id="plans-auth-nav">
-            <div id="plans-signed-out" class="flex items-center gap-3">
+            <div id="plans-signed-out" class="hidden items-center gap-3">
                 <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
                     Sign In
                 </a>
@@ -608,19 +608,33 @@
 
     <script>
         (async function checkPlansAuth() {
+            const signedOut = document.getElementById('plans-signed-out');
+            const signedIn = document.getElementById('plans-signed-in');
             const token = getToken();
-            if (!token) return;
+            if (!token) {
+                if (signedOut) {
+                    signedOut.classList.remove('hidden');
+                    signedOut.classList.add('flex');
+                }
+                return;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/auth/me`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
+                if (res.status === 401 || res.status === 403) {
+                    clearToken();
+                    if (signedOut) {
+                        signedOut.classList.remove('hidden');
+                        signedOut.classList.add('flex');
+                    }
+                    return;
+                }
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data && data.user) {
                     // Update header nav
-                    const signedOut = document.getElementById('plans-signed-out');
-                    const signedIn = document.getElementById('plans-signed-in');
                     if (signedOut) signedOut.classList.add('hidden');
                     if (signedIn) {
                         signedIn.classList.remove('hidden');
@@ -632,6 +646,12 @@
                         btn.href = 'console.html';
                         btn.setAttribute('title', 'Select in Dashboard Console');
                     });
+                } else {
+                    clearToken();
+                    if (signedOut) {
+                        signedOut.classList.remove('hidden');
+                        signedOut.classList.add('flex');
+                    }
                 }
             } catch (e) {}
         })();
