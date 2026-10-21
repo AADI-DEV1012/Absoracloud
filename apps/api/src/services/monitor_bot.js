@@ -1120,58 +1120,127 @@ async function runRunnerLogsCheck(rawTargetId, chatId) {
   }
 }
 
-// ── Stop Runner Command (/stop <runner_id>) ──
-async function runStopRunnerCommand(rawRunnerId, chatId) {
-  const runnerId = (rawRunnerId || '').trim();
-  if (!runnerId) {
+// ── Stop / Kill Runner or Workload Command (/stop <id> or /kill <id>) ──
+async function runStopRunnerCommand(rawTargetId, chatId) {
+  const cleanTarget = (rawTargetId || '').replace(/^[#@]/, '').trim();
+  if (!cleanTarget) {
     await sendTelegramMessage(
-      '⚠️ <b>Missing Runner ID</b>\nUsage: <code>/stop &lt;runner_id&gt;</code>\n<i>Example:</i> <code>/stop runner-123</code>',
+      '⚠️ <b>Missing Identifier</b>\n' +
+      'Usage: <code>/stop &lt;id&gt;</code> or <code>/kill &lt;id&gt;</code>\n' +
+      '<i>Accepts:</i> Runner ID (e.g. <code>vps-pool-123</code>), Session Key (e.g. <code>vps-open-123</code>), Instance ID (e.g. <code>46</code>), or live URL.',
       { chatId }
     );
     return;
   }
 
   try {
-    const rows = toRows(await queryD1('SELECT id, type, service, status, capacity, active_count FROM runners WHERE id = ?', [runnerId]));
-    const runner = rows[0];
+    // 1. Try to find runner in runners table
+    let runner = (toRows(await queryD1(
+      'SELECT id, type, service, status, capacity, active_count FROM runners WHERE id = ?',
+      [cleanTarget]
+    ).catch(() => [])))[0];
 
-    // 1. Dispatch kill flags to Redis
-    await redisCmd('SET', `kill:runner:${runnerId}`, '1', 'EX', '300');
-    await redisCmd('SREM', 'runners:active', runnerId);
-    await redisCmd('DEL', `runner:${runnerId}`);
-
-    // 2. Mark dead in D1
-    if (runner) {
-      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runnerId]);
-    }
-
-    // 3. Find and disconnect attached active/pending instances
-    const orphaned = toRows(await queryD1(
-      "SELECT id, session_key, service, user_id FROM instances WHERE runner_id = ? AND status IN ('active', 'pending')",
-      [runnerId]
+    // 2. Search instances table by session_key, runner_id, id, or public_url
+    const matchedInstances = toRows(await queryD1(
+      `SELECT id, runner_id, session_key, service, status, public_url, user_id
+       FROM instances 
+       WHERE session_key = ? 
+          OR runner_id = ? 
+          OR id = ? 
+          OR (public_url IS NOT NULL AND public_url LIKE ?)
+       ORDER BY id DESC LIMIT 20`,
+      [cleanTarget, cleanTarget, cleanTarget, `%${cleanTarget}%`]
     ).catch(() => []));
 
-    for (const inst of orphaned) {
-      await executeD1("UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE id = ?", [inst.id]);
+    // If runner wasn't found directly, try to locate its runner_id from matched instances
+    let targetRunnerId = runner ? runner.id : null;
+    if (!targetRunnerId) {
+      for (const inst of matchedInstances) {
+        if (inst.runner_id) {
+          targetRunnerId = inst.runner_id;
+          runner = (toRows(await queryD1(
+            'SELECT id, type, service, status, capacity, active_count FROM runners WHERE id = ?',
+            [targetRunnerId]
+          ).catch(() => [])))[0];
+          if (runner) break;
+        }
+      }
+    }
+
+    // If still no runner found and cleanTarget starts with vps- or devbox-, consider cleanTarget itself as runner/session
+    if (!targetRunnerId && (cleanTarget.startsWith('vps-') || cleanTarget.startsWith('devbox-'))) {
+      targetRunnerId = cleanTarget;
+    }
+
+    // 3. Collect all related instances to disconnect
+    const instancesToStop = [...matchedInstances];
+    if (targetRunnerId) {
+      const moreOrphaned = toRows(await queryD1(
+        "SELECT id, session_key, service, user_id FROM instances WHERE runner_id = ? AND status IN ('active', 'pending', 'starting')",
+        [targetRunnerId]
+      ).catch(() => []));
+      for (const inst of moreOrphaned) {
+        if (!instancesToStop.some(i => i.id === inst.id)) {
+          instancesToStop.push(inst);
+        }
+      }
+    }
+
+    // 4. Dispatch kill flags to Redis & D1 for runner
+    if (targetRunnerId) {
+      await redisCmd('SET', `kill:runner:${targetRunnerId}`, '1', 'EX', '86400');
+      await redisCmd('SET', `runner:${targetRunnerId}:kill`, '1', 'EX', '86400');
+      await redisCmd('SREM', 'runners:active', targetRunnerId);
+      await redisCmd('DEL', `runner:${targetRunnerId}`);
+      await executeD1(
+        "UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?",
+        [targetRunnerId]
+      ).catch(() => {});
+    }
+
+    // 5. Stop and disconnect all matched instances
+    for (const inst of instancesToStop) {
+      await executeD1(
+        "UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE id = ?",
+        [inst.id]
+      ).catch(() => {});
+
       if (inst.session_key) {
-        await redisCmd('SET', `kill:${inst.session_key}`, '1', 'EX', '300');
-        await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'disconnected', 'error', 'Terminated by administrator via Telegram Bot');
+        await redisCmd('SET', `kill:${inst.session_key}`, '1', 'EX', '86400');
+        await redisCmd('HSET', `session:${inst.session_key}`, 'status', 'stopped', 'error', 'Terminated by administrator via Absoracloud_Bot');
         try {
-          appendRunLog(inst.service || 'vps', inst.session_key, `Runner ${runnerId} stopped by administrator via Telegram Bot.`, 'WARN');
+          appendRunLog(inst.service || 'vps', inst.session_key, `Workload stopped by administrator via Absoracloud_Bot.`, 'WARN');
         } catch (_) {}
       }
     }
 
-    let reply = `🛑 <b>Runner Terminated</b> • ${getIstTime()}\n\n`;
-    reply += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
-    if (runner) {
-      reply += `• <b>Service:</b> ${(runner.service || 'unknown').toUpperCase()} [${runner.type || 'N/A'}]\n`;
-      reply += `• <b>Previous Status:</b> <code>${runner.status}</code>\n`;
-    } else {
-      reply += `• <i>Note:</i> Runner was not recorded in D1, but Redis kill flags were dispatched.\n`;
+    // Also dispatch kill flag for cleanTarget if it looked like a session key
+    if (cleanTarget.includes('-')) {
+      await redisCmd('SET', `kill:${cleanTarget}`, '1', 'EX', '86400');
+      await redisCmd('HSET', `session:${cleanTarget}`, 'status', 'stopped', 'error', 'Terminated by administrator');
     }
-    reply += `• <b>Disconnected Sessions:</b> ${orphaned.length} instance(s)\n`;
-    reply += `• <b>State:</b> 🔴 Marked <b>DEAD</b> in D1 &amp; purged from Redis pool.`;
+
+    // 6. Format reply
+    let reply = `🛑 <b>Workload / Runner Terminated</b> • ${getIstTime()}\n\n`;
+    reply += `• <b>Target:</b> <code>${cleanTarget}</code>\n`;
+    if (targetRunnerId) {
+      reply += `• <b>Runner ID:</b> <code>${targetRunnerId}</code>\n`;
+      if (runner) {
+        reply += `• <b>Service:</b> ${(runner.service || 'compute').toUpperCase()} [${runner.type || 'N/A'}]\n`;
+        reply += `• <b>Previous Status:</b> <code>${runner.status}</code>\n`;
+      }
+    }
+    reply += `• <b>Stopped Instances:</b> ${instancesToStop.length} instance(s)\n`;
+    if (instancesToStop.length > 0) {
+      instancesToStop.slice(0, 3).forEach(inst => {
+        reply += `   ↳ <code>${inst.session_key || '#' + inst.id}</code> [stopped]\n`;
+      });
+      if (instancesToStop.length > 3) {
+        reply += `   ↳ <i>...and ${instancesToStop.length - 3} more</i>\n`;
+      }
+    }
+    reply += `• <b>Enforced By:</b> 🤖 <b>Absoracloud_Bot</b> (Admin)\n`;
+    reply += `• <b>State:</b> 🔴 Marked <b>DEAD/STOPPED</b> in D1 &amp; purged from Redis pool.`;
 
     await sendTelegramMessage(reply, { chatId });
   } catch (err) {
@@ -2361,11 +2430,15 @@ async function runStartRunnerCommand(serviceArg, chatId, senderId) {
     return;
   }
 
-  // Find admin user ID to associate the initial session with
-  let adminUserId = 1;
+  // Dedicated user: Absoracloud_Bot
+  let botUserId = 9;
+  let botUsername = 'Absoracloud_Bot';
   try {
-    const adminRows = toRows(await queryD1("SELECT id FROM users WHERE role = 'admin' LIMIT 1").catch(() => []));
-    if (adminRows[0]?.id) adminUserId = adminRows[0].id;
+    const botRows = toRows(await queryD1("SELECT id, username FROM users WHERE LOWER(username) = 'absoracloud_bot' LIMIT 1").catch(() => []));
+    if (botRows[0]?.id) {
+      botUserId = botRows[0].id;
+      botUsername = botRows[0].username;
+    }
   } catch (_) {}
 
   for (const svc of targets) {
@@ -2382,29 +2455,31 @@ async function runStartRunnerCommand(serviceArg, chatId, senderId) {
     try {
       // 1. Record runner in D1
       await executeD1(
-        `INSERT OR REPLACE INTO runners (id, type, service, capacity, status, last_heartbeat)
-         VALUES (?, ?, ?, ?, 'starting', datetime('now'))`,
+        `INSERT OR REPLACE INTO runners (id, type, service, capacity, active_count, status, last_heartbeat)
+         VALUES (?, ?, ?, ?, 1, 'starting', datetime('now'))`,
         [runnerId, runnerType, svc, capacity]
       );
       await redisCmd('SADD', 'runners:active', runnerId);
+      await redisCmd('HSET', `runner:${runnerId}`, 'status', 'starting', 'service', svc, 'owner', botUsername);
 
       // 2. Insert initial open session into D1
       const config = {
         open_notebook: true,
         capacity,
-        runtime: isVps ? 'cpu' : 'gpu'
+        runtime: isVps ? 'cpu' : 'gpu',
+        launched_by: botUsername
       };
       await executeD1(
         `INSERT INTO instances (user_id, service, session_key, runner_id, status, config, expires_at)
          VALUES (?, ?, ?, ?, 'pending', ?, datetime('now', '+4 hours'))`,
-        [adminUserId, svc, sessionKey, runnerId, JSON.stringify(config)]
+        [botUserId, svc, sessionKey, runnerId, JSON.stringify(config)]
       );
 
       // 3. Dispatch to Kaggle
       if (isVps) {
-        await triggerVPSKernel(sessionKey, adminUserId, 'enterprise', { runner_id: runnerId, capacity });
+        await triggerVPSKernel(sessionKey, botUserId, 'enterprise', { runner_id: runnerId, capacity });
       } else {
-        await triggerKaggleKernel(sessionKey, adminUserId, 'enterprise', { runner_id: runnerId, capacity, runtime: 'gpu' });
+        await triggerKaggleKernel(sessionKey, botUserId, 'enterprise', { runner_id: runnerId, capacity, runtime: 'gpu' });
       }
 
       await logBotAudit(senderId, '/start runner', svc, `Runner ${runnerId} (Session ${sessionKey})`);
@@ -2413,6 +2488,7 @@ async function runStartRunnerCommand(serviceArg, chatId, senderId) {
       let initialMsg = `🚀 <b>Launching Open ${svc.toUpperCase()} Runner Notebook...</b> • ${getIstTime()}\n\n`;
       initialMsg += `• <b>Service:</b> <b>${svc.toUpperCase()}</b> [${isVps ? 'CPU' : 'GPU T4×2'}]\n`;
       initialMsg += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
+      initialMsg += `• <b>Dedicated Owner:</b> 🤖 <b>${botUsername}</b> (Admin)\n`;
       initialMsg += `• <b>Capacity:</b> ${capacity} user connection slot(s)\n`;
       initialMsg += `• <b>Mode:</b> 🌐 Open Notebook Pool (ready for user connects)\n`;
       initialMsg += `• <b>Status:</b> Kaggle container booting... Generating secure Cloudflare tunnel.\n\n`;

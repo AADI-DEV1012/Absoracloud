@@ -261,7 +261,10 @@ while True:
 
 for sk in list(sessions.keys()):
     stop_session(sk)
+subprocess.run(["pkill", "-9", "-f", "cloudflared"], check=False)
+subprocess.run(["pkill", "-9", "-f", "ttyd"], check=False)
 print("🏁 DevBox runner shut down complete.")
+sys.exit(0)
 `.trim();
 }
 
@@ -410,6 +413,9 @@ while True:
 
 for sk in list(sessions.keys()):
     stop_session(sk)
+subprocess.run(["pkill", "-9", "-f", "cloudflared"], check=False)
+subprocess.run(["pkill", "-9", "-f", "ttyd"], check=False)
 print("🏁 VPS runner shut down complete.")
+sys.exit(0)
 `.trim();
 }

@@ -47,7 +47,7 @@ workerRouter.post('/heartbeat', asyncHandler(async (req, res) => {
     if (session_key) {
       if (status || tunnel_url) {
         await executeD1(
-          "UPDATE instances SET status = COALESCE(?, status), public_url = COALESCE(?, public_url) WHERE session_key = ?",
+          "UPDATE instances SET status = COALESCE(?, status), public_url = COALESCE(?, public_url) WHERE session_key = ? AND status NOT IN ('stopped', 'disconnected', 'dead')",
           [status || 'active', tunnel_url || null, session_key]
         );
         if (tunnel_url) {
@@ -59,8 +59,15 @@ workerRouter.post('/heartbeat', asyncHandler(async (req, res) => {
 
     if (!runner_id) return res.status(400).json({ status: 'error', msg: 'runner_id or session_key required' });
 
+    // Check kill flag
+    const killFlag = await redisCmd('GET', `kill:runner:${runner_id}`).catch(() => null);
+    if (killFlag === '1') {
+      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runner_id]).catch(() => {});
+      return res.json({ status: 'success', kill: true });
+    }
+
     await executeD1(
-      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ? WHERE id = ?",
+      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ? WHERE id = ? AND status NOT IN ('dead', 'stopped')",
       [active_count, runner_id]
     );
     await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
@@ -79,8 +86,33 @@ workerRouter.post('/runner_heartbeat', asyncHandler(async (req, res) => {
       return res.status(400).json({ status: 'error', msg: 'runner_id required' });
     }
 
+    // 1. Check Redis kill flag
+    const kill = await redisCmd('GET', `kill:runner:${runner_id}`).catch(() => null);
+    if (kill === '1') {
+      await executeD1(
+        "UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?",
+        [runner_id]
+      ).catch(() => {});
+      return res.json({
+        status: 'success',
+        assignments: [],
+        kill: true
+      });
+    }
+
+    // 2. Check D1 status
+    const runnerRow = await d1QueryOne('SELECT status FROM runners WHERE id = ?', [runner_id]).catch(() => null);
+    if (runnerRow && (runnerRow.status === 'dead' || runnerRow.status === 'stopped')) {
+      return res.json({
+        status: 'success',
+        assignments: [],
+        kill: true
+      });
+    }
+
+    // 3. Normal heartbeat update (only when not dead or stopped)
     await executeD1(
-      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ?, status = 'ready' WHERE id = ?",
+      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ?, status = 'ready' WHERE id = ? AND status NOT IN ('dead', 'stopped')",
       [active_count, runner_id]
     );
     await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
@@ -100,12 +132,10 @@ workerRouter.post('/runner_heartbeat', asyncHandler(async (req, res) => {
       return { session_key: inst.session_key, term_pass: termPass, status: inst.status };
     });
 
-    const kill = await redisCmd('GET', `kill:runner:${runner_id}`);
-
     res.json({
       status: 'success',
       assignments,
-      kill: kill === '1'
+      kill: false
     });
   } catch (err) {
     res.status(500).json({ status: 'error', msg: err.message });
@@ -120,7 +150,7 @@ workerRouter.post('/runner_shutdown', asyncHandler(async (req, res) => {
       return res.status(400).json({ status: 'error', msg: 'runner_id required' });
     }
 
-    await executeD1("UPDATE runners SET status = 'stopped' WHERE id = ?", [runner_id]);
+    await executeD1("UPDATE runners SET status = 'stopped', active_count = 0 WHERE id = ?", [runner_id]);
     await redisCmd('SREM', 'runners:active', runner_id);
     await redisCmd('HDEL', `runner:${runner_id}`, 'status');
 
@@ -140,7 +170,7 @@ workerRouter.post('/session_update', asyncHandler(async (req, res) => {
     }
 
     await executeD1(
-      "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url) WHERE session_key = ?",
+      "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url) WHERE session_key = ? AND status NOT IN ('stopped', 'disconnected', 'dead')",
       [status, tunnel_url || null, session_key]
     );
 
