@@ -2469,6 +2469,184 @@ async function runStartRunnerCommand(serviceArg, chatId, senderId) {
   }
 }
 
+// ── Active Workloads Across Website, Serverless, VPS & DevBox (/active [service]) ──
+async function runActiveWorkloadsCommand(filterArg, chatId) {
+  try {
+    const rawFilter = (filterArg || '').toLowerCase().trim();
+
+    // Query all active workloads joined with user information
+    const rows = toRows(await queryD1(
+      `SELECT i.id, i.service, i.session_key, i.runner_id, i.status, i.config, i.public_url, i.created_at, i.user_id,
+              u.username, u.email, u.plan
+       FROM instances i
+       LEFT JOIN users u ON i.user_id = u.id
+       WHERE i.status IN ('active', 'pending', 'deploying')
+       ORDER BY i.id DESC
+       LIMIT 100`
+    ).catch(() => []));
+
+    // Parallel URL and config resolution
+    await Promise.all(
+      rows.map(async (inst) => {
+        let cfg = {};
+        try {
+          cfg = typeof inst.config === 'string' ? JSON.parse(inst.config) : (inst.config || {});
+        } catch (_) {}
+        inst.parsedConfig = cfg;
+
+        if (inst.public_url) return;
+
+        if (inst.session_key) {
+          try {
+            const redisUrl = await redisCmd('HGET', `session:${inst.session_key}`, 'tunnel_url');
+            if (redisUrl) {
+              inst.public_url = redisUrl;
+              return;
+            }
+          } catch (_) {}
+        }
+
+        const s = (inst.service || '').toLowerCase();
+        if (s === 'webhost') {
+          const siteName = cfg.site_name || cfg.subdomain;
+          if (siteName) {
+            inst.public_url = `https://absohost-${siteName}.aadibabaji12345.workers.dev`;
+          }
+        } else if (s === 'serverless') {
+          const funcName = cfg.func_name || cfg.name;
+          if (funcName) {
+            inst.public_url = `https://absofunc-${funcName}.aadibabaji12345.workers.dev`;
+          }
+        }
+      })
+    );
+
+    // Filter by requested service(s)
+    let showVps = true;
+    let showDevbox = true;
+    let showWebhost = true;
+    let showServerless = true;
+
+    if (rawFilter && rawFilter !== 'all') {
+      const wantsVps = rawFilter.includes('vps');
+      const wantsDevbox = rawFilter.includes('devbox');
+      const wantsWebhost = rawFilter.includes('web') || rawFilter.includes('site') || rawFilter.includes('host');
+      const wantsServerless = rawFilter.includes('serverless') || rawFilter.includes('fn') || rawFilter.includes('func');
+
+      // If at least one specific filter matched, restrict to only matched
+      if (wantsVps || wantsDevbox || wantsWebhost || wantsServerless) {
+        showVps = wantsVps;
+        showDevbox = wantsDevbox;
+        showWebhost = wantsWebhost;
+        showServerless = wantsServerless;
+      }
+    }
+
+    const vpsList = showVps ? rows.filter(i => (i.service || '').toLowerCase() === 'vps') : [];
+    const devboxList = showDevbox ? rows.filter(i => (i.service || '').toLowerCase() === 'devbox') : [];
+    const webhostList = showWebhost ? rows.filter(i => (i.service || '').toLowerCase() === 'webhost') : [];
+    const serverlessList = showServerless ? rows.filter(i => (i.service || '').toLowerCase() === 'serverless') : [];
+
+    const totalActive = vpsList.length + devboxList.length + webhostList.length + serverlessList.length;
+
+    let filterLabel = 'All (VPS, DevBox, Website, Serverless)';
+    if (rawFilter && rawFilter !== 'all') {
+      const activeLabels = [];
+      if (showVps) activeLabels.push('VPS');
+      if (showDevbox) activeLabels.push('DevBox');
+      if (showWebhost) activeLabels.push('Website');
+      if (showServerless) activeLabels.push('Serverless');
+      if (activeLabels.length > 0) filterLabel = activeLabels.join(', ');
+    }
+
+    let msg = `⚡ <b>Active Workloads Directory</b> • ${getIstTime()}\n`;
+    msg += `<b>Scope:</b> <code>${filterLabel}</code>\n\n`;
+
+    if (totalActive === 0) {
+      msg += `<i>No active workloads currently running.</i>\n`;
+      await sendTelegramMessage(msg, { chatId });
+      return;
+    }
+
+    // 1. VPS
+    if (showVps && vpsList.length > 0) {
+      msg += `🖥️ <b>VPS (${vpsList.length} active):</b>\n`;
+      vpsList.slice(0, 10).forEach(inst => {
+        const id = inst.session_key || `#${inst.id}`;
+        const owner = inst.username ? `<b>@${inst.username}</b> (ID: <code>${inst.user_id}</code>)` : `ID: <code>${inst.user_id}</code>`;
+        const os = inst.parsedConfig?.os ? ` [${inst.parsedConfig.os}]` : '';
+        const url = inst.public_url ? `<code>${inst.public_url}</code>` : (inst.status === 'pending' ? '⏳ <i>Starting runner...</i>' : '⚠️ <i>No tunnel bound</i>');
+        msg += ` • <b>ID:</b> <code>${id}</code>${os}\n`;
+        msg += `   👤 <b>Owner:</b> ${owner}\n`;
+        msg += `   🔗 <b>URL:</b> ${url} [${inst.status}]\n\n`;
+      });
+      if (vpsList.length > 10) {
+        msg += `   <i>...and ${vpsList.length - 10} more VPS</i>\n\n`;
+      }
+    }
+
+    // 2. DevBox
+    if (showDevbox && devboxList.length > 0) {
+      msg += `⚡ <b>DevBox (${devboxList.length} active):</b>\n`;
+      devboxList.slice(0, 10).forEach(inst => {
+        const id = inst.session_key || `#${inst.id}`;
+        const owner = inst.username ? `<b>@${inst.username}</b> (ID: <code>${inst.user_id}</code>)` : `ID: <code>${inst.user_id}</code>`;
+        const gpu = inst.parsedConfig?.gpu && inst.parsedConfig.gpu !== 'none' ? ` [GPU: ${inst.parsedConfig.gpu}]` : '';
+        const url = inst.public_url ? `<code>${inst.public_url}</code>` : (inst.status === 'pending' ? '⏳ <i>Starting GPU container...</i>' : '⚠️ <i>No tunnel bound</i>');
+        msg += ` • <b>ID:</b> <code>${id}</code>${gpu}\n`;
+        msg += `   👤 <b>Owner:</b> ${owner}\n`;
+        msg += `   🔗 <b>URL:</b> ${url} [${inst.status}]\n\n`;
+      });
+      if (devboxList.length > 10) {
+        msg += `   <i>...and ${devboxList.length - 10} more DevBoxes</i>\n\n`;
+      }
+    }
+
+    // 3. Web Hosting
+    if (showWebhost && webhostList.length > 0) {
+      msg += `🌐 <b>Web Hosting (${webhostList.length} live):</b>\n`;
+      webhostList.slice(0, 10).forEach(inst => {
+        const id = inst.session_key || `#${inst.id}`;
+        const siteName = inst.parsedConfig?.site_name || inst.parsedConfig?.subdomain || id;
+        const owner = inst.username ? `<b>@${inst.username}</b> (ID: <code>${inst.user_id}</code>)` : `ID: <code>${inst.user_id}</code>`;
+        const url = inst.public_url ? `<code>${inst.public_url}</code>` : (inst.status === 'deploying' ? '⏳ <i>Deploying edge worker...</i>' : '⚠️ <i>URL pending</i>');
+        msg += ` • <b>ID:</b> <code>${id}</code> (Site: <b>${siteName}</b>)\n`;
+        msg += `   👤 <b>Owner:</b> ${owner}\n`;
+        msg += `   🔗 <b>URL:</b> ${url} [${inst.status}]\n\n`;
+      });
+      if (webhostList.length > 10) {
+        msg += `   <i>...and ${webhostList.length - 10} more websites</i>\n\n`;
+      }
+    }
+
+    // 4. Serverless
+    if (showServerless && serverlessList.length > 0) {
+      msg += `⚡ <b>Serverless (${serverlessList.length} active):</b>\n`;
+      serverlessList.slice(0, 10).forEach(inst => {
+        const id = inst.session_key || `#${inst.id}`;
+        const funcName = inst.parsedConfig?.func_name || inst.parsedConfig?.name || id;
+        const owner = inst.username ? `<b>@${inst.username}</b> (ID: <code>${inst.user_id}</code>)` : `ID: <code>${inst.user_id}</code>`;
+        const url = inst.public_url ? `<code>${inst.public_url}</code>` : (inst.status === 'deploying' ? '⏳ <i>Deploying worker...</i>' : '⚠️ <i>URL pending</i>');
+        msg += ` • <b>ID:</b> <code>${id}</code> (Func: <b>${funcName}</b>)\n`;
+        msg += `   👤 <b>Owner:</b> ${owner}\n`;
+        msg += `   🔗 <b>URL:</b> ${url} [${inst.status}]\n\n`;
+      });
+      if (serverlessList.length > 10) {
+        msg += `   <i>...and ${serverlessList.length - 10} more functions</i>\n\n`;
+      }
+    }
+
+    // Distinct owners
+    const uniqueOwners = new Set(rows.map(r => r.user_id).filter(Boolean));
+    msg += `📊 <b>Total Active:</b> ${totalActive} workload(s) across ${uniqueOwners.size} user(s)`;
+
+    await sendTelegramMessage(msg, { chatId });
+  } catch (err) {
+    console.error('[MonitorBot] Active workloads query error:', err.message);
+    await sendTelegramMessage(`⚠️ Error querying active workloads: ${err.message}`, { chatId });
+  }
+}
+
 // ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
@@ -2509,6 +2687,14 @@ export async function handleTelegramWebhook(req, res) {
     }
     res.json({ status: 'ok', msg: 'Dispatching status' });
     await runMonitoringCycle(true, senderChatId);
+    return;
+  }
+
+  // Command: /active [website,serverless,vps,devbox,all]
+  if (cmd === '/active' || cmd === '/workloads' || cmd === '/activeworkloads') {
+    const filterArg = tokens.slice(1).join(' ').trim();
+    res.json({ status: 'ok', msg: 'Querying active workloads' });
+    await runActiveWorkloadsCommand(filterArg, senderChatId);
     return;
   }
 
@@ -2781,6 +2967,7 @@ export async function handleTelegramWebhook(req, res) {
 <b>Telemetry & Infrastructure:</b>
 • <code>/status</code> - Platform health & overall telemetry
 • <code>/status &lt;user&gt;</code> - Specific user workloads, storage & quota
+• <code>/active [services]</code> - Active workloads (website, serverless, vps, devbox) with ID, owner & URL
 • <code>/online</code> - Users with active sessions right now
 • <code>/perf</code> - Memory, CPU, event-loop delay & request rate
 • <code>/limits</code> - D1, Upstash Redis & storage usage against limits
