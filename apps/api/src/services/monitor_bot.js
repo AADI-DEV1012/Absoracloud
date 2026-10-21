@@ -494,7 +494,7 @@ async function runUserStatusCheck(rawUsername, chatId) {
     // 2. Fetch user instances and storage files in parallel
     const [instRaw, filesRaw, gpuSecondsRaw] = await Promise.all([
       queryD1(
-        'SELECT service, status, public_url, runner_id, created_at, expires_at FROM instances WHERE user_id = ? ORDER BY id DESC LIMIT 50',
+        'SELECT id, service, session_key, runner_id, status, config, public_url, created_at, expires_at FROM instances WHERE user_id = ? ORDER BY id DESC LIMIT 50',
         [user.id]
       ).catch(() => []),
       queryD1(
@@ -508,7 +508,44 @@ async function runUserStatusCheck(rawUsername, chatId) {
     const filesStats = toRows(filesRaw)[0] || { file_count: 0, total_bytes: 0 };
 
     // Active workloads
-    const activeInstances = instances.filter(i => i.status === 'active' || i.status === 'pending');
+    const activeStatuses = ['active', 'pending', 'deploying'];
+    const activeInstances = instances.filter(i => activeStatuses.includes((i.status || '').toLowerCase()));
+
+    // Parallel URL and config resolution for active workloads
+    await Promise.all(
+      activeInstances.map(async (inst) => {
+        let cfg = {};
+        try {
+          cfg = typeof inst.config === 'string' ? JSON.parse(inst.config) : (inst.config || {});
+        } catch (_) {}
+        inst.parsedConfig = cfg;
+
+        if (inst.public_url) return;
+
+        if (inst.session_key) {
+          try {
+            const redisUrl = await redisCmd('HGET', `session:${inst.session_key}`, 'tunnel_url');
+            if (redisUrl) {
+              inst.public_url = redisUrl;
+              return;
+            }
+          } catch (_) {}
+        }
+
+        const s = (inst.service || '').toLowerCase();
+        if (s === 'webhost') {
+          const siteName = cfg.site_name || cfg.subdomain;
+          if (siteName) {
+            inst.public_url = `https://absohost-${siteName}.aadibabaji12345.workers.dev`;
+          }
+        } else if (s === 'serverless') {
+          const funcName = cfg.func_name || cfg.name;
+          if (funcName) {
+            inst.public_url = `https://absofunc-${funcName}.aadibabaji12345.workers.dev`;
+          }
+        }
+      })
+    );
     
     // Group counts
     const counts = {
@@ -522,7 +559,7 @@ async function runUserStatusCheck(rawUsername, chatId) {
       const s = (i.service || '').toLowerCase();
       if (counts[s]) {
         counts[s].total++;
-        if (i.status === 'active' || i.status === 'pending') {
+        if (activeStatuses.includes((i.status || '').toLowerCase())) {
           counts[s].active++;
         }
       }
@@ -544,7 +581,7 @@ async function runUserStatusCheck(rawUsername, chatId) {
     msg += ` • Role: <code>${user.role || 'user'}</code> | Status: ${user.locked_until ? '🔒 Locked' : '🟢 Active'}\n`;
     msg += ` • Registered: ${user.created_at ? user.created_at.slice(0, 10) : 'N/A'}\n\n`;
 
-    msg += `<b>Workloads:</b>\n`;
+    msg += `<b>Workloads Summary:</b>\n`;
     msg += ` • VPS: ${counts.vps.active} active (${counts.vps.total} total)\n`;
     msg += ` • DevBox: ${counts.devbox.active} active (${counts.devbox.total} total)\n`;
     msg += ` • WebHost: ${counts.webhost.active} live (${counts.webhost.total} total)\n`;
@@ -556,14 +593,56 @@ async function runUserStatusCheck(rawUsername, chatId) {
     msg += ` • Platform Log Pool: ${logUsage.totalMB}MB / 1GB shared (${logUsage.percentUsed}%)\n`;
     msg += ` • DevBox GPU Used: ${gpuHours}h\n`;
 
-    if (activeInstances.length > 0) {
-      msg += `\n<b>Active Instances:</b>\n`;
-      activeInstances.slice(0, 5).forEach(inst => {
-        const urlStr = inst.public_url ? ` → <code>${inst.public_url}</code>` : '';
-        msg += ` • <b>${(inst.service || '').toUpperCase()}</b> [${inst.status}]${urlStr}\n`;
-      });
-      if (activeInstances.length > 5) {
-        msg += ` <i>...and ${activeInstances.length - 5} more</i>\n`;
+    // Active workloads categorized by service with live URLs
+    msg += `\n<b>Active Workloads:</b>\n`;
+    if (activeInstances.length === 0) {
+      msg += ` <i>No active workloads running right now.</i>\n`;
+    } else {
+      const vpsList = activeInstances.filter(i => (i.service || '').toLowerCase() === 'vps');
+      const devboxList = activeInstances.filter(i => (i.service || '').toLowerCase() === 'devbox');
+      const webhostList = activeInstances.filter(i => (i.service || '').toLowerCase() === 'webhost');
+      const serverlessList = activeInstances.filter(i => (i.service || '').toLowerCase() === 'serverless');
+
+      if (vpsList.length > 0) {
+        msg += `\n🖥️ <b>VPS (${vpsList.length} active):</b>\n`;
+        vpsList.slice(0, 10).forEach(inst => {
+          const id = inst.session_key || `#${inst.id}`;
+          const os = inst.parsedConfig?.os ? ` (${inst.parsedConfig.os})` : '';
+          const urlStr = inst.public_url ? `\n   🔗 <code>${inst.public_url}</code>` : (inst.status === 'pending' ? '\n   ⏳ <i>Provisioning runner...</i>' : '');
+          msg += ` • <b>${id}</b> [${inst.status}]${os}${urlStr}\n`;
+        });
+        if (vpsList.length > 10) msg += `   <i>...and ${vpsList.length - 10} more</i>\n`;
+      }
+
+      if (devboxList.length > 0) {
+        msg += `\n⚡ <b>DevBox (${devboxList.length} active):</b>\n`;
+        devboxList.slice(0, 10).forEach(inst => {
+          const id = inst.session_key || `#${inst.id}`;
+          const gpu = inst.parsedConfig?.gpu && inst.parsedConfig.gpu !== 'none' ? ` [GPU: ${inst.parsedConfig.gpu}]` : '';
+          const urlStr = inst.public_url ? `\n   🔗 <code>${inst.public_url}</code>` : (inst.status === 'pending' ? '\n   ⏳ <i>Starting GPU container...</i>' : '');
+          msg += ` • <b>${id}</b> [${inst.status}]${gpu}${urlStr}\n`;
+        });
+        if (devboxList.length > 10) msg += `   <i>...and ${devboxList.length - 10} more</i>\n`;
+      }
+
+      if (webhostList.length > 0) {
+        msg += `\n🌐 <b>Web Hosting (${webhostList.length} live):</b>\n`;
+        webhostList.slice(0, 10).forEach(inst => {
+          const siteName = inst.parsedConfig?.site_name || inst.session_key || `#${inst.id}`;
+          const urlStr = inst.public_url ? `\n   🔗 <code>${inst.public_url}</code>` : (inst.status === 'deploying' ? '\n   ⏳ <i>Deploying edge worker...</i>' : '');
+          msg += ` • <b>${siteName}</b> [${inst.status}]${urlStr}\n`;
+        });
+        if (webhostList.length > 10) msg += `   <i>...and ${webhostList.length - 10} more</i>\n`;
+      }
+
+      if (serverlessList.length > 0) {
+        msg += `\n⚡ <b>Serverless (${serverlessList.length} active):</b>\n`;
+        serverlessList.slice(0, 10).forEach(inst => {
+          const funcName = inst.parsedConfig?.func_name || inst.session_key || `#${inst.id}`;
+          const urlStr = inst.public_url ? `\n   🔗 <code>${inst.public_url}</code>` : (inst.status === 'deploying' ? '\n   ⏳ <i>Deploying worker...</i>' : '');
+          msg += ` • <b>${funcName}</b> [${inst.status}]${urlStr}\n`;
+        });
+        if (serverlessList.length > 10) msg += `   <i>...and ${serverlessList.length - 10} more</i>\n`;
       }
     }
 
