@@ -10,6 +10,8 @@ import { getLogDiskUsage, getRunLog, appendRunLog } from './run_logger.js';
 import { removeWebsite, deleteFunction } from './cloudflare_workers.js';
 import { PLANS, getPlan, getPlanLimits } from '../../../../packages/shared/plans.js';
 import { getRecentErrors } from './error_tracker.js';
+import crypto from 'crypto';
+import { triggerVPSKernel, triggerKaggleKernel } from './kaggle.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const NVIDIA_API   = 'https://integrate.api.nvidia.com/v1/chat/completions';
@@ -2264,6 +2266,130 @@ async function runNoteCommand(rawUser, rawText, chatId, senderId) {
   }
 }
 
+// ── Command: /start runner <vps|devbox|vps,devbox> ──
+async function runStartRunnerCommand(serviceArg, chatId, senderId) {
+  const rawServices = (serviceArg || 'vps,devbox').toLowerCase().split(/[\s,]+/);
+  const targets = [];
+  if (rawServices.includes('vps') || rawServices.includes('all')) targets.push('vps');
+  if (rawServices.includes('devbox') || rawServices.includes('all')) targets.push('devbox');
+
+  if (targets.length === 0) {
+    await sendTelegramMessage(
+      '⚠️ Usage: <code>/start runner &lt;vps|devbox|vps,devbox&gt;</code>\n' +
+      '<i>Example:</i> <code>/start runner vps,devbox</code>',
+      { chatId }
+    );
+    return;
+  }
+
+  // Find admin user ID to associate the initial session with
+  let adminUserId = 1;
+  try {
+    const adminRows = toRows(await queryD1("SELECT id FROM users WHERE role = 'admin' LIMIT 1").catch(() => []));
+    if (adminRows[0]?.id) adminUserId = adminRows[0].id;
+  } catch (_) {}
+
+  for (const svc of targets) {
+    const isVps = svc === 'vps';
+    const runnerId = isVps
+      ? `vps-pool-${crypto.randomUUID().slice(0, 6)}`
+      : `devbox-pool-${crypto.randomUUID().slice(0, 6)}`;
+    const sessionKey = isVps
+      ? `vps-open-${crypto.randomUUID().slice(0, 8)}`
+      : `devbox-open-${crypto.randomUUID().slice(0, 8)}`;
+    const runnerType = isVps ? 'kaggle_cpu' : 'kaggle_gpu';
+    const capacity = isVps ? 4 : 2;
+
+    try {
+      // 1. Record runner in D1
+      await executeD1(
+        `INSERT OR REPLACE INTO runners (id, type, service, capacity, status, last_heartbeat)
+         VALUES (?, ?, ?, ?, 'starting', datetime('now'))`,
+        [runnerId, runnerType, svc, capacity]
+      );
+      await redisCmd('SADD', 'runners:active', runnerId);
+
+      // 2. Insert initial open session into D1
+      const config = {
+        open_notebook: true,
+        capacity,
+        runtime: isVps ? 'cpu' : 'gpu'
+      };
+      await executeD1(
+        `INSERT INTO instances (user_id, service, session_key, runner_id, status, config, expires_at)
+         VALUES (?, ?, ?, ?, 'pending', ?, datetime('now', '+4 hours'))`,
+        [adminUserId, svc, sessionKey, runnerId, JSON.stringify(config)]
+      );
+
+      // 3. Dispatch to Kaggle
+      if (isVps) {
+        await triggerVPSKernel(sessionKey, adminUserId, 'enterprise', { runner_id: runnerId, capacity });
+      } else {
+        await triggerKaggleKernel(sessionKey, adminUserId, 'enterprise', { runner_id: runnerId, capacity, runtime: 'gpu' });
+      }
+
+      await logBotAudit(senderId, '/start runner', svc, `Runner ${runnerId} (Session ${sessionKey})`);
+
+      // 4. Initial Telegram notification
+      let initialMsg = `🚀 <b>Launching Open ${svc.toUpperCase()} Runner Notebook...</b> • ${getIstTime()}\n\n`;
+      initialMsg += `• <b>Service:</b> <b>${svc.toUpperCase()}</b> [${isVps ? 'CPU' : 'GPU T4×2'}]\n`;
+      initialMsg += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
+      initialMsg += `• <b>Capacity:</b> ${capacity} user connection slot(s)\n`;
+      initialMsg += `• <b>Mode:</b> 🌐 Open Notebook Pool (ready for user connects)\n`;
+      initialMsg += `• <b>Status:</b> Kaggle container booting... Generating secure Cloudflare tunnel.\n\n`;
+      initialMsg += `⏳ <i>Polling for live endpoint URL. I will message you back with the direct web terminal URL as soon as it's live (~45-75s).</i>`;
+
+      await sendTelegramMessage(initialMsg, { chatId });
+
+      // 5. Asynchronous background poll for tunnel URL (up to 25 attempts * 4s = 100 seconds)
+      (async () => {
+        let attempts = 0;
+        const maxAttempts = 25;
+        const pollInterval = 4000;
+
+        while (attempts < maxAttempts) {
+          await new Promise(r => setTimeout(r, pollInterval));
+          attempts++;
+
+          try {
+            // Check Redis session & runner
+            const [redisTunnel, runnerTunnel, d1Rows] = await Promise.all([
+              redisCmd('HGET', `session:${sessionKey}`, 'tunnel_url').catch(() => null),
+              redisCmd('HGET', `runner:${runnerId}`, 'tunnel_url').catch(() => null),
+              queryD1('SELECT public_url, status FROM instances WHERE session_key = ? LIMIT 1', [sessionKey]).catch(() => [])
+            ]);
+
+            const publicUrl = redisTunnel || runnerTunnel || toRows(d1Rows)[0]?.public_url;
+            if (publicUrl && publicUrl.startsWith('http')) {
+              let liveMsg = `🎉 <b>${svc.toUpperCase()} Runner Online & Live!</b> • ${getIstTime()}\n\n`;
+              liveMsg += `• <b>Service:</b> <b>${svc.toUpperCase()}</b> [${isVps ? 'CPU' : 'GPU T4×2'}]\n`;
+              liveMsg += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
+              liveMsg += `• <b>Slots Available:</b> ${capacity} multi-tenant connection(s)\n\n`;
+              liveMsg += `🔗 <b>Open Web Terminal URL:</b>\n`;
+              liveMsg += `👉 <b>${publicUrl}</b>\n\n`;
+              liveMsg += `✅ <i>Container is pre-warmed and open for immediate connections. Users deploying ${svc.toUpperCase()} will bind to this live notebook instantly.</i>`;
+
+              await sendTelegramMessage(liveMsg, { chatId });
+              return;
+            }
+          } catch (_) {}
+        }
+
+        // If timed out, inform admin gracefully
+        let timeoutMsg = `ℹ️ <b>${svc.toUpperCase()} Runner Provisioning Update</b>\n\n`;
+        timeoutMsg += `• <b>Runner ID:</b> <code>${runnerId}</code>\n`;
+        timeoutMsg += `• Container is taking slightly longer than 100s to complete Cloudflare tunnel binding.\n`;
+        timeoutMsg += `• You can check active status with <code>/runners</code> or inspect live logs with <code>/logs ${runnerId}</code>.`;
+        await sendTelegramMessage(timeoutMsg, { chatId });
+      })();
+
+    } catch (err) {
+      console.error(`[MonitorBot] Start runner error (${svc}):`, err.message);
+      await sendTelegramMessage(`⚠️ <b>Failed to start ${svc.toUpperCase()} runner:</b> ${err.message}`, { chatId });
+    }
+  }
+}
+
 // ── Telegram Webhook Handler ──
 export async function handleTelegramWebhook(req, res) {
   // 1. Verify Telegram secret token header
@@ -2560,6 +2686,14 @@ export async function handleTelegramWebhook(req, res) {
     return;
   }
 
+  // Command: /start runner [vps,devbox] OR /startrunner [vps,devbox]
+  if (cmd === '/startrunner' || cmd === '/start_runner' || (cmd === '/start' && (tokens[1]?.toLowerCase() === 'runner' || tokens[1]?.toLowerCase() === 'runners'))) {
+    const serviceArg = (cmd === '/startrunner' || cmd === '/start_runner') ? tokens[1] : tokens.slice(2).join(' ');
+    res.json({ status: 'ok', msg: 'Starting open runner notebook' });
+    await runStartRunnerCommand(serviceArg, senderChatId, senderUserId);
+    return;
+  }
+
   // Command: /start or /help
   if (cmd === '/start' || cmd === '/help') {
     const helpMsg = `
@@ -2576,6 +2710,7 @@ export async function handleTelegramWebhook(req, res) {
 • <code>/logs &lt;runner_id&gt;</code> - Tail real-time logs for a specific runner
 
 <b>Compute & GPU Management:</b>
+• <code>/start runner vps,devbox</code> - Launch pre-warmed open notebook & send back live web shell URL
 • <code>/gpu</code> - GPU pool used vs weekly limit, reset countdown & top users
 • <code>/orphans</code> - Detect Kaggle kernels leaking GPU hours with 0 users
 • <code>/cleanup</code> - Purge expired sites, Workers, and dead runners
