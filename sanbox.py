@@ -177,12 +177,14 @@ def create_sandbox_user(session_key, is_gpu=False):
 
     return username, home_dir
 
-def build_sandboxed_ttyd_cmd(session_key, port, io_log_file, is_gpu=False):
+def build_sandboxed_ttyd_cmd(session_key, port, io_log_file=None, is_gpu=False):
     """
     Constructs the ttyd execution command wrapped in non-root user context.
     Uses 'runuser' or 'su' to drop privileges before executing bash.
     """
     username, home_dir = create_sandbox_user(session_key, is_gpu=is_gpu)
+    if not io_log_file:
+        io_log_file = f"{home_dir}/.session_io.log"
 
     # In Linux, ttyd runs as root and spawns child shell under dropped user privileges
     if is_linux() and os.geteuid() == 0:

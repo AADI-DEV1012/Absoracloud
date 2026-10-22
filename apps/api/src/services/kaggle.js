@@ -188,8 +188,8 @@ def start_session(session_key, term_pass):
     except Exception:
         pass
 
-    # Protected session IO log in admin dir
-    io_log_file = f"{ADMIN_DIR}/devbox_io_{session_key}.log"
+    # Protected session IO log in user's isolated home directory
+    io_log_file = f"{box_home}/.session_io.log"
     with open(io_log_file, "a") as f:
         pass
     subprocess.run(["chown", f"{box_user}:sandbox_users", io_log_file], check=False)
@@ -418,8 +418,8 @@ def start_session(session_key, term_pass):
     except Exception:
         pass
 
-    # Protected session IO log in admin dir
-    io_log_file = f"{ADMIN_DIR}/vps_io_{session_key}.log"
+    # Protected session IO log in user's isolated home directory
+    io_log_file = f"{box_home}/.session_io.log"
     with open(io_log_file, "a") as f:
         pass
     subprocess.run(["chown", f"{box_user}:sandbox_users", io_log_file], check=False)
