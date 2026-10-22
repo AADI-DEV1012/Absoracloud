@@ -180,10 +180,13 @@ def start_session(session_key, term_pass):
     subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Configure user environment (.bashrc with GPU/CUDA paths)
-    subprocess.run(["bash", "-c", f"echo 'export PS1=\"\\\\u@absoracloud:\\\\w\\\\$ \"' >> {box_home}/.bashrc"], check=False)
-    subprocess.run(["bash", "-c", f"echo 'export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin' >> {box_home}/.bashrc"], check=False)
-    subprocess.run(["bash", "-c", f"echo 'export CUDA_HOME=/usr/local/cuda' >> {box_home}/.bashrc"], check=False)
-    subprocess.run(["bash", "-c", f"echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64' >> {box_home}/.bashrc"], check=False)
+    try:
+        with open(f"{box_home}/.bashrc", "a") as f:
+            print("export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin", file=f)
+            print("export CUDA_HOME=/usr/local/cuda", file=f)
+            print("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64", file=f)
+    except Exception:
+        pass
 
     # Protected session IO log in admin dir
     io_log_file = f"{ADMIN_DIR}/devbox_io_{session_key}.log"
@@ -409,8 +412,11 @@ def start_session(session_key, term_pass):
     subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Configure user environment (.bashrc)
-    subprocess.run(["bash", "-c", f"echo 'export PS1=\"\\\\u@absoracloud:\\\\w\\\\$ \"' >> {box_home}/.bashrc"], check=False)
-    subprocess.run(["bash", "-c", f"echo 'export PATH=$PATH:/usr/local/bin:~/.local/bin' >> {box_home}/.bashrc"], check=False)
+    try:
+        with open(f"{box_home}/.bashrc", "a") as f:
+            print("export PATH=$PATH:/usr/local/bin:~/.local/bin", file=f)
+    except Exception:
+        pass
 
     # Protected session IO log in admin dir
     io_log_file = f"{ADMIN_DIR}/vps_io_{session_key}.log"
