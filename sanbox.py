@@ -166,7 +166,7 @@ def create_sandbox_user(session_key, is_gpu=False):
         try:
             with open(bashrc_path, "a") as f:
                 f.write("\n# AbsoraCloud Sandbox Environment\n")
-                f.write("export PS1='\\[\\033[01;32m\\]\\u@absoracloud\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '\n")
+                f.write("export PS1='\\u@absoracloud:\\w\\$ '\n")
                 f.write("export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin\n")
                 if is_gpu:
                     f.write("export CUDA_HOME=/usr/local/cuda\n")

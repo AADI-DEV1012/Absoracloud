@@ -180,14 +180,10 @@ def start_session(session_key, term_pass):
     subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Configure user environment (.bashrc with GPU/CUDA paths)
-    try:
-        with open(f"{box_home}/.bashrc", "a") as f:
-            f.write("\nexport PS1='\\[\\033[01;32m\\]\\u@absoracloud\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '\n")
-            f.write("export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin\n")
-            f.write("export CUDA_HOME=/usr/local/cuda\n")
-            f.write("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64\n")
-    except Exception:
-        pass
+    subprocess.run(["bash", "-c", f"echo 'export PS1=\"\\\\u@absoracloud:\\\\w\\\\$ \"' >> {box_home}/.bashrc"], check=False)
+    subprocess.run(["bash", "-c", f"echo 'export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin' >> {box_home}/.bashrc"], check=False)
+    subprocess.run(["bash", "-c", f"echo 'export CUDA_HOME=/usr/local/cuda' >> {box_home}/.bashrc"], check=False)
+    subprocess.run(["bash", "-c", f"echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64' >> {box_home}/.bashrc"], check=False)
 
     # Protected session IO log in admin dir
     io_log_file = f"{ADMIN_DIR}/devbox_io_{session_key}.log"
@@ -413,12 +409,8 @@ def start_session(session_key, term_pass):
     subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Configure user environment (.bashrc)
-    try:
-        with open(f"{box_home}/.bashrc", "a") as f:
-            f.write("\nexport PS1='\\[\\033[01;32m\\]\\u@absoracloud\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '\n")
-            f.write("export PATH=$PATH:/usr/local/bin:~/.local/bin\n")
-    except Exception:
-        pass
+    subprocess.run(["bash", "-c", f"echo 'export PS1=\"\\\\u@absoracloud:\\\\w\\\\$ \"' >> {box_home}/.bashrc"], check=False)
+    subprocess.run(["bash", "-c", f"echo 'export PATH=$PATH:/usr/local/bin:~/.local/bin' >> {box_home}/.bashrc"], check=False)
 
     # Protected session IO log in admin dir
     io_log_file = f"{ADMIN_DIR}/vps_io_{session_key}.log"
