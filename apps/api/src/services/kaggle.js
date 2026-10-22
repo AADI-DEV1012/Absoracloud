@@ -139,6 +139,17 @@ subprocess.run(["pip", "install", "-q", "requests"], check=False)
 subprocess.run(["bash", "-c", "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd"], check=False)
 subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
 
+# ── Host Hardening & Sandbox Shielding ──
+ADMIN_DIR = "/tmp/.absora_admin"
+os.makedirs(ADMIN_DIR, mode=0o700, exist_ok=True)
+os.chmod(ADMIN_DIR, 0o700)
+# Process isolation: mount /proc with hidepid=2 so non-root users cannot see other processes
+subprocess.run(["mount", "-o", "remount,rw,hidepid=2", "/proc"], check=False)
+# GPU access for video group & create sandbox group
+subprocess.run(["bash", "-c", "chmod 666 /dev/nvidia* /dev/nvidia-uvm* /dev/nvidiactl 2>/dev/null; groupadd -f video; groupadd -f sandbox_users"], check=False)
+# Deny sudo to sandboxed users
+subprocess.run(["bash", "-c", "mkdir -p /etc/sudoers.d && echo '%sandbox_users ALL=(ALL) !ALL' > /etc/sudoers.d/99-absora && chmod 440 /etc/sudoers.d/99-absora 2>/dev/null"], check=False)
+
 try:
     requests.post(f"{API_URL}/api/worker/register",
         json={"runner_id": RUNNER_ID, "type": "kaggle_gpu", "service": "devbox", "capacity": CAPACITY},
@@ -156,13 +167,40 @@ def start_session(session_key, term_pass):
         print(f"⚠️ No free port for session {session_key}")
         return
     port = free_ports.pop(0)
-    work_dir = f"/tmp/devbox_ws_{session_key}"
-    os.makedirs(work_dir, exist_ok=True)
-    io_log_file = f"/tmp/devbox_io_{session_key}.log"
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} script -q -f -c 'bash -l' {io_log_file}"
+
+    # ── Per-Session Unprivileged Sandbox ──
+    clean_id = re.sub(r"[^a-zA-Z0-9]", "", session_key)[-8:].lower()
+    box_user = f"box_{clean_id}"
+    box_home = f"/home/{box_user}"
+
+    # Create dedicated user without root privileges
+    subprocess.run(["useradd", "-m", "-d", box_home, "-s", "/bin/bash", "-g", "sandbox_users", box_user], check=False)
+    subprocess.run(["usermod", "-aG", "video", box_user], check=False)
+    os.chmod(box_home, 0o700)
+    subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
+
+    # Configure user environment (.bashrc with GPU/CUDA paths)
+    try:
+        with open(f"{box_home}/.bashrc", "a") as f:
+            f.write("\nexport PS1='\\[\\033[01;32m\\]\\u@absoracloud\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '\n")
+            f.write("export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin\n")
+            f.write("export CUDA_HOME=/usr/local/cuda\n")
+            f.write("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64\n")
+    except Exception:
+        pass
+
+    # Protected session IO log in admin dir
+    io_log_file = f"{ADMIN_DIR}/devbox_io_{session_key}.log"
+    with open(io_log_file, "a") as f:
+        pass
+    subprocess.run(["chown", f"{box_user}:sandbox_users", io_log_file], check=False)
+    os.chmod(io_log_file, 0o600)
+
+    # Launch ttyd dropping root privileges via runuser (User cannot kill cloudflared or root processes)
+    ttyd_cmd = f"cd {box_home} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} runuser -u {box_user} -- script -q -f -c 'bash -l' {io_log_file}"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
-    log_file = f"/tmp/cf_devbox_{port}.log"
+    log_file = f"{ADMIN_DIR}/cf_devbox_{port}.log"
     if os.path.exists(log_file):
         os.remove(log_file)
     cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:{port} 2>&1 | tee {log_file}"
@@ -176,13 +214,18 @@ def start_session(session_key, term_pass):
         "log_file": log_file,
         "io_log_file": io_log_file,
         "last_io_offset": 0,
-        "poll_count": 0
+        "poll_count": 0,
+        "box_user": box_user
     }
-    print(f"🚀 Started DevBox session {session_key} on port {port}")
+    print(f"🚀 Started DevBox session {session_key} (sandboxed user {box_user}) on port {port}")
 
 def stop_session(session_key):
     if session_key in sessions:
         info = sessions.pop(session_key)
+        # Terminate any background processes spawned by this sandboxed user
+        box_user = info.get("box_user")
+        if box_user:
+            subprocess.run(["pkill", "-9", "-u", box_user], check=False)
         # Final flush of session I/O logs
         io_file = info.get("io_log_file")
         if io_file and os.path.exists(io_file):
@@ -330,6 +373,17 @@ subprocess.run(["pip", "install", "-q", "requests"], check=False)
 subprocess.run(["bash", "-c", "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd"], check=False)
 subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
 
+# ── Host Hardening & Sandbox Shielding ──
+ADMIN_DIR = "/tmp/.absora_admin"
+os.makedirs(ADMIN_DIR, mode=0o700, exist_ok=True)
+os.chmod(ADMIN_DIR, 0o700)
+# Process isolation: mount /proc with hidepid=2 so non-root users cannot see other processes
+subprocess.run(["mount", "-o", "remount,rw,hidepid=2", "/proc"], check=False)
+# Sandbox group setup
+subprocess.run(["groupadd", "-f", "sandbox_users"], check=False)
+# Deny sudo to sandboxed users
+subprocess.run(["bash", "-c", "mkdir -p /etc/sudoers.d && echo '%sandbox_users ALL=(ALL) !ALL' > /etc/sudoers.d/99-absora && chmod 440 /etc/sudoers.d/99-absora 2>/dev/null"], check=False)
+
 try:
     requests.post(f"{API_URL}/api/worker/register",
         json={"runner_id": RUNNER_ID, "type": "kaggle_cpu", "service": "vps", "capacity": CAPACITY},
@@ -347,13 +401,37 @@ def start_session(session_key, term_pass):
         print(f"⚠️ No free port for session {session_key}")
         return
     port = free_ports.pop(0)
-    work_dir = f"/tmp/vps_ws_{session_key}"
-    os.makedirs(work_dir, exist_ok=True)
-    io_log_file = f"/tmp/vps_io_{session_key}.log"
-    ttyd_cmd = f"cd {work_dir} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} script -q -f -c 'bash -l' {io_log_file}"
+
+    # ── Per-Session Unprivileged Sandbox ──
+    clean_id = re.sub(r"[^a-zA-Z0-9]", "", session_key)[-8:].lower()
+    box_user = f"box_{clean_id}"
+    box_home = f"/home/{box_user}"
+
+    # Create dedicated user without root privileges
+    subprocess.run(["useradd", "-m", "-d", box_home, "-s", "/bin/bash", "-g", "sandbox_users", box_user], check=False)
+    os.chmod(box_home, 0o700)
+    subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
+
+    # Configure user environment (.bashrc)
+    try:
+        with open(f"{box_home}/.bashrc", "a") as f:
+            f.write("\nexport PS1='\\[\\033[01;32m\\]\\u@absoracloud\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '\n")
+            f.write("export PATH=$PATH:/usr/local/bin:~/.local/bin\n")
+    except Exception:
+        pass
+
+    # Protected session IO log in admin dir
+    io_log_file = f"{ADMIN_DIR}/vps_io_{session_key}.log"
+    with open(io_log_file, "a") as f:
+        pass
+    subprocess.run(["chown", f"{box_user}:sandbox_users", io_log_file], check=False)
+    os.chmod(io_log_file, 0o600)
+
+    # Launch ttyd dropping root privileges via runuser (User cannot kill cloudflared or root processes)
+    ttyd_cmd = f"cd {box_home} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} runuser -u {box_user} -- script -q -f -c 'bash -l' {io_log_file}"
     ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
 
-    log_file = f"/tmp/cf_vps_{port}.log"
+    log_file = f"{ADMIN_DIR}/cf_vps_{port}.log"
     if os.path.exists(log_file):
         os.remove(log_file)
     cf_cmd = f"/usr/local/bin/cloudflared tunnel --url http://127.0.0.1:{port} 2>&1 | tee {log_file}"
@@ -367,13 +445,18 @@ def start_session(session_key, term_pass):
         "log_file": log_file,
         "io_log_file": io_log_file,
         "last_io_offset": 0,
-        "poll_count": 0
+        "poll_count": 0,
+        "box_user": box_user
     }
-    print(f"🚀 Started VPS session {session_key} on port {port}")
+    print(f"🚀 Started VPS session {session_key} (sandboxed user {box_user}) on port {port}")
 
 def stop_session(session_key):
     if session_key in sessions:
         info = sessions.pop(session_key)
+        # Terminate any background processes spawned by this sandboxed user
+        box_user = info.get("box_user")
+        if box_user:
+            subprocess.run(["pkill", "-9", "-u", box_user], check=False)
         # Final flush of session I/O logs
         io_file = info.get("io_log_file")
         if io_file and os.path.exists(io_file):
