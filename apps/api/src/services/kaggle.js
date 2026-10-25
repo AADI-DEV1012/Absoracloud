@@ -29,25 +29,14 @@ export async function triggerKaggleKernel(sessionKey, userId, plan, config = {})
     const isGpu = config.runtime !== 'cpu';
 
     const kernelPush = {
-        id: `${username}/${kernelSlug}`,
         slug: `${username}/${kernelSlug}`,
         newTitle: `AbsoraCloud DevBox Pool — ${runnerId}`,
-        title: `AbsoraCloud DevBox Pool — ${runnerId}`,
         text: buildDevBoxScript(runnerId, sessionKey, userId, plan, config),
-        code_file: 'script.py',
         language: 'python',
         kernelType: 'script',
-        kernel_type: 'script',
         isPrivate: true,
-        is_private: true,
         enableGpu: isGpu,
-        enable_gpu: isGpu,
-        enable_tpu: false,
         enableInternet: true,
-        enable_internet: true,
-        dataset_sources: [],
-        competition_sources: [],
-        kernel_sources: []
     };
 
     const res = await fetch(`${KAGGLE_API}/kernels/push`, {
@@ -76,25 +65,14 @@ export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
     const kernelSlug = `absoracloud-vps-${runnerId.slice(-12)}`;
 
     const kernelPush = {
-        id: `${username}/${kernelSlug}`,
         slug: `${username}/${kernelSlug}`,
         newTitle: `AbsoraCloud VPS Pool — ${runnerId}`,
-        title: `AbsoraCloud VPS Pool — ${runnerId}`,
         text: buildVPSScript(runnerId, sessionKey, userId, plan, config),
-        code_file: 'script.py',
         language: 'python',
         kernelType: 'script',
-        kernel_type: 'script',
         isPrivate: true,
-        is_private: true,
         enableGpu: false,
-        enable_gpu: false,
-        enable_tpu: false,
         enableInternet: true,
-        enable_internet: true,
-        dataset_sources: [],
-        competition_sources: [],
-        kernel_sources: []
     };
 
     const res = await fetch(`${KAGGLE_API}/kernels/push`, {
