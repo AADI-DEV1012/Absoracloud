@@ -164,8 +164,8 @@ KERNELS = {
             "CUDA_VISIBLE_DEVICES": "0,1",
             "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
             "CUDA_HOME": "/usr/local/cuda",
-            "PATH": "/opt/conda/bin:/usr/local/cuda/bin:/usr/local/nvidia/bin:/usr/local/bin:/usr/bin:/bin",
-            "LD_LIBRARY_PATH": "/opt/conda/lib:/usr/local/cuda/lib64:/usr/local/cuda/lib:/usr/lib/x86_64-linux-gnu",
+            "PATH": "/usr/local/nvidia/bin:/opt/bin:/usr/local/cuda/bin:/opt/conda/bin:/usr/local/bin:/usr/bin:/bin",
+            "LD_LIBRARY_PATH": "/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/local/cuda/lib64:/opt/conda/lib:/usr/lib/x86_64-linux-gnu",
             "NVIDIA_VISIBLE_DEVICES": "all"
         }
     }
@@ -241,9 +241,11 @@ def start_session(session_key, term_pass):
     # Configure user environment (.bashrc with GPU/CUDA paths)
     try:
         with open(f"{box_home}/.bashrc", "a") as f:
-            print("export PATH=/opt/conda/bin:/usr/local/cuda/bin:/usr/local/nvidia/bin:$PATH:/usr/local/bin:~/.local/bin", file=f)
+            print("export PATH=/usr/local/nvidia/bin:/opt/bin:/usr/local/cuda/bin:/opt/conda/bin:$PATH:/usr/local/bin:~/.local/bin", file=f)
             print("export CUDA_HOME=/usr/local/cuda", file=f)
-            print("export LD_LIBRARY_PATH=/opt/conda/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH", file=f)
+            print("export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/local/cuda/lib64:/opt/conda/lib:$LD_LIBRARY_PATH", file=f)
+            print("export CUDA_DEVICE_ORDER=PCI_BUS_ID", file=f)
+            print("export NVIDIA_VISIBLE_DEVICES=all", file=f)
     except Exception:
         pass
 

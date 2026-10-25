@@ -190,10 +190,10 @@ def create_sandbox_user(session_key, is_gpu=False):
             with open(bashrc_path, "a") as f:
                 f.write("\n# AbsoraCloud Sandbox Environment\n")
                 f.write("export PS1='\\u@absoracloud:\\w\\$ '\n")
-                f.write("export PATH=/opt/conda/bin:/usr/local/cuda/bin:/usr/local/nvidia/bin:$PATH:/usr/local/bin:~/.local/bin\n")
+                f.write("export PATH=/usr/local/nvidia/bin:/opt/bin:/usr/local/cuda/bin:/opt/conda/bin:$PATH:/usr/local/bin:~/.local/bin\n")
                 if is_gpu:
                     f.write("export CUDA_HOME=/usr/local/cuda\n")
-                    f.write("export LD_LIBRARY_PATH=/opt/conda/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH\n")
+                    f.write("export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/local/cuda/lib64:/opt/conda/lib:$LD_LIBRARY_PATH\n")
                     f.write("export CUDA_DEVICE_ORDER=PCI_BUS_ID\n")
                     f.write("export NVIDIA_VISIBLE_DEVICES=all\n")
             run_cmd(f"chown -R {username}:sandbox_users {home_dir} 2>/dev/null || chown -R {username} {home_dir}")
