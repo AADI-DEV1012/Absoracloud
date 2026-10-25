@@ -6,13 +6,13 @@
 const KAGGLE_API = 'https://www.kaggle.com/api/v1';
 
 function getAuth() {
-  const username = process.env.KAGGLE_USERNAME;
-  const key      = process.env.KAGGLE_KEY;
-  if (!username || !key) throw new Error('Missing KAGGLE_USERNAME or KAGGLE_KEY');
-  const authHeader = key.startsWith('KGAT_')
-    ? `Bearer ${key}`
-    : `Basic ${Buffer.from(`${username}:${key}`).toString('base64')}`;
-  return { username, key, authHeader };
+    const username = process.env.KAGGLE_USERNAME;
+    const key = process.env.KAGGLE_KEY;
+    if (!username || !key) throw new Error('Missing KAGGLE_USERNAME or KAGGLE_KEY');
+    const authHeader = key.startsWith('KGAT_')
+        ? `Bearer ${key}`
+        : `Basic ${Buffer.from(`${username}:${key}`).toString('base64')}`;
+    return { username, key, authHeader };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,33 +23,44 @@ function getAuth() {
  * Triggers a Kaggle GPU/CPU kernel for a DevBox IDE session.
  */
 export async function triggerKaggleKernel(sessionKey, userId, plan, config = {}) {
-  const { username, authHeader } = getAuth();
-  const runnerId = config.runner_id || `devbox-runner-${sessionKey.slice(-8)}`;
-  const kernelSlug = `absoracloud-devbox-${runnerId.slice(-12)}`;
-  const isGpu = config.runtime !== 'cpu';
+    const { username, authHeader } = getAuth();
+    const runnerId = config.runner_id || `devbox-runner-${sessionKey.slice(-8)}`;
+    const kernelSlug = `absoracloud-devbox-${runnerId.slice(-12)}`;
+    const isGpu = config.runtime !== 'cpu';
 
-  const kernelPush = {
-    slug: `${username}/${kernelSlug}`,
-    newTitle: `AbsoraCloud DevBox Pool — ${runnerId}`,
-    text: buildDevBoxScript(runnerId, sessionKey, userId, plan, config),
-    language: 'python',
-    kernelType: 'script',
-    isPrivate: true,
-    enableGpu: isGpu,
-    enableInternet: true,
-  };
+    const kernelPush = {
+        id: `${username}/${kernelSlug}`,
+        slug: `${username}/${kernelSlug}`,
+        newTitle: `AbsoraCloud DevBox Pool — ${runnerId}`,
+        title: `AbsoraCloud DevBox Pool — ${runnerId}`,
+        text: buildDevBoxScript(runnerId, sessionKey, userId, plan, config),
+        code_file: 'script.py',
+        language: 'python',
+        kernelType: 'script',
+        kernel_type: 'script',
+        isPrivate: true,
+        is_private: true,
+        enableGpu: isGpu,
+        enable_gpu: isGpu,
+        enable_tpu: false,
+        enableInternet: true,
+        enable_internet: true,
+        dataset_sources: [],
+        competition_sources: [],
+        kernel_sources: []
+    };
 
-  const res = await fetch(`${KAGGLE_API}/kernels/push`, {
-    method: 'POST',
-    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify(kernelPush),
-  });
+    const res = await fetch(`${KAGGLE_API}/kernels/push`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(kernelPush),
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Kaggle kernel push failed (${res.status}): ${text}`);
-  }
-  return await res.json();
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Kaggle kernel push failed (${res.status}): ${text}`);
+    }
+    return await res.json();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,32 +71,43 @@ export async function triggerKaggleKernel(sessionKey, userId, plan, config = {})
  * Triggers a Kaggle CPU-only kernel for a VPS pooled runner session.
  */
 export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
-  const { username, authHeader } = getAuth();
-  const runnerId = config.runner_id || `vps-runner-${sessionKey.slice(-8)}`;
-  const kernelSlug = `absoracloud-vps-${runnerId.slice(-12)}`;
+    const { username, authHeader } = getAuth();
+    const runnerId = config.runner_id || `vps-runner-${sessionKey.slice(-8)}`;
+    const kernelSlug = `absoracloud-vps-${runnerId.slice(-12)}`;
 
-  const kernelPush = {
-    slug: `${username}/${kernelSlug}`,
-    newTitle: `AbsoraCloud VPS Pool — ${runnerId}`,
-    text: buildVPSScript(runnerId, sessionKey, userId, plan, config),
-    language: 'python',
-    kernelType: 'script',
-    isPrivate: true,
-    enableGpu: false,
-    enableInternet: true,
-  };
+    const kernelPush = {
+        id: `${username}/${kernelSlug}`,
+        slug: `${username}/${kernelSlug}`,
+        newTitle: `AbsoraCloud VPS Pool — ${runnerId}`,
+        title: `AbsoraCloud VPS Pool — ${runnerId}`,
+        text: buildVPSScript(runnerId, sessionKey, userId, plan, config),
+        code_file: 'script.py',
+        language: 'python',
+        kernelType: 'script',
+        kernel_type: 'script',
+        isPrivate: true,
+        is_private: true,
+        enableGpu: false,
+        enable_gpu: false,
+        enable_tpu: false,
+        enableInternet: true,
+        enable_internet: true,
+        dataset_sources: [],
+        competition_sources: [],
+        kernel_sources: []
+    };
 
-  const res = await fetch(`${KAGGLE_API}/kernels/push`, {
-    method: 'POST',
-    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify(kernelPush),
-  });
+    const res = await fetch(`${KAGGLE_API}/kernels/push`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(kernelPush),
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Kaggle VPS kernel push failed (${res.status}): ${text}`);
-  }
-  return await res.json();
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Kaggle VPS kernel push failed (${res.status}): ${text}`);
+    }
+    return await res.json();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,23 +115,23 @@ export async function triggerVPSKernel(sessionKey, userId, plan, config = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getKernelStatus(kernelSlug) {
-  const { username, authHeader } = getAuth();
-  const res = await fetch(
-    `${KAGGLE_API}/kernels/status?userName=${username}&kernelSlug=${kernelSlug}`,
-    { headers: { 'Authorization': authHeader } }
-  );
-  return await res.json();
+    const { username, authHeader } = getAuth();
+    const res = await fetch(
+        `${KAGGLE_API}/kernels/status?userName=${username}&kernelSlug=${kernelSlug}`,
+        { headers: { 'Authorization': authHeader } }
+    );
+    return await res.json();
 }
 
 export async function getDevBoxKernelStatus(sessionKey) {
-  const { username } = getAuth();
-  const slug = sessionKey ? `absoracloud-devbox-${sessionKey.slice(-8)}` : 'absoracloud-devbox';
-  return getKernelStatus(`${username}/${slug}`);
+    const { username } = getAuth();
+    const slug = sessionKey ? `absoracloud-devbox-${sessionKey.slice(-8)}` : 'absoracloud-devbox';
+    return getKernelStatus(`${username}/${slug}`);
 }
 
 export async function getVPSKernelStatus(sessionKey) {
-  const { username } = getAuth();
-  return getKernelStatus(`${username}/absoracloud-vps-${sessionKey.slice(-8)}`);
+    const { username } = getAuth();
+    return getKernelStatus(`${username}/absoracloud-vps-${sessionKey.slice(-8)}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,18 +139,20 @@ export async function getVPSKernelStatus(sessionKey) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildDevBoxScript(runnerId, initialSessionKey, userId, plan, config = {}) {
-  const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
-  const secret   = process.env.WORKER_SECRET || '';
-  const timeoutS = config.timeout_seconds || 14400;
-  const capacity = config.capacity || 2;
-  const initPass = config.term_pass || '';
+    const apiUrl = process.env.API_URL || 'https://absoracloud.onrender.com';
+    const secret = process.env.WORKER_SECRET || '';
+    const timeoutS = config.timeout_seconds || 14400;
+    const capacity = config.capacity || 2;
+    const initPass = config.term_pass || '';
+    const runnerType = config.runtime === 'cpu' ? 'kaggle_cpu' : 'kaggle_gpu';
 
-  return `
+    return `
 # AbsoraCloud DevBox Multi-Tenant Runner
-# Runner: ${runnerId} | Capacity: ${capacity}
+# Runner: ${runnerId} | Capacity: ${capacity} | Type: ${runnerType}
 import subprocess, os, time, requests, re, sys
 
 RUNNER_ID     = "${runnerId}"
+RUNNER_TYPE   = "${runnerType}"
 API_URL       = "${apiUrl}"
 WORKER_SECRET = "${secret}"
 CAPACITY      = ${capacity}
@@ -152,9 +176,9 @@ subprocess.run(["bash", "-c", "mkdir -p /etc/sudoers.d && echo '%sandbox_users A
 
 try:
     requests.post(f"{API_URL}/api/worker/register",
-        json={"runner_id": RUNNER_ID, "type": "kaggle_gpu", "service": "devbox", "capacity": CAPACITY},
+        json={"runner_id": RUNNER_ID, "type": RUNNER_TYPE, "service": "devbox", "capacity": CAPACITY},
         headers={"X-Worker-Secret": WORKER_SECRET}, timeout=10)
-    print(f"✅ DevBox runner {RUNNER_ID} registered with capacity {CAPACITY}")
+    print(f"✅ DevBox runner {RUNNER_ID} ({RUNNER_TYPE}) registered with capacity {CAPACITY}")
 except Exception as e:
     print("Devbox register error:", e)
 
@@ -350,13 +374,13 @@ sys.exit(0)
 }
 
 function buildVPSScript(runnerId, initialSessionKey, userId, plan, config = {}) {
-  const apiUrl   = process.env.API_URL || 'https://absoracloud.onrender.com';
-  const secret   = process.env.WORKER_SECRET || '';
-  const timeoutS = config.timeout_seconds || 14400;
-  const capacity = config.capacity || 4;
-  const initPass = config.term_pass || '';
+    const apiUrl = process.env.API_URL || 'https://absoracloud.onrender.com';
+    const secret = process.env.WORKER_SECRET || '';
+    const timeoutS = config.timeout_seconds || 14400;
+    const capacity = config.capacity || 4;
+    const initPass = config.term_pass || '';
 
-  return `
+    return `
 # AbsoraCloud VPS Multi-Tenant Runner (CPU-only)
 # Runner: ${runnerId} | Capacity: ${capacity}
 import subprocess, os, time, requests, re, sys

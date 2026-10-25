@@ -108,16 +108,20 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
     const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
 
-    // Check for an active multi-tenant DevBox runner with spare capacity
+    const targetType = runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu';
+
+    // Check for an active multi-tenant DevBox runner of matching type with spare capacity
     const availableRunner = await d1QueryOne(
       `SELECT id, capacity, active_count 
        FROM runners 
        WHERE service = 'devbox' 
+         AND type = ?
          AND status = 'ready' 
          AND active_count < capacity 
          AND datetime(last_heartbeat) >= datetime('now', '-45 seconds')
        ORDER BY active_count DESC 
-       LIMIT 1`
+       LIMIT 1`,
+      [targetType]
     );
 
     let assignedRunnerId = null;
@@ -127,14 +131,14 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       assignedRunnerId = availableRunner.id;
       reusedPool = true;
       await executeD1("UPDATE runners SET active_count = active_count + 1 WHERE id = ?", [assignedRunnerId]);
-      console.log(`⚡ Pooled DevBox runner slot assigned: ${assignedRunnerId} (active: ${availableRunner.active_count + 1}/${availableRunner.capacity})`);
+      console.log(`⚡ Pooled DevBox runner slot assigned: ${assignedRunnerId} (${targetType}, active: ${availableRunner.active_count + 1}/${availableRunner.capacity})`);
     } else {
       assignedRunnerId = `devbox-runner-${crypto.randomUUID().slice(0, 8)}`;
       await executeD1(
         "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'provisioning', datetime('now'))",
-        [assignedRunnerId, runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu']
+        [assignedRunnerId, targetType]
       );
-      console.log(`🚀 Provisioning new Kaggle DevBox runner: ${assignedRunnerId}`);
+      console.log(`🚀 Provisioning new Kaggle DevBox runner: ${assignedRunnerId} (${targetType})`);
     }
 
     await executeD1(
@@ -237,21 +241,32 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
     const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
 
+    const targetType = runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu';
+    const assignedRunnerId = `devbox-runner-${crypto.randomUUID().slice(0, 8)}`;
+
     await executeD1(
-      "INSERT INTO instances (user_id, service, session_key, status, config, expires_at) VALUES (?, 'devbox', ?, 'pending', ?, ?)",
-      [userId, newSessionKey, config, expiresAt]
+      "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'provisioning', datetime('now'))",
+      [assignedRunnerId, targetType]
+    );
+
+    await executeD1(
+      "INSERT INTO instances (user_id, service, session_key, status, config, runner_id, expires_at) VALUES (?, 'devbox', ?, 'pending', ?, ?, ?)",
+      [userId, newSessionKey, config, assignedRunnerId, expiresAt]
     );
 
     await redisCmd('HSET', `session:${newSessionKey}`,
       'user_id', String(userId),
       'status', 'pending',
       'service', 'devbox',
-      'term_pass', termPass
+      'term_pass', termPass,
+      'runner_id', assignedRunnerId
     );
     await redisCmd('EXPIRE', `session:${newSessionKey}`, String(timeoutSeconds + 3600));
 
     try {
       await triggerKaggleKernel(newSessionKey, userId, req.user.plan, {
+        runner_id: assignedRunnerId,
+        capacity: 2,
         runtime,
         timeout_seconds: timeoutSeconds,
         term_pass: termPass
@@ -260,6 +275,7 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
       console.error('Kaggle kernel trigger error:', kErr.message);
       if (runtime === 'gpu') await redisCmd('SREM', 'gpu:active', newSessionKey);
       await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
+      await executeD1("UPDATE runners SET status = 'failed' WHERE id = ?", [assignedRunnerId]);
       await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', kErr.message);
       return res.status(502).json({ status: 'error', msg: `Failed to re-launch DevBox: ${kErr.message}` });
     }
