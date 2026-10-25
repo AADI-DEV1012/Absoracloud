@@ -192,14 +192,22 @@ def start_session(session_key, term_pass):
 
     # Launch JupyterLab as sandboxed user using verified runuser -l syntax
     jupyter_log = f"{box_home}/.jupyter_server.log"
-    jupyter_cmd = (
-        f"runuser -l {box_user} -c '"
-        f"jupyter lab --ip=0.0.0.0 --port={port} --no-browser "
-        f"--IdentityProvider.token=\"\" --ServerApp.token=\"\" --ServerApp.password=\"\" "
-        f"--ServerApp.disable_check_xsrf=True --ServerApp.allow_origin=\"*\" "
-        f"--ServerApp.allow_remote_access=True --ServerApp.root_dir={box_home} > {jupyter_log} 2>&1'"
-    )
-    devbox_proc = subprocess.Popen(["bash", "-c", jupyter_cmd])
+    jupyter_args = [
+        "jupyter", "lab",
+        "--ip=0.0.0.0",
+        f"--port={port}",
+        "--no-browser",
+        "--IdentityProvider.token=",
+        "--ServerApp.token=",
+        "--ServerApp.password=",
+        "--ServerApp.disable_check_xsrf=True",
+        "--ServerApp.allow_origin=*",
+        "--ServerApp.allow_remote_access=True",
+        f"--ServerApp.root_dir={box_home}"
+    ]
+    jupyter_cmd = " ".join(jupyter_args)
+    full_cmd = f"runuser -l {box_user} -c '{jupyter_cmd}' > {jupyter_log} 2>&1"
+    devbox_proc = subprocess.Popen(["bash", "-c", full_cmd])
 
     # Wait for JupyterLab to start listening before opening Cloudflare tunnel
     for _ in range(25):
