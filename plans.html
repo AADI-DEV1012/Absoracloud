@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing & Plans | AbsoraCloud</title>
+    <meta name="description" content="Predictable, transparent cloud compute pricing. Sliced VPS instances, Dual GPU workstations, edge serverless functions, and multi-zone storage with zero hidden fees.">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              surface: "#fdf8f8",
+              primary: "#1A1A1A",
+              secondary: "#5f5e5b",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #fdf8f8;
+        --primary: #1A1A1A;
+        --border: #E5E1DA;
+        --dim: #8C8984;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--primary);
+        font-family: 'Inter', sans-serif;
+      }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      
+      .hero-gradient {
+        background: radial-gradient(ellipse 90% 60% at 50% -5%, rgba(28,27,27,0.06) 0%, transparent 70%);
+      }
+      .badge {
+        background: #f1edec;
+        border: 1px solid var(--border);
+        color: var(--primary);
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        padding: 5px 14px;
+        border-radius: 100px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .glass-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+      }
+      .plan-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all .24s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+      }
+      .plan-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.08);
+      }
+      .plan-card.recommended {
+        border-color: #1A1A1A;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+      }
+      .popular-tag {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: #1A1A1A;
+        color: #fff;
+        font-size: .65rem;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 100px;
+      }
+    </style>
+    <script src="auth.js"></script>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-neutral-900 selection:text-white">
+
+    <!-- Global Navigation -->
+    <header class="glass-card sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between border-b backdrop-blur-md bg-white/95">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2.5 group">
+                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs font-heading shadow-sm group-hover:scale-105 transition">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <span class="font-heading font-extrabold text-base text-primary tracking-tight">AbsoraCloud</span>
+            </a>
+
+            <a href="index.html" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs">
+                <i class="fa-solid fa-arrow-left"></i> Home
+            </a>
+
+            <nav class="hidden md:flex items-center gap-5 text-xs font-semibold text-neutral-600">
+                <a href="features.html" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-neutral-400"></i> Features
+                </a>
+                <a href="plans.html" class="text-primary font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-tags text-primary"></i> Plans
+                </a>
+                <a href="console.html" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-terminal text-neutral-400"></i> Console
+                </a>
+                <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 text-neutral-700">
+                    <i class="fa-brands fa-github text-sm"></i> GitHub
+                </a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3" id="plans-auth-nav">
+            <div id="plans-signed-out" class="hidden items-center gap-3">
+                <a href="app.html?mode=login" class="px-4 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-100 transition shadow-xs">
+                    Sign In
+                </a>
+                <a href="app.html?mode=register" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs">
+                    Get Started Free
+                </a>
+            </div>
+            <div id="plans-signed-in" class="hidden items-center gap-3">
+                <a href="console.html" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition shadow-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-terminal text-[11px]"></i> Open dashboard
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+
+        <!-- Hero Section -->
+        <section class="hero-gradient pt-16 pb-12 px-6 max-w-6xl mx-auto w-full text-center">
+            <div class="badge mb-4">
+                <i class="fa-solid fa-shield-check text-emerald-600 text-xs"></i>
+                <span>Transparent Compute • No Hidden Egress Costs</span>
+            </div>
+
+            <h1 class="font-heading font-extrabold text-3xl sm:text-5xl text-primary tracking-tight leading-tight">
+                Predictable, Sliced Cloud Compute Plans
+            </h1>
+            <p class="text-neutral-500 text-sm sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+                Choose the perfect capacity tier for your workloads. Get started 100% free forever, or upgrade seamlessly for dedicated Dual GPU workstations and expanded storage.
+            </p>
+
+            <!-- Currency Toggle -->
+            <div class="mt-8 inline-flex items-center p-1.5 rounded-full border border-neutral-300 bg-white shadow-xs">
+                <button id="curr-inr" onclick="setCurrency('INR')" class="px-5 py-1.5 rounded-full text-xs font-bold transition bg-primary text-white">
+                    INR (₹)
+                </button>
+                <button id="curr-usd" onclick="setCurrency('USD')" class="px-5 py-1.5 rounded-full text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition">
+                    USD ($)
+                </button>
+            </div>
+        </section>
+
+        <!-- Plans Grid -->
+        <section class="max-w-6xl mx-auto w-full px-6 pb-20">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- 1. Free Plan -->
+                <div class="plan-card">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Community</span>
+                        </div>
+                        <h3 class="font-heading font-extrabold text-xl text-primary mt-1.5">Free</h3>
+                        <p class="text-[12px] text-neutral-500 mt-1">Ideal for experimenting and hobby projects.</p>
+
+                        <div class="my-6">
+                            <div class="text-3xl font-extrabold font-heading text-primary price-display" data-inr="₹0" data-usd="$0">₹0</div>
+                            <div class="text-xs text-neutral-400 mt-0.5">Free forever • No credit card needed</div>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-neutral-700">
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>4h/week</b> Sliced VPS (0.5 vCPU, 2GB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span>Standard CPU DevBox <i>(No GPU)</i></span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>1</b> AbsoraEdge Function (128 KB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>1</b> Hosted Edge Website with SSL</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>5 GB</b> Cloud Object Storage</span>
+                            </li>
+                            <li class="flex items-start gap-2.5 text-neutral-400">
+                                <i class="fa-solid fa-xmark text-neutral-300 mt-0.5"></i>
+                                <span>Priority execution queues</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="app.html?mode=register" class="w-full text-center py-2.5 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-800 bg-neutral-50 hover:bg-neutral-100 transition mt-8 shadow-xs">
+                        Start Free
+                    </a>
+                </div>
+
+                <!-- 2. Basic Plan -->
+                <div class="plan-card">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Starter</span>
+                        </div>
+                        <h3 class="font-heading font-extrabold text-xl text-primary mt-1.5">Basic</h3>
+                        <p class="text-[12px] text-neutral-500 mt-1">For independent developers & students.</p>
+
+                        <div class="my-6">
+                            <div class="text-3xl font-extrabold font-heading text-primary price-display" data-inr="₹99" data-usd="$1.20">₹99</div>
+                            <div class="text-xs text-neutral-400 mt-0.5">per month, billed monthly</div>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-neutral-700">
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>10h/week</b> Sliced VPS (1 vCPU, 4GB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>1h/week</b> Dual GPU DevBox (T4×2)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>5</b> AbsoraEdge Functions (512 KB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>3</b> Hosted Edge Websites</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>25 GB</b> Cloud Object Storage</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span>Concurrent slots: 2 VPS nodes</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="app.html?mode=register" class="w-full text-center py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-8 shadow-xs">
+                        Select Basic
+                    </a>
+                </div>
+
+                <!-- 3. Pro Plan (Recommended) -->
+                <div class="plan-card recommended">
+                    <span class="popular-tag">Recommended</span>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">High Performance</span>
+                        </div>
+                        <h3 class="font-heading font-extrabold text-xl text-primary mt-1.5">Pro</h3>
+                        <p class="text-[12px] text-neutral-500 mt-1">For production apps & ML model training.</p>
+
+                        <div class="my-6">
+                            <div class="text-3xl font-extrabold font-heading text-primary price-display" data-inr="₹299" data-usd="$3.60">₹299</div>
+                            <div class="text-xs text-neutral-400 mt-0.5">per month, billed monthly</div>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-neutral-700">
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>20h/week</b> Sliced VPS (2 vCPU, 8GB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>3h/week</b> Dual GPU DevBox (T4×2)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>15</b> AbsoraEdge Functions (1 MB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>5</b> Hosted Edge Websites</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>75 GB</b> Cloud Object Storage</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span>Priority runner allocation queue</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="app.html?mode=register" class="w-full text-center py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-8 shadow-xs">
+                        Select Pro Tier
+                    </a>
+                </div>
+
+                <!-- 4. Enterprise Plan -->
+                <div class="plan-card">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Scale</span>
+                        </div>
+                        <h3 class="font-heading font-extrabold text-xl text-primary mt-1.5">Enterprise</h3>
+                        <p class="text-[12px] text-neutral-500 mt-1">For organizations and high-volume teams.</p>
+
+                        <div class="my-6">
+                            <div class="text-3xl font-extrabold font-heading text-primary price-display" data-inr="₹799" data-usd="$9.60">₹799</div>
+                            <div class="text-xs text-neutral-400 mt-0.5">per month, billed monthly</div>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-neutral-700">
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>40h/week</b> Sliced VPS (4 vCPU, 16GB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>5h/week</b> Dual GPU DevBox (T4×2)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>50</b> AbsoraEdge Functions (4 MB)</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>10</b> Hosted Edge Websites</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span><b>200 GB</b> Cloud Object Storage</span>
+                            </li>
+                            <li class="flex items-start gap-2.5">
+                                <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+                                <span>Custom priority queues & SLA</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <a href="app.html?mode=register" class="w-full text-center py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition mt-8 shadow-xs">
+                        Select Enterprise
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Comparison Matrix -->
+        <section class="max-w-6xl mx-auto w-full px-6 pb-24">
+            <div class="text-center mb-12">
+                <span class="badge mb-2">Technical Matrix</span>
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Detailed Plan Feature Comparison</h2>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-1.5">Every capability and compute quota mapped side-by-side.</p>
+            </div>
+
+            <div class="glass-card rounded-2xl overflow-hidden border border-border shadow-xs">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-neutral-50 border-b border-border">
+                                <th class="p-4 font-heading font-bold text-neutral-800">Capability</th>
+                                <th class="p-4 font-heading font-bold text-neutral-800">Free</th>
+                                <th class="p-4 font-heading font-bold text-neutral-800">Basic</th>
+                                <th class="p-4 font-heading font-bold text-neutral-800 bg-neutral-100/60">Pro (Popular)</th>
+                                <th class="p-4 font-heading font-bold text-neutral-800">Enterprise</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            <!-- VPS -->
+                            <tr class="bg-neutral-50/50">
+                                <td colspan="5" class="px-4 py-2 font-bold text-[11px] uppercase tracking-wider text-neutral-400">VPS Isolated Compute</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">CPU Allocation</td>
+                                <td class="p-4 text-neutral-600">0.5 vCPU</td>
+                                <td class="p-4 text-neutral-600">1.0 vCPU</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">2.0 vCPU</td>
+                                <td class="p-4 text-neutral-600">4.0 vCPU</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Dedicated RAM</td>
+                                <td class="p-4 text-neutral-600">2,048 MB</td>
+                                <td class="p-4 text-neutral-600">4,096 MB</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">8,192 MB</td>
+                                <td class="p-4 text-neutral-600">16,384 MB</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Weekly Hours</td>
+                                <td class="p-4 text-neutral-600">4 hrs / week</td>
+                                <td class="p-4 text-neutral-600">10 hrs / week</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">20 hrs / week</td>
+                                <td class="p-4 text-neutral-600">40 hrs / week</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Concurrent Slots</td>
+                                <td class="p-4 text-neutral-600">1 instance</td>
+                                <td class="p-4 text-neutral-600">2 instances</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">3 instances</td>
+                                <td class="p-4 text-neutral-600">4 instances</td>
+                            </tr>
+
+                            <!-- DevBox GPU -->
+                            <tr class="bg-neutral-50/50">
+                                <td colspan="5" class="px-4 py-2 font-bold text-[11px] uppercase tracking-wider text-neutral-400">DevBox GPU Workstations</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">GPU Hardware</td>
+                                <td class="p-4 text-neutral-400">None (CPU Only)</td>
+                                <td class="p-4 text-neutral-600">NVIDIA Tesla T4 (Dual)</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">NVIDIA Tesla T4 (Dual 32GB)</td>
+                                <td class="p-4 text-neutral-600">NVIDIA Tesla T4 (Dual 32GB)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Weekly GPU Quota</td>
+                                <td class="p-4 text-neutral-400">0 hrs</td>
+                                <td class="p-4 text-neutral-600">1 hr strict</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">3 hrs strict</td>
+                                <td class="p-4 text-neutral-600">5 hrs strict</td>
+                            </tr>
+
+                            <!-- Web Hosting & Serverless -->
+                            <tr class="bg-neutral-50/50">
+                                <td colspan="5" class="px-4 py-2 font-bold text-[11px] uppercase tracking-wider text-neutral-400">Edge WebHost & Serverless</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Hosted Websites</td>
+                                <td class="p-4 text-neutral-600">1 site</td>
+                                <td class="p-4 text-neutral-600">3 sites</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">5 sites</td>
+                                <td class="p-4 text-neutral-600">10 sites</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Edge Functions</td>
+                                <td class="p-4 text-neutral-600">1 function</td>
+                                <td class="p-4 text-neutral-600">5 functions</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">15 functions</td>
+                                <td class="p-4 text-neutral-600">50 functions</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Function Code Size</td>
+                                <td class="p-4 text-neutral-600">128 KB</td>
+                                <td class="p-4 text-neutral-600">512 KB</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">1,024 KB (1 MB)</td>
+                                <td class="p-4 text-neutral-600">4,096 KB (4 MB)</td>
+                            </tr>
+
+                            <!-- Storage -->
+                            <tr class="bg-neutral-50/50">
+                                <td colspan="5" class="px-4 py-2 font-bold text-[11px] uppercase tracking-wider text-neutral-400">Cloud Storage & Platform Integrity</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Object Pool Quota</td>
+                                <td class="p-4 text-neutral-600">5 GB (100% full quota)</td>
+                                <td class="p-4 text-neutral-600">25 GB (100% full quota)</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">75 GB (100% full quota)</td>
+                                <td class="p-4 text-neutral-600">200 GB (100% full quota)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">System Logs Reserved</td>
+                                <td class="p-4 text-neutral-600">0 MB user deduction</td>
+                                <td class="p-4 text-neutral-600">0 MB user deduction</td>
+                                <td class="p-4 text-neutral-900 font-bold bg-neutral-100/30">0 MB user deduction</td>
+                                <td class="p-4 text-neutral-600">0 MB user deduction</td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-semibold text-neutral-800">Priority Queues</td>
+                                <td class="p-4 text-neutral-400"><i class="fa-solid fa-minus"></i></td>
+                                <td class="p-4 text-neutral-600">Standard</td>
+                                <td class="p-4 text-emerald-600 font-bold bg-neutral-100/30"><i class="fa-solid fa-check"></i> Priority</td>
+                                <td class="p-4 text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Highest Priority</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="max-w-4xl mx-auto w-full px-6 pb-24">
+            <div class="text-center mb-10">
+                <span class="badge mb-2">Help & Clarity</span>
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Frequently Asked Questions</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div class="glass-card rounded-2xl p-6 border border-border">
+                    <h3 class="font-heading font-bold text-sm text-primary">Can I upgrade or downgrade my plan at any time?</h3>
+                    <p class="text-xs text-neutral-500 mt-2 leading-relaxed">
+                        Yes! You can upgrade instantly. Quotas update in real-time across all services as soon as your tier changes in the database.
+                    </p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 border border-border">
+                    <h3 class="font-heading font-bold text-sm text-primary">Are there any hidden bandwidth or egress fees?</h3>
+                    <p class="text-xs text-neutral-500 mt-2 leading-relaxed">
+                        No. AbsoraCloud does not bill you for inbound or outbound network bandwidth. Your plan price covers your full operational limits.
+                    </p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 border border-border">
+                    <h3 class="font-heading font-bold text-sm text-primary">How are storage quotas calculated?</h3>
+                    <p class="text-xs text-neutral-500 mt-2 leading-relaxed">
+                        You get 100% of your allocated storage capacity (e.g. 5GB on Free, 75GB on Pro). Platform runtime logs are handled in a dedicated shared 1GB log pool and are <b>never deducted from your user storage</b>.
+                    </p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 border border-border">
+                    <h3 class="font-heading font-bold text-sm text-primary">Can administrators upgrade users directly via Telegram?</h3>
+                    <p class="text-xs text-neutral-500 mt-2 leading-relaxed">
+                        Yes! Authorized administrators can run <code>/upgrade &lt;username&gt; &lt;plan&gt;</code> directly from the AbsoraCloud Telegram Bot to update any account tier immediately.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="bg-primary text-white py-16 px-6 text-center">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="font-heading font-extrabold text-2xl sm:text-3xl tracking-tight">Ready to launch your cloud workload?</h2>
+                <p class="text-neutral-400 text-xs sm:text-sm mt-3 max-w-xl mx-auto">
+                    Sign up in seconds and get instant access to sliced isolated VPS compute, edge websites, and multi-zone storage.
+                </p>
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+                    <a href="app.html?mode=register" class="px-6 py-3 rounded-xl bg-white text-primary text-xs font-bold hover:bg-neutral-100 transition shadow-sm">
+                        Create Free Account
+                    </a>
+                    <a href="console.html" class="px-6 py-3 rounded-xl border border-neutral-700 text-white text-xs font-bold hover:bg-neutral-800 transition">
+                        Open Cloud Console
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Global Footer -->
+    <footer class="border-t border-border py-10 px-6 text-xs text-neutral-500 bg-white">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-2 font-heading font-bold text-primary text-sm">
+                <div class="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <span>AbsoraCloud</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-6 font-medium">
+                <a href="index.html" class="hover:text-primary transition">Home</a>
+                <a href="features.html" class="hover:text-primary transition">Features</a>
+                <a href="plans.html" class="text-primary font-bold">Plans & Pricing</a>
+                <a href="console.html" class="hover:text-primary transition">Console</a>
+                <a href="https://github.com/AADI-DEV1012/Absoracloud" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition flex items-center gap-1.5 font-bold">
+                    <i class="fa-brands fa-github text-sm"></i> GitHub
+                </a>
+            </div>
+            <div class="text-neutral-400 text-[11px]">
+                &copy; 2026 AbsoraCloud Inc. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+      function setCurrency(curr) {
+        const btnInr = document.getElementById('curr-inr');
+        const btnUsd = document.getElementById('curr-usd');
+        const priceEls = document.querySelectorAll('.price-display');
+
+        if (curr === 'USD') {
+          btnUsd.className = 'px-5 py-1.5 rounded-full text-xs font-bold transition bg-primary text-white';
+          btnInr.className = 'px-5 py-1.5 rounded-full text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition';
+          priceEls.forEach(el => {
+            el.textContent = el.getAttribute('data-usd');
+          });
+        } else {
+          btnInr.className = 'px-5 py-1.5 rounded-full text-xs font-bold transition bg-primary text-white';
+          btnUsd.className = 'px-5 py-1.5 rounded-full text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition';
+          priceEls.forEach(el => {
+            el.textContent = el.getAttribute('data-inr');
+          });
+        }
+      }
+    </script>
+
+    <script>
+        (async function checkPlansAuth() {
+            const signedOut = document.getElementById('plans-signed-out');
+            const signedIn = document.getElementById('plans-signed-in');
+            const token = getToken();
+            if (!token) {
+                if (signedOut) {
+                    signedOut.classList.remove('hidden');
+                    signedOut.classList.add('flex');
+                }
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    clearToken();
+                    if (signedOut) {
+                        signedOut.classList.remove('hidden');
+                        signedOut.classList.add('flex');
+                    }
+                    return;
+                }
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.user) {
+                    // Update header nav
+                    if (signedOut) signedOut.classList.add('hidden');
+                    if (signedIn) {
+                        signedIn.classList.remove('hidden');
+                        signedIn.classList.add('flex');
+                    }
+
+                    // Update plan cards buttons to point to console.html
+                    document.querySelectorAll('a[href^="app.html?mode=register"]').forEach(btn => {
+                        btn.href = 'console.html';
+                        btn.setAttribute('title', 'Select in Dashboard Console');
+                    });
+                } else {
+                    clearToken();
+                    if (signedOut) {
+                        signedOut.classList.remove('hidden');
+                        signedOut.classList.add('flex');
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
+</body>
+</html>

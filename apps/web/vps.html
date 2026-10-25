@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPS Cloud Compute | AbsoraCloud</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { background-color: #fdf8f8; color: #1A1A1A; font-family: 'Inter', sans-serif; }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
+    </style>
+    <script src="auth.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Global Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-base tracking-tight text-primary" title="Back to Home Website"><span class="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs shadow-xs"><i class="fa-solid fa-cloud"></i></span><span>AbsoraCloud</span></a>
+            <a href="console.html" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs" title="Return to All Services Hub">
+                <i class="fa-solid fa-arrow-left"></i> All Services
+            </a>
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
+                <a href="vps.html" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">VPS</a>
+                <a href="devbox.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">DevBox</a>
+                <a href="serverless.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Edge Functions</a>
+                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Web Hosting</a>
+                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Storage</a>
+                <a href="websocket.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Realtime</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="hidden flex items-center gap-2.5">
+                <span id="user-plan-badge" class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">FREE</span>
+                <span id="user-name" class="text-xs font-semibold text-neutral-800">user</span>
+                <button onclick="logout()" class="text-xs text-neutral-400 hover:text-rose-600 transition ml-1" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+            <a id="login-link-btn" href="app.html?mode=login" class="hidden px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+        </div>
+    </header>
+
+    <!-- Main View -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
+        
+        <!-- Service Title & Actions -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">VPS Cloud Compute</h1>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Multi-tenant sliced compute containers with full interactive web shell & resource quotas.</p>
+            </div>
+            <button id="launch-vps-btn" onclick="launchVPS()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm self-start sm:self-auto">
+                <i class="fa-solid fa-play text-emerald-400"></i> Launch VPS Instance
+            </button>
+        </div>
+
+        <!-- Real Quota Metrics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 mb-1.5">
+                    <span>Weekly VPS Hours</span>
+                    <span id="vps-quota-hours" class="font-mono text-primary font-bold">0.0 / 4.0h</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+                    <div id="vps-quota-bar" class="bg-primary h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-2 flex justify-between">
+                    <span>Usage resets Sunday midnight UTC</span>
+                    <span id="vps-quota-percent" class="font-mono font-bold text-neutral-700">0%</span>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Resource Allocation</div>
+                <div id="vps-plan-specs" class="font-heading font-bold text-lg text-primary mt-1">0.5 vCPU • 2 GB RAM</div>
+                <div class="text-[11px] text-neutral-400 mt-1">Plan: <span id="vps-plan-name" class="font-semibold text-neutral-700 uppercase">Free</span></div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Active Runner State</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-heading font-bold text-lg text-primary">Pool Active</span>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-1">Instant slot provisioning & auto-shutdown</div>
+            </div>
+        </div>
+
+        <!-- Alert Toast -->
+        <div id="toast-banner" class="hidden p-4 rounded-xl text-xs flex items-center justify-between border"></div>
+
+        <!-- Active VPS Sessions Table -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading font-bold text-base text-primary">Active VPS Sessions</h2>
+                <button onclick="fetchSessions()" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-neutral-100 text-neutral-400 font-medium">
+                            <th class="pb-3">Session Key</th>
+                            <th class="pb-3">Hardware Spec</th>
+                            <th class="pb-3">Web Terminal</th>
+                            <th class="pb-3">Time Remaining</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vps-table-body" class="divide-y divide-neutral-100">
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-neutral-400">Loading instances...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400">
+        AbsoraCloud Sliced Cloud Compute & Infrastructure • <a href="index.html" class="hover:underline text-neutral-600">Home</a>
+    </footer>
+
+    <script>
+        // API_BASE provided by auth.js
+        const authToken = getToken();
+
+        function showToast(msg, type = 'info') {
+            const b = document.getElementById('toast-banner');
+            b.className = `p-4 rounded-xl text-xs flex items-center justify-between border ${
+                type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
+            }`;
+            b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
+            b.classList.remove('hidden');
+        }
+
+        async function initAuth() {
+            if (!getToken()) {
+                const loginBtn = document.getElementById('login-link-btn');
+                if (loginBtn) loginBtn.classList.remove('hidden');
+            }
+            const data = await requireLogin();
+            if (!data || !data.user) return false;
+
+            document.getElementById('login-link-btn').classList.add('hidden');
+            document.getElementById('user-profile-bar').classList.remove('hidden');
+            document.getElementById('user-name').innerText = data.user.username;
+            document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+
+            // Update Real Quotas
+            if (data.quotas && data.quotas.vps) {
+                const v = data.quotas.vps;
+                document.getElementById('vps-quota-hours').innerText = `${v.hours_used} / ${v.hours_max}h`;
+                document.getElementById('vps-quota-percent').innerText = `${v.percent}%`;
+                document.getElementById('vps-quota-bar').style.width = `${v.percent}%`;
+                document.getElementById('vps-plan-name').innerText = data.quotas.plan_name || data.user.plan;
+                if (data.quotas.plan_details) {
+                    document.getElementById('vps-plan-specs').innerText = `${data.quotas.plan_details.vps_cpu} vCPU • ${data.quotas.plan_details.vps_ram_mb} MB RAM`;
+                }
+            }
+            return true;
+        }
+
+        async function fetchSessions() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/vps/status?_t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('vps-table-body');
+
+                if (data.instances && data.instances.length > 0) {
+                    tbody.innerHTML = data.instances.map(inst => `
+                        <tr>
+                            <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                            <td class="py-3 text-neutral-500 font-mono">${inst.config ? `${JSON.parse(inst.config).cpu || '1'} vCPU, ${JSON.parse(inst.config).ram_mb || 2048}MB` : 'Sliced Compute'}</td>
+                            <td class="py-3">
+                                ${inst.public_url ? `
+                                    <div class="flex flex-col gap-1">
+                                        <a href="${inst.public_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition w-fit shadow-xs">
+                                            <i class="fa-solid fa-terminal text-[11px]"></i> Web Terminal ↗
+                                        </a>
+                                        <span class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Direct secure shell
+                                        </span>
+                                    </div>
+                                ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Runner offline</span>' : '<span class="text-neutral-400 animate-pulse">Initializing runner slot...</span>'))}
+                            </td>
+                            <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '4h limit'}</td>
+                            <td class="py-3">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    inst.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
+                                    inst.status === 'pending' ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                                    inst.status === 'stopped' ? 'bg-neutral-100 text-neutral-600' : 'bg-red-100 text-red-700'
+                                }">${inst.status.toUpperCase()}</span>
+                            </td>
+                            <td class="py-3 text-right space-x-2">
+                                ${inst.status === 'active' ? `
+                                    <button onclick="stopVPS('${inst.session_key}')" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition">Stop</button>
+                                ` : ''}
+                                ${inst.status === 'failed' || inst.status === 'stopped' ? `
+                                    <button onclick="relaunchVPS('${inst.session_key}')" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 transition">Re-launch</button>
+                                    <button onclick="dismissVPS('${inst.session_key}')" class="text-neutral-400 hover:text-neutral-700 text-xs">✕</button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-neutral-400">No active VPS instances found. Click "Launch VPS Instance" above to start.</td></tr>`;
+                }
+            } catch(e) {}
+        }
+
+        async function launchVPS() {
+            if (!authToken) return window.location.href = 'app.html?mode=login';
+            const btn = document.getElementById('launch-vps-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Provisioning...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/vps/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: false })
+                });
+                const data = await res.json();
+                if (data.status === 'queued') {
+                    showToast(data.msg || 'VPS initializing on compute cluster...', 'success');
+                    fetchSessions();
+                    pollSession(data.session_key);
+                } else {
+                    showToast(data.msg || 'Failed to launch VPS', 'error');
+                }
+            } catch(e) {
+                showToast('Network error launching VPS', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-play text-emerald-400"></i> Launch VPS Instance`;
+            }
+        }
+
+        function pollSession(key) {
+            let count = 0;
+            const timer = setInterval(async () => {
+                count++;
+                if (count > 40) return clearInterval(timer);
+                try {
+                    const r = await fetch(`${API_BASE}/vps/check_session?session_id=${key}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const d = await r.json();
+                    if (d.status === 'active') {
+                        clearInterval(timer);
+                        showToast('VPS session is ready!', 'success');
+                        fetchSessions();
+                    } else if (d.status === 'failed') {
+                        clearInterval(timer);
+                        showToast('VPS startup failed.', 'error');
+                        fetchSessions();
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        async function stopVPS(key) {
+            if (!confirm('Stop this VPS instance?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/vps/stop`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: key })
+                });
+                const d = await res.json();
+                showToast(d.msg || 'VPS stopped', d.status === 'success' ? 'success' : 'error');
+                fetchSessions();
+                initAuth();
+            } catch(e) {}
+        }
+
+        async function relaunchVPS(key) {
+            try {
+                const res = await fetch(`${API_BASE}/vps/relaunch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: key })
+                });
+                const d = await res.json();
+                showToast(d.msg || 'VPS relaunching...', 'success');
+                fetchSessions();
+                if (d.session_key) pollSession(d.session_key);
+            } catch(e) {}
+        }
+
+        async function dismissVPS(key) {
+            try {
+                await fetch(`${API_BASE}/vps/instance/${key}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                fetchSessions();
+            } catch(e) {}
+        }
+
+        // logout() provided globally by auth.js
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authed = await initAuth();
+            if (authed) fetchSessions();
+        });
+    </script>
+</body>
+</html>

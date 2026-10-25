@@ -6,20 +6,21 @@ import { requireAuth }   from '../middleware/auth.js';
 import { requireQuota }  from '../middleware/quota.js';
 import { launchLimiter } from '../middleware/abuse_guard.js';
 import { triggerKaggleKernel, getKernelStatus } from '../services/kaggle.js';
-import { queryD1, executeD1, d1QueryOne }       from '../shared/d1.js';
-import { redisCmd, redisParseHash }             from '../shared/redis.js';
-import { getPlan }                              from '../shared/plans.js';
+import { queryD1, executeD1, d1QueryOne }       from '../../../../packages/shared/d1.js';
+import { redisCmd, redisParseHash }             from '../../../../packages/shared/redis.js';
+import { getPlan, consumeQuota }                from '../../../../packages/shared/plans.js';
+import { appendRunLog }                         from '../services/run_logger.js';
 import crypto from 'crypto';
 
 export const devboxRouter = Router();
 
 async function syncUserDevBoxState(userId) {
-  // Mark pending instances older than 3 minutes as failed
+  // Mark pending instances older than 5 minutes as failed
   await executeD1(
     `UPDATE instances 
      SET status = 'failed', stopped_at = datetime('now')
      WHERE user_id = ? AND service = 'devbox' AND status = 'pending' 
-       AND datetime(created_at) <= datetime('now', '-3 minutes')`,
+       AND datetime(created_at) <= datetime('now', '-5 minutes')`,
     [userId]
   );
 }
@@ -37,10 +38,12 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
     // If force or relaunch, stop previous active instance
     if (force || relaunch) {
       const running = await queryD1(
-        "SELECT session_key FROM instances WHERE user_id = ? AND service = 'devbox' AND status IN ('pending','active')",
+        "SELECT id, session_key, created_at FROM instances WHERE user_id = ? AND service = 'devbox' AND status IN ('pending','active')",
         [userId]
       );
       for (const r of running) {
+        const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(r.created_at).getTime()) / 1000));
+        await consumeQuota(redisCmd, userId, 'devbox', durationSeconds).catch(() => {});
         await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ?", [r.session_key]);
         await redisCmd('SREM', 'gpu:active', r.session_key);
         await redisCmd('SET', `kill:${r.session_key}`, '1', 'EX', '300');
@@ -61,51 +64,130 @@ devboxRouter.post('/launch', requireAuth, launchLimiter, requireQuota('devbox'),
       });
     }
 
-    // Check GPU pool availability via Redis if GPU runtime requested
-    if (runtime === 'gpu') {
-      const activeGPU = await redisCmd('SCARD', 'gpu:active');
-      const gpuCapacity = 4; // Max concurrent GPU sessions on T4×2
+    // Strict GPU Plan & Quota checks if GPU runtime requested
+    let timeoutSeconds = 3600;
 
-      if (parseInt(activeGPU || '0') >= gpuCapacity) {
-        // Queue the request
-        await redisCmd('RPUSH', 'gpu:queue', JSON.stringify({
-          session_key: sessionKey, user_id: userId, plan: req.user.plan, priority: plan.priority, runtime,
-        }));
-        await executeD1(
-          "INSERT INTO instances (user_id, service, session_key, status, config) VALUES (?, 'devbox', ?, 'pending', ?)",
-          [userId, sessionKey, JSON.stringify({ gpu: true, runtime: 'gpu', queued: true })]
-        );
-        const queuePos = await redisCmd('LLEN', 'gpu:queue');
-        return res.json({ status: 'queued', session_key: sessionKey, queue_position: queuePos, msg: 'GPU pool full — you are in the queue' });
+    if (runtime === 'gpu') {
+      if (!plan.gpu_allowed || (plan.gpu_hours || 0) <= 0) {
+        return res.status(403).json({
+          status: 'error',
+          msg: 'GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan or switch to standard CPU.',
+          upgrade_required: true,
+        });
       }
 
+      const maxGpuSeconds = (plan.devbox_gpu_min || plan.gpu_hours * 60) * 60;
+      const usedGpuSeconds = parseInt(await redisCmd('GET', `quota:${userId}:devbox_gpu`) || '0', 10);
+      if (usedGpuSeconds >= maxGpuSeconds) {
+        return res.status(403).json({
+          status: 'error',
+          msg: `Strict GPU limit reached for your ${plan.name} plan (${plan.gpu_hours}h limit). Upgrade your plan or switch to standard CPU.`,
+          used_hours: (usedGpuSeconds / 3600).toFixed(2),
+          limit_hours: plan.gpu_hours,
+        });
+      }
+
+      const remainingGpuSeconds = Math.max(60, maxGpuSeconds - usedGpuSeconds);
+      timeoutSeconds = Math.min(remainingGpuSeconds, (plan.gpu_hours || 1) * 3600);
+
+      const activeGPU = await redisCmd('SCARD', 'gpu:active');
+      const gpuCapacity = 4;
+
+      if (parseInt(activeGPU || '0') >= gpuCapacity) {
+        return res.status(503).json({
+          status: 'error',
+          msg: 'GPU cluster at maximum capacity. Please wait a few minutes or launch a CPU session.'
+        });
+      }
       await redisCmd('SADD', 'gpu:active', sessionKey);
+    } else {
+      timeoutSeconds = (plan.devbox_cpu_min || 60) * 60;
     }
 
-    const expiresAt = new Date(Date.now() + plan.devbox_gpu_min * 60 * 1000).toISOString();
+    const termPass = crypto.randomBytes(6).toString('hex');
+    const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
+    const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
 
-    await executeD1(
-      "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'devbox', ?, ?, ?)",
-      [userId, sessionKey, JSON.stringify({ gpu: runtime === 'gpu', runtime }), expiresAt]
+    const targetType = runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu';
+
+    // Check for an active multi-tenant DevBox runner of matching type with spare capacity
+    const availableRunner = await d1QueryOne(
+      `SELECT id, capacity, active_count 
+       FROM runners 
+       WHERE service = 'devbox' 
+         AND type = ?
+         AND status = 'ready' 
+         AND active_count < capacity 
+         AND datetime(last_heartbeat) >= datetime('now', '-45 seconds')
+       ORDER BY active_count DESC 
+       LIMIT 1`,
+      [targetType]
     );
 
-    // Push task to devbox:tasks for the Kaggle GPU runner
-    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
-      action: 'launch',
-      session_key: sessionKey,
-      user_id: userId,
-      plan: req.user.plan,
-      runtime: runtime,
-      timeout_seconds: plan.devbox_gpu_min * 60,
-    }));
+    let assignedRunnerId = null;
+    let reusedPool = false;
 
-    try {
-      await triggerKaggleKernel(sessionKey, userId, req.user.plan);
-    } catch (kErr) {
-      console.warn('Kaggle kernel trigger notice:', kErr.message);
+    if (availableRunner) {
+      assignedRunnerId = availableRunner.id;
+      reusedPool = true;
+      await executeD1("UPDATE runners SET active_count = active_count + 1 WHERE id = ?", [assignedRunnerId]);
+      console.log(`⚡ Pooled DevBox runner slot assigned: ${assignedRunnerId} (${targetType}, active: ${availableRunner.active_count + 1}/${availableRunner.capacity})`);
+    } else {
+      assignedRunnerId = `devbox-runner-${crypto.randomUUID().slice(0, 8)}`;
+      await executeD1(
+        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'provisioning', datetime('now'))",
+        [assignedRunnerId, targetType]
+      );
+      console.log(`🚀 Provisioning new Kaggle DevBox runner: ${assignedRunnerId} (${targetType})`);
     }
 
-    res.json({ status: 'queued', session_key: sessionKey, runtime, expires: expiresAt, msg: `DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session launching...` });
+    await executeD1(
+      "INSERT INTO instances (user_id, service, session_key, status, config, runner_id, expires_at) VALUES (?, 'devbox', ?, 'pending', ?, ?, ?)",
+      [userId, sessionKey, config, assignedRunnerId, expiresAt]
+    );
+
+    await redisCmd('HSET', `session:${sessionKey}`,
+      'user_id', String(userId),
+      'status', 'pending',
+      'service', 'devbox',
+      'term_pass', termPass,
+      'runner_id', assignedRunnerId
+    );
+    await redisCmd('EXPIRE', `session:${sessionKey}`, String(timeoutSeconds + 3600));
+
+    if (!reusedPool) {
+      try {
+        await triggerKaggleKernel(sessionKey, userId, req.user.plan, {
+          runner_id: assignedRunnerId,
+          capacity: 2,
+          runtime,
+          timeout_seconds: timeoutSeconds,
+          term_pass: termPass
+        });
+      } catch (kErr) {
+        console.error('Kaggle kernel trigger error:', kErr.message);
+        if (runtime === 'gpu') await redisCmd('SREM', 'gpu:active', sessionKey);
+        await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [sessionKey]);
+        await executeD1("UPDATE runners SET status = 'failed' WHERE id = ?", [assignedRunnerId]);
+        await redisCmd('HSET', `session:${sessionKey}`, 'status', 'failed', 'error', kErr.message);
+        return res.status(502).json({ status: 'error', msg: `Failed to provision DevBox runner: ${kErr.message}` });
+      }
+    }
+
+    appendRunLog('devbox', sessionKey, `DevBox session launched by user ${userId} [Runtime: ${runtime}, Runner: ${assignedRunnerId}, Pool: ${reusedPool ? 'reused' : 'new'}]`);
+
+    res.json({
+      status: 'queued',
+      session_key: sessionKey,
+      runtime,
+      expires: expiresAt,
+      term_pass: termPass,
+      reused_pool: reusedPool,
+      runner_id: assignedRunnerId,
+      msg: reusedPool 
+        ? 'Connected to active DevBox compute pool. Initializing workspace...'
+        : `DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session launching...`
+    });
   } catch (e) {
     console.error('DevBox launch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to launch DevBox' });
@@ -119,40 +201,93 @@ devboxRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     const { session_key, runtime = 'gpu' } = req.body;
 
     if (session_key) {
-      await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?", [session_key, userId]);
-      await redisCmd('SREM', 'gpu:active', session_key);
-      await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+      const oldInst = await d1QueryOne("SELECT id, created_at FROM instances WHERE session_key = ? AND user_id = ?", [session_key, userId]);
+      if (oldInst) {
+        const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(oldInst.created_at).getTime()) / 1000));
+        await consumeQuota(redisCmd, userId, 'devbox', durationSeconds).catch(() => {});
+        await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ?", [session_key]);
+        await redisCmd('SREM', 'gpu:active', session_key);
+        await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+      }
     }
 
-    req.body.force = true;
     const plan = getPlan(req.user.plan);
     const newSessionKey = `devbox-${userId}-${crypto.randomUUID().slice(0, 8)}`;
+    let timeoutSeconds = 3600;
+
     if (runtime === 'gpu') {
+      if (!plan.gpu_allowed || (plan.gpu_hours || 0) <= 0) {
+        return res.status(403).json({
+          status: 'error',
+          msg: 'GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan or switch to standard CPU.',
+          upgrade_required: true,
+        });
+      }
+      const maxGpuSeconds = (plan.devbox_gpu_min || plan.gpu_hours * 60) * 60;
+      const usedGpuSeconds = parseInt(await redisCmd('GET', `quota:${userId}:devbox_gpu`) || '0', 10);
+      if (usedGpuSeconds >= maxGpuSeconds) {
+        return res.status(403).json({
+          status: 'error',
+          msg: `Strict GPU limit reached for your ${plan.name} plan (${plan.gpu_hours}h limit). Upgrade your plan or switch to standard CPU.`,
+        });
+      }
+      timeoutSeconds = Math.min(Math.max(60, maxGpuSeconds - usedGpuSeconds), (plan.gpu_hours || 1) * 3600);
       await redisCmd('SADD', 'gpu:active', newSessionKey);
+    } else {
+      timeoutSeconds = (plan.devbox_cpu_min || 60) * 60;
     }
-    const expiresAt = new Date(Date.now() + plan.devbox_gpu_min * 60 * 1000).toISOString();
+
+    const termPass = crypto.randomBytes(6).toString('hex');
+    const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
+    const config = JSON.stringify({ gpu: runtime === 'gpu', runtime, term_pass: termPass });
+
+    const targetType = runtime === 'gpu' ? 'kaggle_gpu' : 'kaggle_cpu';
+    const assignedRunnerId = `devbox-runner-${crypto.randomUUID().slice(0, 8)}`;
 
     await executeD1(
-      "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'devbox', ?, ?, ?)",
-      [userId, newSessionKey, JSON.stringify({ gpu: runtime === 'gpu', runtime }), expiresAt]
+      "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, ?, 'devbox', 2, 1, 'provisioning', datetime('now'))",
+      [assignedRunnerId, targetType]
     );
 
-    // Push task to devbox:tasks for the Kaggle GPU runner
-    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
-      action: 'launch',
-      session_key: newSessionKey,
-      user_id: userId,
-      plan: req.user.plan,
-      runtime: runtime,
-      timeout_seconds: plan.devbox_gpu_min * 60,
-    }));
+    await executeD1(
+      "INSERT INTO instances (user_id, service, session_key, status, config, runner_id, expires_at) VALUES (?, 'devbox', ?, 'pending', ?, ?, ?)",
+      [userId, newSessionKey, config, assignedRunnerId, expiresAt]
+    );
+
+    await redisCmd('HSET', `session:${newSessionKey}`,
+      'user_id', String(userId),
+      'status', 'pending',
+      'service', 'devbox',
+      'term_pass', termPass,
+      'runner_id', assignedRunnerId
+    );
+    await redisCmd('EXPIRE', `session:${newSessionKey}`, String(timeoutSeconds + 3600));
 
     try {
-      await triggerKaggleKernel(newSessionKey, userId, req.user.plan);
+      await triggerKaggleKernel(newSessionKey, userId, req.user.plan, {
+        runner_id: assignedRunnerId,
+        capacity: 2,
+        runtime,
+        timeout_seconds: timeoutSeconds,
+        term_pass: termPass
+      });
     } catch (kErr) {
-      console.warn('Kaggle kernel trigger notice:', kErr.message);
+      console.error('Kaggle kernel trigger error:', kErr.message);
+      if (runtime === 'gpu') await redisCmd('SREM', 'gpu:active', newSessionKey);
+      await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
+      await executeD1("UPDATE runners SET status = 'failed' WHERE id = ?", [assignedRunnerId]);
+      await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', kErr.message);
+      return res.status(502).json({ status: 'error', msg: `Failed to re-launch DevBox: ${kErr.message}` });
     }
-    res.json({ status: 'queued', session_key: newSessionKey, runtime, expires: expiresAt, msg: `Re-launching fresh DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session...` });
+
+    res.json({
+      status: 'queued',
+      session_key: newSessionKey,
+      runtime,
+      expires: expiresAt,
+      term_pass: termPass,
+      msg: `Re-launching fresh DevBox ${runtime === 'gpu' ? '2× Tesla T4 GPU' : 'CPU'} session...`
+    });
   } catch (e) {
     console.error('DevBox relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-launch DevBox' });
@@ -165,30 +300,40 @@ devboxRouter.get('/check_session', requireAuth, async (req, res) => {
     const { session_id } = req.query;
     if (!session_id) return res.status(400).json({ status: 'error', msg: 'Missing session_id' });
 
-    // 1. Check Redis
-    const data = redisParseHash(await redisCmd('HGETALL', `session:${session_id}`));
-    if (data && data.status) {
-      return res.json({
-        status: data.status,
-        tunnel_url: data.tunnel_url || null,
-        expires_at: data.expires_at || null,
-        error: data.error || null,
-      });
-    }
-
-    // 2. Check D1
+    // 1. Verify ownership in D1 first
     const inst = await d1QueryOne(
-      "SELECT status, public_url, created_at, expires_at FROM instances WHERE session_key = ? AND user_id = ?",
-      [session_id, req.user.sub]
+      "SELECT id, user_id, status, public_url, created_at, expires_at, config FROM instances WHERE session_key = ?",
+      [session_id]
     );
 
     if (!inst) {
       return res.status(404).json({ status: 'not_found', msg: 'Instance not found' });
     }
+    if (inst.user_id !== req.user.sub && req.user.role !== 'admin') {
+      return res.status(403).json({ status: 'forbidden', msg: 'Access denied' });
+    }
+
+    // 2. Check Redis for live tunnel_url
+    const data = redisParseHash(await redisCmd('HGETALL', `session:${session_id}`));
+    const cfg = JSON.parse(inst.config || '{}');
+    const termPass = data?.term_pass || cfg.term_pass || null;
+
+    if (data && data.status) {
+      if (data.tunnel_url && !inst.public_url) {
+        await executeD1("UPDATE instances SET status = ?, public_url = ? WHERE session_key = ?", [data.status, data.tunnel_url, session_id]);
+      }
+      return res.json({
+        status: data.status,
+        tunnel_url: data.tunnel_url || inst.public_url || null,
+        expires_at: data.expires_at || inst.expires_at || null,
+        term_pass: termPass,
+        error: data.error || null,
+      });
+    }
 
     if (inst.status === 'pending') {
       const createdTime = new Date(inst.created_at).getTime();
-      if (Date.now() - createdTime > 180000) {
+      if (Date.now() - createdTime > 300000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
         await redisCmd('SREM', 'gpu:active', session_id);
         return res.json({ status: 'failed', msg: 'DevBox GPU allocation timed out or runner failed.' });
@@ -199,6 +344,7 @@ devboxRouter.get('/check_session', requireAuth, async (req, res) => {
       status: inst.status,
       tunnel_url: inst.public_url || null,
       expires_at: inst.expires_at || null,
+      term_pass: termPass,
     });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to check DevBox session' });
@@ -209,8 +355,7 @@ devboxRouter.get('/check_session', requireAuth, async (req, res) => {
 devboxRouter.get('/gpu_status', requireAuth, async (req, res) => {
   try {
     const activeCount = parseInt(await redisCmd('SCARD', 'gpu:active') || '0');
-    const queueLength = parseInt(await redisCmd('LLEN', 'gpu:queue') || '0');
-    res.json({ status: 'success', active_sessions: activeCount, capacity: 4, queue_length: queueLength });
+    res.json({ status: 'success', active_sessions: activeCount, capacity: 4 });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to get GPU status' });
   }
@@ -226,15 +371,25 @@ devboxRouter.get('/status', requireAuth, async (req, res) => {
       [req.user.sub]
     );
 
-    // Enrich instances with real-time Redis state if D1 hasn't updated yet
     for (const inst of instances) {
-      if (!inst.public_url || inst.status === 'pending') {
-        const data = redisParseHash(await redisCmd('HGETALL', `session:${inst.session_key}`));
-        if (data && data.status) {
-          inst.status = data.status;
-          if (data.tunnel_url) inst.public_url = data.tunnel_url;
-          if (data.expires_at) inst.expires_at = data.expires_at;
-        }
+      let termPass = null;
+      try {
+        const cfg = JSON.parse(inst.config || '{}');
+        termPass = cfg.term_pass || null;
+      } catch (_) {}
+      inst.term_pass = termPass;
+
+      if (inst.public_url && inst.status === 'active') continue;
+      const rawData = await redisCmd('HGETALL', `session:${inst.session_key}`);
+      const data = redisParseHash(rawData);
+      if (data && (data.status === 'active' || data.tunnel_url)) {
+        if (data.tunnel_url) inst.public_url = data.tunnel_url;
+        if (data.status) inst.status = data.status;
+        if (data.term_pass && !inst.term_pass) inst.term_pass = data.term_pass;
+        await executeD1(
+          "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url), stopped_at = NULL WHERE session_key = ?",
+          [inst.status, inst.public_url || null, inst.session_key]
+        );
       }
     }
 
@@ -248,18 +403,39 @@ devboxRouter.get('/status', requireAuth, async (req, res) => {
 devboxRouter.post('/stop', requireAuth, async (req, res) => {
   try {
     const { session_key } = req.body;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
+
+    const inst = await d1QueryOne(
+      "SELECT id, created_at, status, runner_id, config FROM instances WHERE session_key = ? AND user_id = ?",
+      [session_key, req.user.sub]
+    );
+    if (!inst) return res.status(404).json({ status: 'error', msg: 'Instance not found or access denied' });
+
+    const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(inst.created_at).getTime()) / 1000));
+    await consumeQuota(redisCmd, req.user.sub, 'devbox', durationSeconds).catch(() => {});
+
+    try {
+      const cfg = JSON.parse(inst.config || '{}');
+      if (cfg.gpu) {
+        await redisCmd('INCRBY', `quota:${req.user.sub}:devbox_gpu`, String(durationSeconds)).catch(() => {});
+      } else {
+        await redisCmd('INCRBY', `quota:${req.user.sub}:devbox_cpu`, String(durationSeconds)).catch(() => {});
+      }
+    } catch (_) {}
+
     await executeD1(
       "UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?",
       [session_key, req.user.sub]
     );
+    if (inst.runner_id) {
+      await executeD1("UPDATE runners SET active_count = MAX(0, active_count - 1) WHERE id = ?", [inst.runner_id]);
+    }
+
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
-    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
-      action: 'stop',
-      session_key,
-      user_id: req.user.sub,
-    }));
+    appendRunLog('devbox', session_key, `DevBox session terminated by user ${req.user.sub}`);
+
     res.json({ status: 'success', msg: 'DevBox session terminated' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to stop DevBox' });
@@ -270,17 +446,20 @@ devboxRouter.post('/stop', requireAuth, async (req, res) => {
 devboxRouter.delete('/instance/:session_key', requireAuth, async (req, res) => {
   try {
     const { session_key } = req.params;
+    const inst = await d1QueryOne("SELECT id, runner_id, status FROM instances WHERE session_key = ? AND user_id = ?", [session_key, req.user.sub]);
+    if (!inst) return res.status(404).json({ status: 'error', msg: 'Instance not found or access denied' });
+
     await executeD1(
       "UPDATE instances SET status = 'dismissed' WHERE session_key = ? AND user_id = ?",
       [session_key, req.user.sub]
     );
+
+    if (inst.runner_id && inst.status !== 'stopped' && inst.status !== 'dismissed') {
+      await executeD1("UPDATE runners SET active_count = MAX(0, active_count - 1) WHERE id = ?", [inst.runner_id]);
+    }
+
     await redisCmd('SREM', 'gpu:active', session_key);
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
-    await redisCmd('RPUSH', 'devbox:tasks', JSON.stringify({
-      action: 'stop',
-      session_key,
-      user_id: req.user.sub,
-    }));
     res.json({ status: 'success', msg: 'Instance dismissed' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to dismiss instance' });

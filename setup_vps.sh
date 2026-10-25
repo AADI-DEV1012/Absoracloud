@@ -98,10 +98,8 @@ echo "[+] Caddy version: $(caddy version)"
 # ── 5. Install Python Dependencies ──
 echo "[5/7] Setting up Python environment..."
 pip3 install requests psutil redis websockets \
-  "huggingface_hub<0.25.0" gradio fastapi uvicorn \
   --break-system-packages --quiet || \
-pip3 install requests psutil redis websockets \
-  "huggingface_hub<0.25.0" gradio fastapi uvicorn --quiet
+pip3 install requests psutil redis websockets --quiet
 
 # ── 6. Setup Directory & Repository ──
 INSTALL_DIR="/opt/absoracloud"
@@ -110,11 +108,11 @@ echo "[6/7] Setting up AbsoraCloud in $INSTALL_DIR..."
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo "[+] Updating existing repository..."
     cd "$INSTALL_DIR"
-    git remote set-url origin https://github.com/Rishi-dev1210/Absoracloud.git || true
+    git remote set-url origin https://github.com/AADI-DEV1012/Absoracloud.git || true
     git pull origin main || true
 else
     echo "[+] Cloning AbsoraCloud repository..."
-    git clone https://github.com/Rishi-dev1210/Absoracloud.git "$INSTALL_DIR"
+    git clone https://github.com/AADI-DEV1012/Absoracloud.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 
@@ -145,7 +143,7 @@ cat <<'CADDYCONF' > /etc/caddy/Caddyfile
 CADDYCONF
 systemctl reload caddy || systemctl restart caddy || true
 
-# ── 9. Create Systemd Services ──
+# ── 9. Create Systemd Service: AbsoraCloud API Gateway ──
 
 # Service A: AbsoraCloud API Gateway & Web Panel
 cat <<EOF > /etc/systemd/system/absoracloud-api.service
@@ -160,7 +158,7 @@ WorkingDirectory=$INSTALL_DIR/absoracloud-v2
 EnvironmentFile=-$INSTALL_DIR/absoracloud-v2/.env
 Environment="PORT=3000"
 Environment="NODE_ENV=production"
-ExecStart=/usr/bin/node apps/api/src/index.js
+ExecStart=/usr/bin/node render_server/server.js
 Restart=always
 RestartSec=5
 
@@ -168,86 +166,33 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Service B: AbsoraCloud Linux VPS Engine (Docker Slicer)
-cat <<EOF > /etc/systemd/system/absoracloud-vps.service
-[Unit]
-Description=AbsoraCloud Linux VPS Docker Slicer Daemon
-After=network.target docker.service
-Requires=docker.service
+# Note: VPS service is now Kaggle CPU notebooks (no local Docker slicer)
+# Note: Web Hosting is now Cloudflare Workers (no local deployer daemon)
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR/absoracloud-v2/runners/vps-server
-EnvironmentFile=-$INSTALL_DIR/absoracloud-v2/.env
-Environment="RUNNER_ID=metal-vps-node1"
-Environment="CAPACITY=6"
-Environment="PORT_START=9001"
-Environment="PORT_END=9020"
-Environment="API_URL=http://127.0.0.1:3000"
-Environment="WORKER_SECRET=absoracloud_worker_secret_2026"
-Environment="UPSTASH_REDIS_URL=https://sharing-dodo-298502.upstash.io"
-Environment="UPSTASH_REDIS_TOKEN=gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ"
-ExecStart=/usr/bin/python3 shared_server.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Service C: AbsoraCloud WebHost Multi-Site Deployer
-cat <<EOF > /etc/systemd/system/absoracloud-webhost.service
-[Unit]
-Description=AbsoraCloud WebHost Multi-Site Deployer Daemon
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR/absoracloud-v2/runners/webhost-deployer
-EnvironmentFile=-$INSTALL_DIR/absoracloud-v2/.env
-Environment="RUNNER_ID=metal-webhost-node1"
-Environment="CAPACITY=25"
-Environment="API_URL=http://127.0.0.1:3000"
-Environment="WORKER_SECRET=absoracloud_worker_secret_2026"
-Environment="UPSTASH_REDIS_URL=https://sharing-dodo-298502.upstash.io"
-Environment="UPSTASH_REDIS_TOKEN=gQAAAAAABI4GAAIgcDJiNjFmOTk4YzM4ZGQ0OTMzYTkzZmVkOTg4NmIzNDU0YQ"
-ExecStart=/usr/bin/python3 app.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Reload and Start All Services
+# Reload and Start API Service Only
 systemctl daemon-reload
 systemctl enable --now absoracloud-api.service
-systemctl enable --now absoracloud-vps.service
-systemctl enable --now absoracloud-webhost.service
 
 echo ""
 echo "=========================================================="
-echo "  🎉 AbsoraCloud Bare Metal Provisioning COMPLETE!"
+echo "  🎉 AbsoraCloud Provisioning COMPLETE!"
 echo "=========================================================="
 echo "  • Local API Panel : http://127.0.0.1:3000"
-echo "  • Domain          : astrocore.qzz.io (Single Domain)"
-echo "  • VPS Containers  : 6-8 concurrent (Docker Isolated)"
-echo "  • WebHost Sites   : Managed by webhost daemon"
-echo "  • DevBox Kernel   : Dedicated Kaggle GPU (Remote)"
+echo "  • Domain          : astrocore.qzz.io"
+echo "  • VPS Service     : Kaggle CPU Notebooks (Remote)"
+echo "  • WebHost Sites   : Cloudflare Workers (Global CDN)"
+echo "  • Serverless      : Cloudflare Workers Functions"
+echo "  • DevBox Kernel   : Kaggle GPU 2× T4 (Remote)"
 echo "=========================================================="
 echo ""
 echo "⚡ NEXT STEP: Connect Cloudflare Tunnel (1 Single Hostname):"
 echo "  1. In Cloudflare Zero Trust -> Tunnels -> Public Hostnames"
-echo "     Add 1 Hostname: astrocore.qzz.io -> HTTP -> localhost:80"
+echo "     Add Hostname: astrocore.qzz.io -> HTTP -> localhost:3000"
 echo "  2. On this server, start tunnel:"
 echo "     cloudflared service install <YOUR_TUNNEL_TOKEN>"
 echo "     systemctl enable --now cloudflared"
 echo ""
-echo "Check service statuses anytime with:"
+echo "Check service status anytime with:"
 echo "  systemctl status absoracloud-api"
-echo "  systemctl status absoracloud-vps"
-echo "  systemctl status absoracloud-webhost"
 echo "  systemctl status cloudflared"
 echo "=========================================================="

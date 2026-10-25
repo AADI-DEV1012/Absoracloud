@@ -1,8 +1,8 @@
-// ── Hugging Face Spaces (Gradio Only) Multi-Site Host Integration ──
+﻿// ── Hugging Face Spaces (Gradio Only) Multi-Site Host Integration ──
 // Deploys and manages up to 20+ websites on a single Gradio HF Space.
 // Each site gets an isolated local port and a public Cloudflare Tunnel URL.
 
-import { redisCmd } from '../../../packages/shared/redis.js';
+import { redisCmd } from '../../../../packages/shared/redis.js';
 
 const HF_API = 'https://huggingface.co/api';
 

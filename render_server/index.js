@@ -1,2 +1,2 @@
 // ── Render Server Entrypoint ──
-import './src/index.js';
+import './server.js';

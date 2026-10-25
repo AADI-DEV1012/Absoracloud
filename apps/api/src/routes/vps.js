@@ -1,4 +1,4 @@
-// ── VPS Routes ──
+// ── VPS Routes — V3 Architecture (Kaggle CPU-only) ──
 // POST /vps/launch, GET /vps/status, POST /vps/stop, GET /vps/check_session, POST /vps/relaunch, DELETE /vps/instance/:session_key
 
 import { Router } from 'express';
@@ -6,29 +6,22 @@ import { requireAuth }    from '../middleware/auth.js';
 import { requireQuota }   from '../middleware/quota.js';
 import { launchLimiter }  from '../middleware/abuse_guard.js';
 
-import { queryD1, executeD1, d1QueryOne } from '../shared/d1.js';
-import { redisCmd, redisParseHash }       from '../shared/redis.js';
-import { getPlan }                        from '../shared/plans.js';
+import { queryD1, executeD1, d1QueryOne } from '../../../../packages/shared/d1.js';
+import { redisCmd, redisParseHash }       from '../../../../packages/shared/redis.js';
+import { getPlan, consumeQuota }          from '../../../../packages/shared/plans.js';
+import { triggerVPSKernel }               from '../services/kaggle.js';
+import { appendRunLog }                   from '../services/run_logger.js';
 import crypto from 'crypto';
 
 export const vpsRouter = Router();
 
-// Helper to sync stale pending or disconnected instances
+// Helper to sync stale pending instances (5 min timeout)
 async function syncUserVPSState(userId) {
-  // Mark pending instances older than 90 seconds as failed so user is not blocked
   await executeD1(
     `UPDATE instances 
      SET status = 'failed', stopped_at = datetime('now')
      WHERE user_id = ? AND service = 'vps' AND status = 'pending' 
-       AND datetime(created_at) <= datetime('now', '-90 seconds')`,
-    [userId]
-  );
-  // Mark active instances whose runner is offline as disconnected
-  await executeD1(
-    `UPDATE instances 
-     SET status = 'disconnected', stopped_at = datetime('now')
-     WHERE user_id = ? AND service = 'vps' AND status = 'active'
-       AND runner_id IN (SELECT id FROM runners WHERE status = 'offline')`,
+       AND datetime(created_at) <= datetime('now', '-5 minutes')`,
     [userId]
   );
 }
@@ -37,20 +30,21 @@ async function syncUserVPSState(userId) {
 vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async (req, res) => {
   try {
     const userId = req.user.sub;
-    const plan   = getPlan(req.user.plan);
+    const plan = getPlan(req.user.plan);
     const { force, relaunch } = req.body;
     const sessionKey = `vps-${userId}-${crypto.randomUUID().slice(0, 8)}`;
 
-    // Sync stale or disconnected instances
     await syncUserVPSState(userId);
 
-    // If user explicitly requested re-launch or force restart, stop existing instances
+    // If force or relaunch, stop previous active instance
     if (force || relaunch) {
       const running = await queryD1(
-        "SELECT session_key FROM instances WHERE user_id = ? AND service = 'vps' AND status IN ('pending','active')",
+        "SELECT id, session_key, created_at FROM instances WHERE user_id = ? AND service = 'vps' AND status IN ('pending','active')",
         [userId]
       );
       for (const r of running) {
+        const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(r.created_at).getTime()) / 1000));
+        await consumeQuota(redisCmd, userId, 'vps', durationSeconds).catch(() => {});
         await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ?", [r.session_key]);
         await redisCmd('SET', `kill:${r.session_key}`, '1', 'EX', '300');
         await redisCmd('HDEL', `session:${r.session_key}`, 'status');
@@ -72,63 +66,87 @@ vpsRouter.post('/launch', requireAuth, launchLimiter, requireQuota('vps'), async
       });
     }
 
-    // Find an available runner
-    const runners = await queryD1(
-      "SELECT * FROM runners WHERE service = 'vps' AND status = 'ready' AND active_count < capacity ORDER BY active_count ASC LIMIT 1"
+    const timeoutSeconds = Math.floor(plan.vps_hours_week / 7 * 3600);
+    const termPass = crypto.randomBytes(6).toString('hex');
+    const config = JSON.stringify({ cpu: plan.vps_cpu, ram_mb: plan.vps_ram_mb, runtime: 'kaggle_cpu', term_pass: termPass });
+    const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
+
+    // Check for an active multi-tenant runner with spare capacity
+    const availableRunner = await d1QueryOne(
+      `SELECT id, capacity, active_count 
+       FROM runners 
+       WHERE service = 'vps' 
+         AND status = 'ready' 
+         AND active_count < capacity 
+         AND datetime(last_heartbeat) >= datetime('now', '-45 seconds')
+       ORDER BY active_count DESC 
+       LIMIT 1`
     );
 
-    const config = JSON.stringify({ cpu: plan.vps_cpu, ram_mb: plan.vps_ram_mb });
-    const expiresAt = new Date(Date.now() + plan.vps_hours_week / 7 * 3600 * 1000).toISOString();
+    let assignedRunnerId = null;
+    let reusedPool = false;
+
+    if (availableRunner) {
+      assignedRunnerId = availableRunner.id;
+      reusedPool = true;
+      await executeD1("UPDATE runners SET active_count = active_count + 1 WHERE id = ?", [assignedRunnerId]);
+      console.log(`⚡ Pooled VPS runner slot assigned: ${assignedRunnerId} (active: ${availableRunner.active_count + 1}/${availableRunner.capacity})`);
+    } else {
+      assignedRunnerId = `vps-runner-${crypto.randomUUID().slice(0, 8)}`;
+      await executeD1(
+        "INSERT INTO runners (id, type, service, capacity, active_count, status, last_heartbeat) VALUES (?, 'kaggle_cpu', 'vps', 4, 1, 'provisioning', datetime('now'))",
+        [assignedRunnerId]
+      );
+      console.log(`🚀 Provisioning new Kaggle VPS runner: ${assignedRunnerId}`);
+    }
 
     await executeD1(
-      "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'vps', ?, ?, ?)",
-      [userId, sessionKey, config, expiresAt]
+      "INSERT INTO instances (user_id, service, session_key, status, config, runner_id, expires_at) VALUES (?, 'vps', ?, 'pending', ?, ?, ?)",
+      [userId, sessionKey, config, assignedRunnerId, expiresAt]
     );
 
-    if (runners.length > 0) {
-      // Fast path: runner available
-      const runner = runners[0];
-      await executeD1("UPDATE runners SET active_count = active_count + 1 WHERE id = ?", [runner.id]);
-      await executeD1("UPDATE instances SET runner_id = ? WHERE session_key = ?", [runner.id, sessionKey]);
-      await redisCmd('HSET', `session:${sessionKey}`, 'user_id', String(userId), 'status', 'pending', 'runner_id', runner.id);
-      await redisCmd('EXPIRE', `session:${sessionKey}`, String(Math.floor(plan.vps_hours_week / 7 * 3600)));
+    await redisCmd('HSET', `session:${sessionKey}`,
+      'user_id', String(userId),
+      'status', 'pending',
+      'service', 'vps',
+      'term_pass', termPass,
+      'runner_id', assignedRunnerId
+    );
+    await redisCmd('EXPIRE', `session:${sessionKey}`, String(timeoutSeconds + 3600));
 
-      // Queue container start task to runner
-      await redisCmd('RPUSH', `runner:${runner.id}:tasks`, JSON.stringify({
-        action: 'start_vps',
-        session_key: sessionKey,
-        plan: req.user.plan,
-        timeout_seconds: Math.floor(plan.vps_hours_week / 7 * 3600)
-      }));
-
-      // Check Redis for tunnel URL
-      const rData = redisParseHash(await redisCmd('HGETALL', `runner:${runner.id}`));
-
-      res.json({
-        status: 'queued',
-        session_key: sessionKey,
-        plan: req.user.plan,
-        expires: expiresAt,
-        tunnel_url: rData.tunnel_url || null,
-        msg: 'VPS assigned to active runner — launching container...'
-      });
-    } else {
-      // No runner has capacity — push to global VPS task queue
-      // (the persistent bare-metal daemon polls vps:tasks)
-      await redisCmd('RPUSH', 'vps:tasks', JSON.stringify({
-        action: 'start_vps',
-        session_key: sessionKey,
-        plan: req.user.plan,
-        timeout_seconds: Math.floor(plan.vps_hours_week / 7 * 3600)
-      }));
-      res.json({ 
-        status: 'queued', 
-        session_key: sessionKey, 
-        plan: req.user.plan, 
-        expires: expiresAt,
-        msg: 'VPS container queued — launching shortly...' 
-      });
+    // If new runner required, trigger Kaggle CPU Kernel for VPS
+    if (!reusedPool) {
+      try {
+        await triggerVPSKernel(sessionKey, userId, req.user.plan, {
+          runner_id: assignedRunnerId,
+          capacity: 4,
+          ram_mb: plan.vps_ram_mb,
+          timeout_seconds: timeoutSeconds,
+          term_pass: termPass,
+        });
+      } catch (kErr) {
+        console.error('Kaggle VPS kernel trigger error:', kErr.message);
+        await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [sessionKey]);
+        await executeD1("UPDATE runners SET status = 'failed' WHERE id = ?", [assignedRunnerId]);
+        await redisCmd('HSET', `session:${sessionKey}`, 'status', 'failed', 'error', kErr.message);
+        return res.status(502).json({ status: 'error', msg: `Failed to provision VPS runtime: ${kErr.message}` });
+      }
     }
+
+    appendRunLog('vps', sessionKey, `VPS instance launched by user ${userId} [CPU: ${plan.vps_cpu}, RAM: ${plan.vps_ram_mb}MB, Runner: ${assignedRunnerId}, Pool: ${reusedPool ? 'reused' : 'new'}]`);
+
+    res.json({
+      status: 'queued',
+      session_key: sessionKey,
+      plan: req.user.plan,
+      expires: expiresAt,
+      term_pass: termPass,
+      reused_pool: reusedPool,
+      runner_id: assignedRunnerId,
+      msg: reusedPool 
+        ? 'Connected to active compute runner pool. Initializing terminal slot...' 
+        : 'VPS container initializing on AbsoraCloud compute cluster...'
+    });
   } catch (e) {
     console.error('VPS launch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to launch VPS' });
@@ -141,45 +159,52 @@ vpsRouter.post('/relaunch', requireAuth, launchLimiter, async (req, res) => {
     const userId = req.user.sub;
     const { session_key } = req.body;
 
-    // Stop old instance
+    // Verify ownership of the old session if provided
     if (session_key) {
-      await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?", [session_key, userId]);
-      await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+      const oldInst = await d1QueryOne("SELECT id, created_at FROM instances WHERE session_key = ? AND user_id = ?", [session_key, userId]);
+      if (oldInst) {
+        const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(oldInst.created_at).getTime()) / 1000));
+        await consumeQuota(redisCmd, userId, 'vps', durationSeconds).catch(() => {});
+        await executeD1("UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ?", [session_key]);
+        await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
+      }
     }
 
-    // Call launch logic with force flag
-    req.body.force = true;
     const plan = getPlan(req.user.plan);
     const newSessionKey = `vps-${userId}-${crypto.randomUUID().slice(0, 8)}`;
-    const config = JSON.stringify({ cpu: plan.vps_cpu, ram_mb: plan.vps_ram_mb });
-    const expiresAt = new Date(Date.now() + plan.vps_hours_week / 7 * 3600 * 1000).toISOString();
+    const timeoutSeconds = Math.floor(plan.vps_hours_week / 7 * 3600);
+    const termPass = crypto.randomBytes(6).toString('hex');
+    const config = JSON.stringify({ cpu: plan.vps_cpu, ram_mb: plan.vps_ram_mb, runtime: 'kaggle_cpu', term_pass: termPass });
+    const expiresAt = new Date(Date.now() + timeoutSeconds * 1000).toISOString();
 
     await executeD1(
-      "INSERT INTO instances (user_id, service, session_key, config, expires_at) VALUES (?, 'vps', ?, ?, ?)",
+      "INSERT INTO instances (user_id, service, session_key, status, config, expires_at) VALUES (?, 'vps', ?, 'pending', ?, ?)",
       [userId, newSessionKey, config, expiresAt]
     );
 
-    // Check ready runner
-    const runners = await queryD1(
-      "SELECT * FROM runners WHERE service = 'vps' AND status = 'ready' AND active_count < capacity ORDER BY active_count ASC LIMIT 1"
+    await redisCmd('HSET', `session:${newSessionKey}`,
+      'user_id', String(userId),
+      'status', 'pending',
+      'service', 'vps',
+      'term_pass', termPass
     );
+    await redisCmd('EXPIRE', `session:${newSessionKey}`, String(timeoutSeconds + 3600));
 
-    if (runners.length > 0) {
-      const runner = runners[0];
-      await executeD1("UPDATE runners SET active_count = active_count + 1 WHERE id = ?", [runner.id]);
-      await executeD1("UPDATE instances SET runner_id = ? WHERE session_key = ?", [runner.id, newSessionKey]);
-      await redisCmd('HSET', `session:${newSessionKey}`, 'user_id', String(userId), 'status', 'pending', 'runner_id', runner.id);
-      await redisCmd('RPUSH', `runner:${runner.id}:tasks`, JSON.stringify({
-        action: 'start_vps',
-        session_key: newSessionKey,
-        plan: req.user.plan,
-        timeout_seconds: Math.floor(plan.vps_hours_week / 7 * 3600)
-      }));
-      return res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching on active runner...' });
+    // Trigger Kaggle CPU Kernel
+    try {
+      await triggerVPSKernel(newSessionKey, userId, req.user.plan, {
+        ram_mb: plan.vps_ram_mb,
+        timeout_seconds: timeoutSeconds,
+        term_pass: termPass,
+      });
+    } catch (kErr) {
+      console.error('Kaggle VPS kernel relaunch error:', kErr.message);
+      await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [newSessionKey]);
+      await redisCmd('HSET', `session:${newSessionKey}`, 'status', 'failed', 'error', kErr.message);
+      return res.status(502).json({ status: 'error', msg: `Failed to re-launch VPS: ${kErr.message}` });
     }
 
-    await redisCmd('RPUSH', 'vps:tasks', JSON.stringify({ action: 'start_vps', session_key: newSessionKey, plan: req.user.plan, timeout_seconds: 14400 }));
-    res.json({ status: 'queued', session_key: newSessionKey, msg: 'Re-launching VPS container...' });
+    res.json({ status: 'queued', session_key: newSessionKey, term_pass: termPass, msg: 'Re-launching VPS on AbsoraCloud compute cluster...' });
   } catch (e) {
     console.error('VPS relaunch error:', e);
     res.status(500).json({ status: 'error', msg: 'Failed to re-launch VPS' });
@@ -192,44 +217,44 @@ vpsRouter.get('/check_session', requireAuth, async (req, res) => {
     const { session_id } = req.query;
     if (!session_id) return res.status(400).json({ status: 'error', msg: 'Missing session_id' });
 
-    // 1. Check Redis first
-    const data = redisParseHash(await redisCmd('HGETALL', `session:${session_id}`));
-    if (data && data.status) {
-      return res.json({
-        status: data.status,
-        tunnel_url: data.tunnel_url || null,
-        expires_at: data.expires_at ? parseInt(data.expires_at) : null,
-        error: data.error || null,
-      });
-    }
-
-    // 2. Fallback to D1 database
+    // 1. Verify ownership in D1 first before exposing any details
     const inst = await d1QueryOne(
-      "SELECT status, public_url, created_at, expires_at, runner_id FROM instances WHERE session_key = ? AND user_id = ?",
-      [session_id, req.user.sub]
+      "SELECT id, user_id, status, public_url, created_at, expires_at, config FROM instances WHERE session_key = ?",
+      [session_id]
     );
 
     if (!inst) {
       return res.status(404).json({ status: 'not_found', msg: 'Instance not found' });
     }
+    if (inst.user_id !== req.user.sub && req.user.role !== 'admin') {
+      return res.status(403).json({ status: 'forbidden', msg: 'Access denied' });
+    }
 
-    // Auto-mark timed out pending (90s timeout)
+    // 2. Check Redis for live tunnel_url
+    const data = redisParseHash(await redisCmd('HGETALL', `session:${session_id}`));
+    const cfg = JSON.parse(inst.config || '{}');
+    const termPass = data?.term_pass || cfg.term_pass || null;
+
+    if (data && data.status) {
+      if (data.tunnel_url && !inst.public_url) {
+        await executeD1("UPDATE instances SET status = ?, public_url = ? WHERE session_key = ?", [data.status, data.tunnel_url, session_id]);
+      }
+      return res.json({
+        status: data.status,
+        tunnel_url: data.tunnel_url || inst.public_url || null,
+        expires_at: data.expires_at ? parseInt(data.expires_at) : (inst.expires_at || null),
+        term_pass: termPass,
+        error: data.error || null,
+      });
+    }
+
+    // Auto-mark timed out pending (300s / 5m timeout)
     if (inst.status === 'pending') {
       const createdTime = new Date(inst.created_at).getTime();
-      if (Date.now() - createdTime > 90000) {
+      if (Date.now() - createdTime > 300000) {
         await executeD1("UPDATE instances SET status = 'failed', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
         await redisCmd('HSET', `session:${session_id}`, 'status', 'failed', 'error', 'Runner startup timed out or failed to connect.');
         return res.json({ status: 'failed', msg: 'Runner startup timed out or failed to connect.' });
-      }
-    }
-
-    // Auto-mark disconnected if runner went offline
-    if (inst.runner_id && inst.status === 'active') {
-      const r = await d1QueryOne("SELECT status FROM runners WHERE id = ?", [inst.runner_id]);
-      if (r && r.status === 'offline') {
-        await executeD1("UPDATE instances SET status = 'disconnected', stopped_at = datetime('now') WHERE session_key = ?", [session_id]);
-        await redisCmd('HSET', `session:${session_id}`, 'status', 'disconnected', 'error', 'Runner went offline.');
-        return res.json({ status: 'disconnected', msg: 'Runner went offline.' });
       }
     }
 
@@ -237,6 +262,7 @@ vpsRouter.get('/check_session', requireAuth, async (req, res) => {
       status: inst.status,
       tunnel_url: inst.public_url || null,
       expires_at: inst.expires_at || null,
+      term_pass: termPass,
     });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to check session' });
@@ -252,6 +278,35 @@ vpsRouter.get('/status', requireAuth, async (req, res) => {
       "SELECT * FROM instances WHERE user_id = ? AND service = 'vps' AND status != 'dismissed' ORDER BY created_at DESC LIMIT 10",
       [req.user.sub]
     );
+
+    for (const inst of instances) {
+      let termPass = null;
+      try {
+        const cfg = JSON.parse(inst.config || '{}');
+        termPass = cfg.term_pass || null;
+      } catch (_) {}
+      inst.term_pass = termPass;
+
+      if (inst.public_url && inst.status === 'active') continue;
+      const rawData = await redisCmd('HGETALL', `session:${inst.session_key}`);
+      const data = redisParseHash(rawData);
+      if (data && (data.status === 'active' || data.tunnel_url)) {
+        if (data.tunnel_url) {
+          inst.public_url = data.tunnel_url;
+        }
+        if (data.status) {
+          inst.status = data.status;
+        }
+        if (data.term_pass && !inst.term_pass) {
+          inst.term_pass = data.term_pass;
+        }
+        await executeD1(
+          "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url), stopped_at = NULL WHERE session_key = ?",
+          [inst.status, inst.public_url || null, inst.session_key]
+        );
+      }
+    }
+
     res.json({ status: 'success', instances });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to fetch status' });
@@ -262,12 +317,30 @@ vpsRouter.get('/status', requireAuth, async (req, res) => {
 vpsRouter.post('/stop', requireAuth, async (req, res) => {
   try {
     const { session_key } = req.body;
+    if (!session_key) return res.status(400).json({ status: 'error', msg: 'session_key required' });
+
+    // Verify ownership
+    const inst = await d1QueryOne(
+      "SELECT id, created_at, status, runner_id FROM instances WHERE session_key = ? AND user_id = ?",
+      [session_key, req.user.sub]
+    );
+    if (!inst) return res.status(404).json({ status: 'error', msg: 'VPS instance not found or access denied' });
+
+    const durationSeconds = Math.max(0, Math.floor((Date.now() - new Date(inst.created_at).getTime()) / 1000));
+    await consumeQuota(redisCmd, req.user.sub, 'vps', durationSeconds).catch(() => {});
+
     await executeD1(
       "UPDATE instances SET status = 'stopped', stopped_at = datetime('now') WHERE session_key = ? AND user_id = ?",
       [session_key, req.user.sub]
     );
+    if (inst.runner_id) {
+      await executeD1("UPDATE runners SET active_count = MAX(0, active_count - 1) WHERE id = ?", [inst.runner_id]);
+    }
+
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     await redisCmd('HSET', `session:${session_key}`, 'status', 'stopped');
+    appendRunLog('vps', session_key, `VPS instance stopped by user ${req.user.sub}`);
+
     res.json({ status: 'success', msg: 'VPS termination signal sent' });
   } catch (e) {
     res.status(500).json({ status: 'error', msg: 'Failed to stop VPS' });
@@ -278,10 +351,18 @@ vpsRouter.post('/stop', requireAuth, async (req, res) => {
 vpsRouter.delete('/instance/:session_key', requireAuth, async (req, res) => {
   try {
     const { session_key } = req.params;
+    const inst = await d1QueryOne("SELECT id, runner_id, status FROM instances WHERE session_key = ? AND user_id = ?", [session_key, req.user.sub]);
+    if (!inst) return res.status(404).json({ status: 'error', msg: 'Instance not found or access denied' });
+
     await executeD1(
       "UPDATE instances SET status = 'dismissed' WHERE session_key = ? AND user_id = ?",
       [session_key, req.user.sub]
     );
+
+    if (inst.runner_id && inst.status !== 'stopped' && inst.status !== 'dismissed') {
+      await executeD1("UPDATE runners SET active_count = MAX(0, active_count - 1) WHERE id = ?", [inst.runner_id]);
+    }
+
     await redisCmd('SET', `kill:${session_key}`, '1', 'EX', '300');
     res.json({ status: 'success', msg: 'Instance dismissed' });
   } catch (e) {

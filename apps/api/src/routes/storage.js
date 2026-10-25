@@ -7,9 +7,10 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.js';
-import { executeD1, queryD1 } from '../../../packages/shared/d1.js';
-import { redisCmd } from '../../../packages/shared/redis.js';
-import { getPlan } from '../../../packages/shared/plans.js';
+import { executeD1, queryD1 } from '../../../../packages/shared/d1.js';
+import { redisCmd, redisParseHash } from '../../../../packages/shared/redis.js';
+import { getPlan } from '../../../../packages/shared/plans.js';
+import { uploadMediaToCloudPool } from '../services/media_cdn.js';
 
 export const storageRouter = Router();
 
@@ -39,13 +40,12 @@ async function ensureTable() {
         file_size INTEGER NOT NULL,
         mime_type TEXT DEFAULT 'application/octet-stream',
         public_url TEXT,
+        provider TEXT DEFAULT 'local',
         storage_type TEXT DEFAULT 'vps',
         created_at DATETIME DEFAULT (datetime('now'))
       )
     `);
-  } catch (e) {
-    // If D1 fails, Redis fallback handles metadata
-  }
+  } catch (e) {}
 }
 ensureTable();
 
@@ -59,61 +59,75 @@ function getMimeType(filename) {
     '.gif': 'image/gif',
     '.webp': 'image/webp',
     '.svg': 'image/svg+xml',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mov': 'video/quicktime',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
     '.pdf': 'application/pdf',
     '.zip': 'application/zip',
     '.tar': 'application/x-tar',
     '.gz': 'application/gzip',
-    '.7z': 'application/x-7z-compressed',
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.txt': 'text/plain',
     '.json': 'application/json',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.csv': 'text/csv',
     '.html': 'text/html',
-    '.css': 'text/css',
-    '.js': 'text/javascript',
-    '.py': 'text/x-python',
-    '.doc': 'application/msword',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.js': 'application/javascript',
   };
   return mimeMap[ext] || 'application/octet-stream';
 }
 
-// ── GET /storage/files — List user files ──
+// ── GET /storage/files — List all files for current user ──
 storageRouter.get('/files', requireAuth, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user.sub;
+
   try {
     let files = [];
     try {
       files = await queryD1(
-        'SELECT id, filename, file_size, mime_type, public_url, created_at FROM cloud_files WHERE user_id = ? ORDER BY id DESC',
+        'SELECT id, filename, file_size, mime_type, public_url, provider, created_at FROM cloud_files WHERE user_id = ? ORDER BY id DESC',
         [userId]
       );
-    } catch (e) {
-      // Redis fallback
+    } catch (d1Err) {
       const fileIds = await redisCmd('SMEMBERS', `user:${userId}:file_ids`);
       if (Array.isArray(fileIds) && fileIds.length > 0) {
         for (const fid of fileIds) {
           const raw = await redisCmd('HGETALL', `file:${fid}`);
-          if (raw && Object.keys(raw).length > 0) {
-            files.push(raw);
+          const record = redisParseHash(raw);
+          if (record && record.filename) {
+            files.push({
+              id: record.id || fid,
+              filename: record.filename,
+              file_size: parseInt(record.file_size) || 0,
+              mime_type: record.mime_type || 'application/octet-stream',
+              public_url: record.public_url || null,
+              provider: record.provider || 'local',
+              created_at: record.created_at || new Date().toISOString(),
+            });
           }
         }
       }
     }
 
-    // Calculate total storage used
     const totalBytes = files.reduce((acc, f) => acc + (parseInt(f.file_size) || 0), 0);
     const plan = getPlan(req.user.plan || 'free');
-    const maxStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
+    const totalStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
+    const usableStorageBytes = totalStorageBytes;
 
     res.json({
       status: 'success',
-      files: files || [],
+      total_files: files.length,
       used_bytes: totalBytes,
-      max_bytes: maxStorageBytes,
-      plan_name: plan.name,
+      quota_bytes: usableStorageBytes,
+      total_storage_bytes: totalStorageBytes,
+      reserved_logs_mb: 0,
+      reserved_logs_bytes: 0,
+      usable_gb: (plan.storage_gb || 5).toFixed(2),
+      total_gb: plan.storage_gb || 5,
+      plan: plan.name,
+      files,
     });
   } catch (err) {
     res.status(500).json({ status: 'error', msg: err.message });
@@ -122,7 +136,7 @@ storageRouter.get('/files', requireAuth, async (req, res) => {
 
 // ── POST /storage/upload — Upload a file ──
 storageRouter.post('/upload', requireAuth, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user.sub;
   const { filename, content_base64, mime_type } = req.body;
 
   if (!filename || !content_base64) {
@@ -133,21 +147,30 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
     const fileBuffer = Buffer.from(content_base64, 'base64');
     const fileSize = fileBuffer.length;
 
-    // Check plan quota
+    // Check plan quota: 100% full storage allocated to user (logs managed under Absoracloud_Bot 10GB vault)
     const plan = getPlan(req.user.plan || 'free');
-    const maxStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
+    const totalStorageBytes = (plan.storage_gb || 5) * 1024 * 1024 * 1024;
+    const usableStorageBytes = totalStorageBytes;
 
     let currentFiles = [];
     try {
       currentFiles = await queryD1('SELECT file_size FROM cloud_files WHERE user_id = ?', [userId]);
-    } catch (e) {}
+    } catch (e) {
+      // If D1 fails, try Redis quota tracker
+      const rBytes = await redisCmd('GET', `storage:bytes:${userId}`);
+      if (rBytes !== null) {
+        currentFiles = [{ file_size: parseInt(rBytes) || 0 }];
+      } else {
+        return res.status(503).json({ status: 'error', msg: 'Database quota service temporarily unavailable. Please retry in a moment.' });
+      }
+    }
 
     const currentBytes = currentFiles.reduce((acc, f) => acc + (parseInt(f.file_size) || 0), 0);
-    if (currentBytes + fileSize > maxStorageBytes) {
-      const maxGB = plan.storage_gb || 5;
+    if (currentBytes + fileSize > usableStorageBytes) {
+      const usableGB = ((plan.storage_gb * 1024 - reservedLogsMb) / 1024).toFixed(2);
       return res.status(403).json({
         status: 'error',
-        msg: `Storage quota exceeded for ${plan.name} plan (${maxGB} GB limit). Upgrade plan to upload more.`,
+        msg: `Storage quota exceeded for ${plan.name} plan. (${usableGB} GB usable space; ${reservedLogsMb} MB reserved for system runtime logs). Upgrade plan to upload more.`,
       });
     }
 
@@ -163,18 +186,19 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
     fs.writeFileSync(filePath, fileBuffer);
 
     const detectedMime = mime_type || getMimeType(safeOriginal);
-    const host = req.get('host') || 'astrocore.qzz.io';
-    const proto = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers.host || 'absoracloud.onrender.com';
+    const proto = req.headers['x-forwarded-proto'] || 'https';
 
-    let fileId = Date.now();
+    let fileId = null;
     try {
-      const meta = await executeD1(
-        'INSERT INTO cloud_files (user_id, filename, stored_name, file_size, mime_type, storage_type) VALUES (?, ?, ?, ?, ?, ?)',
-        [userId, safeOriginal, storedName, fileSize, detectedMime, 'vps']
+      const result = await executeD1(
+        `INSERT INTO cloud_files (user_id, filename, stored_name, file_size, mime_type, provider, created_at)
+         VALUES (?, ?, ?, ?, ?, 'local', datetime('now'))`,
+        [userId, safeOriginal, storedName, fileSize, detectedMime]
       );
-      if (meta && meta.last_row_id) fileId = meta.last_row_id;
-    } catch (e) {
-      // Redis fallback
+      fileId = result?.last_row_id || Date.now();
+    } catch (d1Err) {
+      fileId = Date.now();
       await redisCmd('SADD', `user:${userId}:file_ids`, String(fileId));
       await redisCmd(
         'HSET',
@@ -189,11 +213,26 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
       );
     }
 
-    const publicUrl = `${proto}://${host}/api/storage/file/${fileId}/${encodeURIComponent(safeOriginal)}`;
+    // Track total user storage in Redis
+    await redisCmd('INCRBY', `storage:bytes:${userId}`, String(fileSize)).catch(() => {});
 
-    // Update public URL in DB
+    let finalUrl = `${proto}://${host}/api/storage/file/${fileId}/${encodeURIComponent(safeOriginal)}`;
+    let cdnProvider = 'local';
+
+    // If image/video media, attempt high-speed CDN pool backup
+    if (detectedMime.startsWith('image/') || detectedMime.startsWith('video/')) {
+      try {
+        const cdnResult = await uploadMediaToCloudPool(content_base64, safeOriginal);
+        if (cdnResult && cdnResult.url) {
+          finalUrl = cdnResult.url;
+          cdnProvider = cdnResult.provider;
+        }
+      } catch (_) {}
+    }
+
+    // Update public URL and provider in DB
     try {
-      await executeD1('UPDATE cloud_files SET public_url = ? WHERE id = ?', [publicUrl, fileId]);
+      await executeD1('UPDATE cloud_files SET public_url = ?, provider = ? WHERE id = ?', [finalUrl, cdnProvider, fileId]);
     } catch (e) {}
 
     res.json({
@@ -204,7 +243,8 @@ storageRouter.post('/upload', requireAuth, async (req, res) => {
         filename: safeOriginal,
         file_size: fileSize,
         mime_type: detectedMime,
-        public_url: publicUrl,
+        public_url: finalUrl,
+        provider: cdnProvider,
         created_at: new Date().toISOString(),
       },
     });
@@ -223,7 +263,8 @@ storageRouter.get('/file/:id/:filename?', async (req, res) => {
       const rows = await queryD1('SELECT * FROM cloud_files WHERE id = ?', [id]);
       if (rows && rows.length > 0) fileRecord = rows[0];
     } catch (e) {
-      fileRecord = await redisCmd('HGETALL', `file:${id}`);
+      const raw = await redisCmd('HGETALL', `file:${id}`);
+      fileRecord = redisParseHash(raw);
     }
 
     if (!fileRecord || !fileRecord.stored_name) {
@@ -238,9 +279,17 @@ storageRouter.get('/file/:id/:filename?', async (req, res) => {
     }
 
     const mime = fileRecord.mime_type || getMimeType(fileRecord.filename);
+    
+    // Security / XSS Prevention:
+    // Never render HTML, JavaScript, SVG, or unknown active formats inline on the app domain
+    const isDangerousMime = mime.includes('html') || mime.includes('javascript') || mime.includes('svg') || mime === 'application/octet-stream';
+    const dispositionType = isDangerousMime ? 'attachment' : 'inline';
+
     res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `inline; filename="${fileRecord.filename}"`);
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24h
+    res.setHeader('Content-Disposition', `${dispositionType}; filename="${fileRecord.filename}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=86400');
 
     const readStream = fs.createReadStream(filePath);
     readStream.pipe(res);
@@ -259,7 +308,8 @@ storageRouter.get('/download/:id', async (req, res) => {
       const rows = await queryD1('SELECT * FROM cloud_files WHERE id = ?', [id]);
       if (rows && rows.length > 0) fileRecord = rows[0];
     } catch (e) {
-      fileRecord = await redisCmd('HGETALL', `file:${id}`);
+      const raw = await redisCmd('HGETALL', `file:${id}`);
+      fileRecord = redisParseHash(raw);
     }
 
     if (!fileRecord || !fileRecord.stored_name) {
@@ -273,6 +323,7 @@ storageRouter.get('/download/:id', async (req, res) => {
       return res.status(404).send('File not found on disk');
     }
 
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.download(filePath, fileRecord.filename);
   } catch (err) {
     res.status(500).send('Error downloading file');
@@ -281,7 +332,7 @@ storageRouter.get('/download/:id', async (req, res) => {
 
 // ── DELETE /storage/file/:id — Delete a file ──
 storageRouter.delete('/file/:id', requireAuth, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.id || req.user.sub;
   const { id } = req.params;
 
   try {
@@ -290,8 +341,9 @@ storageRouter.delete('/file/:id', requireAuth, async (req, res) => {
       const rows = await queryD1('SELECT * FROM cloud_files WHERE id = ? AND user_id = ?', [id, userId]);
       if (rows && rows.length > 0) fileRecord = rows[0];
     } catch (e) {
-      fileRecord = await redisCmd('HGETALL', `file:${id}`);
-      if (fileRecord && String(fileRecord.user_id) !== String(userId)) fileRecord = null;
+      const raw = await redisCmd('HGETALL', `file:${id}`);
+      const r = redisParseHash(raw);
+      if (r && String(r.user_id) === String(userId)) fileRecord = r;
     }
 
     if (!fileRecord) {
@@ -312,6 +364,8 @@ storageRouter.delete('/file/:id', requireAuth, async (req, res) => {
       await executeD1('DELETE FROM cloud_files WHERE id = ? AND user_id = ?', [id, userId]);
     } catch (e) {}
 
+    const freedBytes = parseInt(fileRecord.file_size) || 0;
+    await redisCmd('DECRBY', `storage:bytes:${userId}`, String(freedBytes)).catch(() => {});
     await redisCmd('SREM', `user:${userId}:file_ids`, String(id));
     await redisCmd('DEL', `file:${id}`);
 

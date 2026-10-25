@@ -16,50 +16,36 @@ function loadEnvFile(filePath) {
           if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
             val = val.slice(1, -1);
           }
-          if (!process.env[key]) {
-            process.env[key] = val;
-          }
+          if (!process.env[key]) process.env[key] = val;
         }
       }
     }
   } catch (e) {}
 }
 
-// Auto-load .env from current or parent directories
+loadEnvFile(path.resolve('./.env.V3'));
+loadEnvFile(path.resolve('../.env.V3'));
 loadEnvFile(path.resolve('./.env'));
 loadEnvFile(path.resolve('../.env'));
-loadEnvFile(path.resolve('../../.env'));
 
 // ── Map env aliases for backward compatibility ──
-// D1: primary DB ID
 if (!process.env.D1_DB_ID && process.env.D1_DB_1_ID) {
   process.env.D1_DB_ID = process.env.D1_DB_1_ID;
 }
-
-// Redis: auto-select from Redis A or Redis B
-if (!process.env.UPSTASH_REDIS_URL) {
-  if (process.env.UPSTASH_REDIS_A_URL) {
-    process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_A_URL;
-    process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_A_TOKEN;
-  } else if (process.env.UPSTASH_REDIS_B_URL) {
-    process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_B_URL;
-    process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_B_TOKEN;
-  }
+if (!process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_A_URL) {
+  process.env.UPSTASH_REDIS_URL   = process.env.UPSTASH_REDIS_A_URL;
+  process.env.UPSTASH_REDIS_TOKEN = process.env.UPSTASH_REDIS_A_TOKEN;
 }
-
-// Worker secret: generate a default if not set (for local dev)
-if (!process.env.WORKER_SECRET) {
-  process.env.WORKER_SECRET = 'absoracloud_worker_secret_2026';
-}
-
-// JWT secret: ensure a strong default
 if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'absoracloud_jwt_secret_production_2026_key';
+  console.error('FATAL: JWT_SECRET environment variable is missing. Server cannot start securely.');
+  process.exit(1);
 }
-
-// GitHub Actions: default to current repo
-if (!process.env.GITHUB_OWNER) process.env.GITHUB_OWNER = 'absoracloud';
-if (!process.env.GITHUB_REPO)  process.env.GITHUB_REPO  = 'absoracloud-v2';
+if (!process.env.WORKER_SECRET) {
+  console.error('FATAL: WORKER_SECRET environment variable is missing. Server cannot start securely.');
+  process.exit(1);
+}
+if (!process.env.GITHUB_OWNER)  process.env.GITHUB_OWNER  = 'AADI-DEV1012';
+if (!process.env.GITHUB_REPO)   process.env.GITHUB_REPO   = 'Absoracloud';
 
 // Boot AbsoraCloud API Gateway
-import './src/index.js';
+await import('../apps/api/src/index.js');

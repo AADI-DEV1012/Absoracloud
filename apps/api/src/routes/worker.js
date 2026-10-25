@@ -2,67 +2,206 @@
 // Called by runners (MC daemon, VPS server, DevBox kernel) to register and heartbeat.
 
 import { Router } from 'express';
-import { requireWorkerAuth } from '../middleware/worker_auth.js';
-import { executeD1, d1QueryOne } from '../../../packages/shared/d1.js';
-import { redisCmd }              from '../../../packages/shared/redis.js';
+import { requireWorkerAuth }  from '../middleware/worker_auth.js';
+import { asyncHandler }       from '../middleware/async_handler.js';
+import { executeD1, d1QueryOne, queryD1 } from '../../../../packages/shared/d1.js';
+import { redisCmd }              from '../../../../packages/shared/redis.js';
+import { appendRunLog, appendSessionIOLog } from '../services/run_logger.js';
 
 export const workerRouter = Router();
 workerRouter.use(requireWorkerAuth);
 
 // ── Register runner ──
-workerRouter.post('/register', async (req, res) => {
-  const { runner_id, type, service, capacity = 1, tunnel_url } = req.body;
-  if (!runner_id || !type || !service) {
-    return res.status(400).json({ status: 'error', msg: 'runner_id, type, service required' });
+workerRouter.post('/register', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, type, service, capacity = 1, tunnel_url } = req.body;
+    if (!runner_id || !type || !service) {
+      return res.status(400).json({ status: 'error', msg: 'runner_id, type, service required' });
+    }
+
+    await executeD1(
+      `INSERT OR REPLACE INTO runners (id, type, service, capacity, status, last_heartbeat)
+       VALUES (?, ?, ?, ?, 'ready', datetime('now'))`,
+      [runner_id, type, service, capacity]
+    );
+
+    // Store tunnel URL in Redis
+    if (tunnel_url) {
+      await redisCmd('HSET', `runner:${runner_id}`, 'tunnel_url', tunnel_url, 'status', 'ready');
+      await redisCmd('EXPIRE', `runner:${runner_id}`, '25200'); // 7h
+    }
+
+    await redisCmd('SADD', 'runners:active', runner_id);
+    res.json({ status: 'success', msg: 'Runner registered' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
   }
-
-  await executeD1(
-    `INSERT OR REPLACE INTO runners (id, type, service, capacity, status, last_heartbeat)
-     VALUES (?, ?, ?, ?, 'ready', datetime('now'))`,
-    [runner_id, type, service, capacity]
-  );
-
-  // Store tunnel URL in Redis
-  if (tunnel_url) {
-    await redisCmd('HSET', `runner:${runner_id}`, 'tunnel_url', tunnel_url, 'status', 'ready');
-    await redisCmd('EXPIRE', `runner:${runner_id}`, '25200'); // 7h
-  }
-
-  await redisCmd('SADD', 'runners:active', runner_id);
-  res.json({ status: 'success', msg: 'Runner registered' });
-});
+}));
 
 // ── Heartbeat ──
-workerRouter.post('/heartbeat', async (req, res) => {
-  const { runner_id, active_count = 0 } = req.body;
-  if (!runner_id) return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+workerRouter.post('/heartbeat', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, active_count = 0, session_key, status, tunnel_url } = req.body;
 
-  await executeD1(
-    "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ? WHERE id = ?",
-    [active_count, runner_id]
-  );
-  await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
+    // Handle session updates sent to /heartbeat
+    if (session_key) {
+      if (status || tunnel_url) {
+        await executeD1(
+          "UPDATE instances SET status = COALESCE(?, status), public_url = COALESCE(?, public_url) WHERE session_key = ? AND status NOT IN ('stopped', 'disconnected', 'dead')",
+          [status || 'active', tunnel_url || null, session_key]
+        );
+        if (tunnel_url) {
+          await redisCmd('HSET', `session:${session_key}`, 'status', status || 'active', 'tunnel_url', tunnel_url);
+        }
+      }
+      return res.json({ status: 'success', msg: 'Session heartbeat registered' });
+    }
 
-  res.json({ status: 'success' });
-});
+    if (!runner_id) return res.status(400).json({ status: 'error', msg: 'runner_id or session_key required' });
+
+    // Check kill flag
+    const killFlag = await redisCmd('GET', `kill:runner:${runner_id}`).catch(() => null);
+    if (killFlag === '1') {
+      await executeD1("UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?", [runner_id]).catch(() => {});
+      return res.json({ status: 'success', kill: true });
+    }
+
+    await executeD1(
+      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ? WHERE id = ? AND status NOT IN ('dead', 'stopped')",
+      [active_count, runner_id]
+    );
+    await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
+
+// ── Runner Heartbeat (Multi-tenant master daemon) ──
+workerRouter.post('/runner_heartbeat', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, active_count = 0 } = req.body;
+    if (!runner_id) {
+      return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+    }
+
+    // 1. Check Redis kill flag
+    const kill = await redisCmd('GET', `kill:runner:${runner_id}`).catch(() => null);
+    if (kill === '1') {
+      await executeD1(
+        "UPDATE runners SET status = 'dead', active_count = 0 WHERE id = ?",
+        [runner_id]
+      ).catch(() => {});
+      return res.json({
+        status: 'success',
+        assignments: [],
+        kill: true
+      });
+    }
+
+    // 2. Check D1 status
+    const runnerRow = await d1QueryOne('SELECT status FROM runners WHERE id = ?', [runner_id]).catch(() => null);
+    if (runnerRow && (runnerRow.status === 'dead' || runnerRow.status === 'stopped')) {
+      return res.json({
+        status: 'success',
+        assignments: [],
+        kill: true
+      });
+    }
+
+    // 3. Normal heartbeat update (only when not dead or stopped)
+    await executeD1(
+      "UPDATE runners SET last_heartbeat = datetime('now'), active_count = ?, status = 'ready' WHERE id = ? AND status NOT IN ('dead', 'stopped')",
+      [active_count, runner_id]
+    );
+    await redisCmd('HSET', `runner:${runner_id}`, 'heartbeat', String(Math.floor(Date.now() / 1000)), 'active_count', String(active_count));
+
+    // Fetch instances assigned to this runner that are pending or active
+    const instances = await queryD1(
+      "SELECT session_key, status, config FROM instances WHERE runner_id = ? AND status IN ('pending', 'active')",
+      [runner_id]
+    );
+
+    const assignments = (instances || []).map(inst => {
+      let termPass = '';
+      try {
+        const cfg = JSON.parse(inst.config || '{}');
+        termPass = cfg.term_pass || '';
+      } catch {}
+      return { session_key: inst.session_key, term_pass: termPass, status: inst.status };
+    });
+
+    res.json({
+      status: 'success',
+      assignments,
+      kill: false
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
+
+// ── Runner Clean Shutdown (Called when idle for 5 min with 0 users) ──
+workerRouter.post('/runner_shutdown', asyncHandler(async (req, res) => {
+  try {
+    const { runner_id, reason = 'idle_timeout' } = req.body;
+    if (!runner_id) {
+      return res.status(400).json({ status: 'error', msg: 'runner_id required' });
+    }
+
+    await executeD1("UPDATE runners SET status = 'stopped', active_count = 0 WHERE id = ?", [runner_id]);
+    await redisCmd('SREM', 'runners:active', runner_id);
+    await redisCmd('HDEL', `runner:${runner_id}`, 'status');
+
+    console.log(`🛑 Runner ${runner_id} clean shutdown acknowledged (reason: ${reason})`);
+    res.json({ status: 'success', msg: `Runner ${runner_id} shut down acknowledged` });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));
 
 // ── Session update (runner reports session state changes) ──
-workerRouter.post('/session_update', async (req, res) => {
-  const { session_key, status, tunnel_url, expires_at } = req.body;
-  if (!session_key || !status) {
-    return res.status(400).json({ status: 'error', msg: 'session_key and status required' });
+workerRouter.post('/session_update', asyncHandler(async (req, res) => {
+  try {
+    const { session_key, status, tunnel_url, expires_at } = req.body;
+    if (!session_key || !status) {
+      return res.status(400).json({ status: 'error', msg: 'session_key and status required' });
+    }
+
+    await executeD1(
+      "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url) WHERE session_key = ? AND status NOT IN ('stopped', 'disconnected', 'dead')",
+      [status, tunnel_url || null, session_key]
+    );
+
+    // Update Redis session state
+    const fields = ['status', status];
+    if (tunnel_url) fields.push('tunnel_url', tunnel_url);
+    if (expires_at) fields.push('expires_at', String(expires_at));
+    await redisCmd('HSET', `session:${session_key}`, ...fields);
+
+    const svc = session_key.startsWith('devbox') ? 'devbox' : (session_key.startsWith('vps') ? 'vps' : 'webhost');
+    appendRunLog(svc, session_key, `Runner reported session state [${status}]${tunnel_url ? ' - Endpoint active: ' + tunnel_url : ''}`);
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
   }
+}));
 
-  await executeD1(
-    "UPDATE instances SET status = ?, public_url = COALESCE(?, public_url) WHERE session_key = ?",
-    [status, tunnel_url || null, session_key]
-  );
+// ── Session I/O Logs Stream (Captures interactive user keystrokes, commands & stdout) ──
+workerRouter.post('/session_logs', asyncHandler(async (req, res) => {
+  try {
+    const { session_key, runner_id, logs } = req.body;
+    if (!session_key || !logs) {
+      return res.status(400).json({ status: 'error', msg: 'session_key and logs required' });
+    }
 
-  // Update Redis session state
-  const fields = ['status', status];
-  if (tunnel_url) fields.push('tunnel_url', tunnel_url);
-  if (expires_at) fields.push('expires_at', String(expires_at));
-  await redisCmd('HSET', `session:${session_key}`, ...fields);
+    const svc = session_key.startsWith('devbox') ? 'devbox' : (session_key.startsWith('vps') ? 'vps' : 'runners');
+    appendSessionIOLog(svc, session_key, logs);
 
-  res.json({ status: 'success' });
-});
+    res.json({ status: 'success' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', msg: err.message });
+  }
+}));

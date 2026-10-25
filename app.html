@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account & Authentication | AbsoraCloud</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Central Auth Client -->
+    <script src="auth.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #fdf8f8;
+        --surface: #ffffff;
+        --border: #E5E1DA;
+        --text: #1A1A1A;
+        --muted: #8C8984;
+        --primary: #1A1A1A;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        padding: 4px 12px;
+        font-size: .75rem;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      }
+      .bdot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #16a34a;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.85); }
+      }
+      .cta-btn {
+        background: #1A1A1A;
+        color: #fff;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-size: .88rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        transition: all .22s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Inter', sans-serif;
+      }
+      .cta-btn:hover {
+        background: #404040;
+        transform: translateY(-1px);
+      }
+      .outline-btn {
+        background: #ffffff;
+        color: #1A1A1A;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: .88rem;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all .2s;
+        font-family: 'Inter', sans-serif;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .outline-btn:hover {
+        background: #f1edec;
+        border-color: #747878;
+      }
+      .glass-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+      }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Global Top Navigation Bar -->
+    <header class="glass-card sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between border-b backdrop-blur-md bg-white/95">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2.5 group" title="AbsoraCloud Home">
+                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs font-heading shadow-sm group-hover:scale-105 transition">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <span class="font-heading font-extrabold text-base text-primary tracking-tight">AbsoraCloud</span>
+            </a>
+
+            <!-- Navigation Links -->
+            <nav id="nav-links" class="hidden md:flex items-center gap-5 text-xs font-semibold text-neutral-600">
+                <a href="index.html" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-house text-neutral-400"></i> Home
+                </a>
+                <a href="features.html" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-neutral-400"></i> Features
+                </a>
+                <a href="plans.html" class="hover:text-primary transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-tags text-neutral-400"></i> Plans
+                </a>
+                <a href="#terms" class="hover:text-primary transition">Terms</a>
+                <a href="#refund" class="hover:text-primary transition">Refund Policy</a>
+                <a href="#privacy" class="hover:text-primary transition">Privacy Policy</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Platform Status Pill -->
+            <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-[11px] font-semibold text-neutral-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Edge Infrastructure Online</span>
+            </div>
+
+            <!-- Auth Navigation Buttons -->
+            <div id="nav-auth-area" class="flex items-center gap-2">
+                <button onclick="showAuthView('login')" class="outline-btn text-xs" style="padding: 7px 16px;">
+                    Sign In
+                </button>
+                <button onclick="showAuthView('register')" class="cta-btn text-xs" style="padding: 7px 18px;">
+                    Get Started Free
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: AUTHENTICATION FORM -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-auth" class="flex-1 flex items-center justify-center p-6 relative">
+        <div class="absolute w-80 h-80 bg-neutral-200/50 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 max-w-md w-full shadow-2xl border border-neutral-200">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-2xl mx-auto font-heading mb-3 shadow-sm">
+                    ☁️
+                </div>
+                <h2 id="auth-page-title" class="font-heading font-extrabold text-2xl text-primary">Welcome Back</h2>
+                <p id="auth-page-subtitle" class="text-xs text-neutral-500 mt-1">Sign in to your AbsoraCloud account to manage compute.</p>
+            </div>
+
+            <!-- Auth Mode Switcher -->
+            <div class="flex p-1 bg-neutral-100 rounded-xl mb-6">
+                <button id="tab-btn-login" onclick="setAuthTab('login')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary">
+                    Sign In
+                </button>
+                <button id="tab-btn-register" onclick="setAuthTab('register')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary">
+                    Create Account
+                </button>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div id="field-username-wrapper" class="hidden">
+                    <label class="font-semibold text-neutral-700 block mb-1">Username</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-username" type="text" pattern="[a-zA-Z0-9_]{3,20}" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="cloud_user">
+                    </div>
+                </div>
+
+                <div>
+                    <label id="label-email" class="font-semibold text-neutral-700 block mb-1">Email / Username</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-login-input" type="text" required class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="user@absoracloud.qzz.io">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-semibold text-neutral-700">Password</label>
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-neutral-400"></i>
+                        <input id="auth-password-input" type="password" required minlength="6" class="w-full rounded-xl border border-neutral-300 pl-9 pr-3.5 py-2.5 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Error Toast / Alert -->
+                <div id="auth-error-box" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                <button id="auth-submit-btn" type="submit" class="w-full py-3 rounded-xl bg-primary text-white font-bold hover:bg-neutral-800 transition shadow-sm flex items-center justify-center gap-2">
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <div class="text-center mt-6">
+                <a href="index.html" class="text-xs text-neutral-400 hover:text-neutral-700 transition inline-flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left text-[10px]"></i> Back to AbsoraCloud Website
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: TERMS AND CONDITIONS -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-terms" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <a href="index.html" class="outline-btn text-xs inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </a>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Legal Agreement</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Terms and Conditions</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Please read these Terms and Conditions carefully before provisioning or using any services provided by AbsoraCloud.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Acceptance of Terms</h3>
+                    <p>By registering for an account, accessing the AbsoraCloud web dashboard, or using our API endpoints, you agree to be bound by these Terms and Conditions and our Privacy Policy. If you do not agree to these terms, you must not use or access any AbsoraCloud services.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Description of Services</h3>
+                    <p>AbsoraCloud provides cloud infrastructure solutions, including but not limited to VPS Cloud Compute, DevBox GPU Workstations (Nvidia Tesla T4 acceleration), Serverless Functions (ESM edge execution), Cloud Web Hosting, and Multi-Zone Cloud Storage.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. User Accounts and Fair Usage</h3>
+                    <p>You are responsible for maintaining the confidentiality of your credentials. Each user is entitled to resource allocations according to their active subscription tier. Attempting to bypass resource limits, deploy malicious payloads, execute DDoS attacks, or exploit shared sandboxes will result in immediate termination.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Service Availability & Uptime</h3>
+                    <p>While AbsoraCloud strives for 99.9% edge availability across global clusters, compute instances may experience maintenance windows, runner cycling, or brief interruptions. We are not liable for business interruptions caused by upstream provider outages.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">5. Termination</h3>
+                    <p>AbsoraCloud reserves the right to suspend or terminate accounts that violate our security guidelines or abuse free community quotas without prior notice.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: REFUND POLICY -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-refund" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <a href="index.html" class="outline-btn text-xs inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </a>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Consumer Guarantee</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Refund & Cancellation Policy</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">We strive to ensure complete customer satisfaction with our compute infrastructure. Review our transparent refund terms below.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. 7-Day Money-Back Guarantee</h3>
+                    <p>All paid subscription plans (Basic, Pro, and Enterprise) are eligible for a 100% money-back refund within seven (7) calendar days from the initial payment date if you are unsatisfied with service performance or infrastructure reliability.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. Eligibility Conditions</h3>
+                    <p>Refunds apply only to first-time plan subscriptions. Accounts flagged or suspended for Terms of Service violations (e.g., botting, abusive crypto mining, malicious network scanning) forfeit all refund eligibility.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Subscription Cancellation</h3>
+                    <p>You may cancel your recurring subscription at any time via your account settings. Once cancelled, your plan remains active until the end of your current billing period, after which it automatically downgrades to the Free Tier without further charges.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Processing Time</h3>
+                    <p>Approved refunds are processed to the original payment method within 5–10 business days depending on your financial institution.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- VIEW: PRIVACY POLICY -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div id="view-privacy" class="hidden flex-1 max-w-4xl mx-auto w-full px-6 py-12">
+        <div class="mb-8 flex items-center justify-between">
+            <a href="index.html" class="outline-btn text-xs inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-left"></i> Back to Home
+            </a>
+            <div class="text-xs text-neutral-400">Effective Date: October 2026</div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-8 sm:p-10 shadow-sm border border-neutral-200 space-y-8">
+            <div>
+                <span class="badge mb-3">Data Privacy</span>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Privacy Policy</h1>
+                <p class="text-neutral-500 text-xs sm:text-sm mt-2">Your privacy is fundamental to our architecture. Learn how AbsoraCloud manages and protects your data.</p>
+            </div>
+
+            <div class="space-y-6 text-xs text-neutral-700 leading-relaxed divide-y divide-neutral-100">
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">1. Information We Collect</h3>
+                    <p>We collect minimal information necessary to deliver cloud compute services: your username, email address, password hash, and resource usage metrics (compute hours, bandwidth, and storage capacity).</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">2. How We Use Information</h3>
+                    <p>Information is used exclusively for authentication, quota management, abuse prevention, and billing. We do not sell, rent, or trade your personal data to third parties.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">3. Storage & Cryptography</h3>
+                    <p>Passwords are hashed using industry-standard bcrypt encryption. Authentication sessions utilize cryptographically signed JSON Web Tokens (JWT) stored securely on the client.</p>
+                </div>
+                <div class="pt-4">
+                    <h3 class="font-heading font-bold text-sm text-primary mb-2">4. Data Retention and Erasure</h3>
+                    <p>You can request complete deletion of your account and associated storage files at any time by contacting our support team. Upon account termination, storage buckets and sandbox files are securely purged.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Footer -->
+    <footer class="py-6 px-6 border-t border-neutral-200 bg-white/50 text-center text-xs text-neutral-500">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                © 2026 AbsoraCloud Systems Inc. All rights reserved.
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#terms" class="hover:text-primary transition">Terms</a>
+                <a href="#refund" class="hover:text-primary transition">Refund</a>
+                <a href="#privacy" class="hover:text-primary transition">Privacy</a>
+                <a href="index.html" class="hover:text-primary transition">Home</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Client-Side Routing & Authentication Script -->
+    <script>
+        let currentAuthTab = 'login';
+        const ALLOWED_NEXT = ['console.html', 'vps.html', 'devbox.html', 'webhosting.html', 'serverless.html', 'cloudstorage.html', 'websocket.html', 'plans.html'];
+
+        function getRedirectTarget() {
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get('next');
+            if (next && ALLOWED_NEXT.includes(next)) {
+                return next;
+            }
+            return 'console.html';
+        }
+
+        function setAuthTab(tab) {
+            currentAuthTab = tab;
+            const errBox = document.getElementById('auth-error-box');
+            if (errBox) errBox.classList.add('hidden');
+
+            const title = document.getElementById('auth-page-title');
+            const subtitle = document.getElementById('auth-page-subtitle');
+            const btnLogin = document.getElementById('tab-btn-login');
+            const btnRegister = document.getElementById('tab-btn-register');
+            const userWrapper = document.getElementById('field-username-wrapper');
+            const submitText = document.querySelector('#auth-submit-btn span');
+
+            if (tab === 'login') {
+                if (title) title.innerText = "Welcome Back";
+                if (subtitle) subtitle.innerText = "Sign in to your AbsoraCloud account to manage compute.";
+                if (btnLogin) btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
+                if (btnRegister) btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
+                if (userWrapper) userWrapper.classList.add('hidden');
+                if (submitText) submitText.innerText = "Sign In";
+            } else {
+                if (title) title.innerText = "Create Account";
+                if (subtitle) subtitle.innerText = "Start deploying free sliced cloud instances in seconds.";
+                if (btnRegister) btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-white shadow-sm text-primary";
+                if (btnLogin) btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-neutral-500 hover:text-primary";
+                if (userWrapper) userWrapper.classList.remove('hidden');
+                if (submitText) submitText.innerText = "Create Free Account";
+            }
+        }
+
+        function showAuthView(tab = 'login') {
+            document.getElementById('view-terms').classList.add('hidden');
+            document.getElementById('view-refund').classList.add('hidden');
+            document.getElementById('view-privacy').classList.add('hidden');
+            document.getElementById('view-auth').classList.remove('hidden');
+            setAuthTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function handleHashRouting() {
+            const hash = window.location.hash.toLowerCase();
+            const termsView = document.getElementById('view-terms');
+            const refundView = document.getElementById('view-refund');
+            const privacyView = document.getElementById('view-privacy');
+            const authView = document.getElementById('view-auth');
+
+            if (hash === '#terms') {
+                authView.classList.add('hidden');
+                refundView.classList.add('hidden');
+                privacyView.classList.add('hidden');
+                termsView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (hash === '#refund') {
+                authView.classList.add('hidden');
+                termsView.classList.add('hidden');
+                privacyView.classList.add('hidden');
+                refundView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (hash === '#privacy') {
+                authView.classList.add('hidden');
+                termsView.classList.add('hidden');
+                refundView.classList.add('hidden');
+                privacyView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                termsView.classList.add('hidden');
+                refundView.classList.add('hidden');
+                privacyView.classList.add('hidden');
+                authView.classList.remove('hidden');
+            }
+        }
+
+        // ── Handle Auth Form Submission ──
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const errBox = document.getElementById('auth-error-box');
+            errBox.classList.add('hidden');
+
+            const loginVal = document.getElementById('auth-login-input').value.trim();
+            const passVal = document.getElementById('auth-password-input').value;
+            const userVal = document.getElementById('auth-username').value.trim();
+
+            const isRegister = currentAuthTab === 'register';
+            const endpoint = isRegister ? '/auth/register' : '/auth/login';
+
+            const payload = isRegister ? {
+                username: userVal || loginVal.split('@')[0],
+                email: loginVal.includes('@') ? loginVal : `${userVal}@absoracloud.user`,
+                password: passVal
+            } : {
+                login: loginVal,
+                username: loginVal,
+                email: loginVal,
+                password: passVal
+            };
+
+            const submitBtn = document.getElementById('auth-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70');
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.token) {
+                    setToken(data.token);
+                    window.location.href = getRedirectTarget();
+                } else {
+                    errBox.innerText = data.msg || 'Authentication failed. Please check credentials.';
+                    errBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                errBox.innerText = 'Unable to connect to API Gateway. Please try again.';
+                errBox.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70');
+            }
+        }
+
+        // ── Initialization & Verification ──
+        async function init() {
+            window.addEventListener('hashchange', handleHashRouting);
+
+            const hash = window.location.hash.toLowerCase();
+            if (hash === '#terms' || hash === '#refund' || hash === '#privacy') {
+                handleHashRouting();
+                return;
+            }
+
+            // Check if user already has an active, valid session
+            const existingToken = getToken();
+            if (existingToken) {
+                try {
+                    const res = await fetch(`${API_BASE}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${existingToken}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.user) {
+                            window.location.href = getRedirectTarget();
+                            return;
+                        }
+                        clearToken();
+                    } else if (res.status === 401 || res.status === 403) {
+                        clearToken();
+                    } else if (typeof showWakeupBanner === 'function') {
+                        showWakeupBanner('Server is waking up. Session will restore when ready.', true, () => init());
+                    }
+                } catch (e) {
+                    // In case API is temporarily offline, keep user on form
+                    if (typeof showWakeupBanner === 'function') {
+                        showWakeupBanner('Connection error. Server is waking up.', true, () => init());
+                    }
+                }
+            }
+
+            // Route mode (?mode=register or ?mode=login)
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            if (mode === 'register') {
+                setAuthTab('register');
+            } else {
+                setAuthTab('login');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

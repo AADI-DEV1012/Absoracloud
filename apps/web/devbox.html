@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevBox Accelerated Workstations | AbsoraCloud</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { background-color: #fdf8f8; color: #1A1A1A; font-family: 'Inter', sans-serif; }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
+    </style>
+    <script src="auth.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Global Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-base tracking-tight text-primary" title="Back to Home Website"><span class="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs shadow-xs"><i class="fa-solid fa-cloud"></i></span><span>AbsoraCloud</span></a>
+            <a href="console.html" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs" title="Return to All Services Hub">
+                <i class="fa-solid fa-arrow-left"></i> All Services
+            </a>
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
+                <a href="vps.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">VPS</a>
+                <a href="devbox.html" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">DevBox</a>
+                <a href="serverless.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Edge Functions</a>
+                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Web Hosting</a>
+                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Storage</a>
+                <a href="websocket.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Realtime</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="hidden flex items-center gap-2.5">
+                <span id="user-plan-badge" class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">FREE</span>
+                <span id="user-name" class="text-xs font-semibold text-neutral-800">user</span>
+                <button onclick="logout()" class="text-xs text-neutral-400 hover:text-rose-600 transition ml-1" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+            <a id="login-link-btn" href="app.html?mode=login" class="hidden px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+        </div>
+    </header>
+
+    <!-- Main View -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
+        
+        <!-- Service Title & Actions -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">DevBox Accelerated Workstations</h1>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Interactive accelerated environments equipped with JupyterLab, Dual GPU acceleration, and dedicated CPU / 2× Tesla T4 kernels.</p>
+            </div>
+            
+            <div class="flex items-center gap-2 self-start sm:self-auto">
+                <div class="inline-flex rounded-xl p-1 bg-neutral-100 border border-neutral-200">
+                    <button id="rt-gpu-btn" onclick="setRuntime('gpu')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-xs text-primary flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-purple-600"></i> Dual GPU
+                    </button>
+                    <button id="rt-cpu-btn" onclick="setRuntime('cpu')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5">
+                        <i class="fa-solid fa-microchip text-neutral-400"></i> Standard CPU
+                    </button>
+                </div>
+                <button id="launch-devbox-btn" onclick="launchDevBox()" class="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-play text-purple-400"></i> Start Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Real Quota Metrics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 mb-1.5">
+                    <span>DevBox Quota (Weekly)</span>
+                    <span id="devbox-quota-mins" class="font-mono text-primary font-bold">0 / 30 mins</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+                    <div id="devbox-quota-bar" class="bg-purple-600 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-2 flex justify-between">
+                    <span>Fair-share allocated quota</span>
+                    <span id="devbox-quota-percent" class="font-mono font-bold text-neutral-700">0%</span>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Active Selected Hardware</div>
+                <div id="hardware-spec-text" class="font-heading font-bold text-lg text-primary mt-1">2× Tesla T4 (32GB VRAM)</div>
+                <div class="text-[11px] text-purple-700 mt-1 font-semibold">Accelerated Compute Ready</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Cluster Status</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-heading font-bold text-lg text-primary">Runner Mesh Online</span>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-1">Multi-tenant compute runner active</div>
+            </div>
+        </div>
+
+        <!-- Alert Toast -->
+        <div id="toast-banner" class="hidden p-4 rounded-xl text-xs flex items-center justify-between border"></div>
+
+        <!-- Active DevBox Sessions Table -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading font-bold text-base text-primary">Active Workstation Sessions</h2>
+                <button onclick="fetchSessions()" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-neutral-100 text-neutral-400 font-medium">
+                            <th class="pb-3">Session Key</th>
+                            <th class="pb-3">Selected Runtime</th>
+                            <th class="pb-3">Web Terminal</th>
+                            <th class="pb-3">Time Remaining</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devbox-table-body" class="divide-y divide-neutral-100">
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-neutral-400">Loading workstation sessions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400">
+        AbsoraCloud Sliced Cloud Compute & Infrastructure • <a href="index.html" class="hover:underline text-neutral-600">Home</a>
+    </footer>
+
+    <script>
+        // API_BASE provided by auth.js
+        const authToken = getToken();
+        let selectedRuntime = 'gpu';
+
+        let currentUserPlan = 'free';
+        let isGpuAllowed = false;
+
+        function setRuntime(rt) {
+            if (rt === 'gpu' && currentUserPlan === 'free') {
+                showToast('Dual GPU compute is exclusive to paid plans with strict limits: Basic (1h), Pro (3h), Enterprise (5h). Upgrade your plan to unlock GPU.', 'error');
+                return;
+            }
+
+            selectedRuntime = rt;
+            const gpuBtn = document.getElementById('rt-gpu-btn');
+            const cpuBtn = document.getElementById('rt-cpu-btn');
+            const specText = document.getElementById('hardware-spec-text');
+
+            if (rt === 'gpu') {
+                gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-xs text-primary flex items-center gap-1.5";
+                cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                specText.innerText = "2× Tesla T4 (32GB VRAM)";
+            } else {
+                cpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-xs text-primary flex items-center gap-1.5";
+                gpuBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition text-neutral-500 hover:text-primary flex items-center gap-1.5";
+                specText.innerText = "Standard CPU Compute";
+            }
+        }
+
+        function showToast(msg, type = 'info') {
+            const b = document.getElementById('toast-banner');
+            b.className = `p-4 rounded-xl text-xs flex items-center justify-between border ${
+                type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                type === 'success' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
+            }`;
+            b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
+            b.classList.remove('hidden');
+        }
+
+        async function initAuth() {
+            if (!getToken()) {
+                const loginBtn = document.getElementById('login-link-btn');
+                if (loginBtn) loginBtn.classList.remove('hidden');
+            }
+            const data = await requireLogin();
+            if (!data || !data.user) return false;
+
+            document.getElementById('login-link-btn').classList.add('hidden');
+            document.getElementById('user-profile-bar').classList.remove('hidden');
+            document.getElementById('user-name').innerText = data.user.username;
+            currentUserPlan = (data.user.plan || 'free').toLowerCase();
+            document.getElementById('user-plan-badge').innerText = currentUserPlan.toUpperCase();
+
+            // Update Real Quotas
+            if (data.quotas && data.quotas.devbox) {
+                const d = data.quotas.devbox;
+                isGpuAllowed = !!d.gpu_allowed;
+
+                if (!isGpuAllowed) {
+                    document.getElementById('devbox-quota-mins').innerText = `CPU Only (0h GPU)`;
+                    document.getElementById('devbox-quota-percent').innerText = `Free Plan`;
+                    document.getElementById('devbox-quota-bar').style.width = `0%`;
+                    setRuntime('cpu');
+                } else {
+                    document.getElementById('devbox-quota-mins').innerText = `${d.gpu_minutes_used} / ${d.gpu_minutes_max} mins GPU (${d.gpu_hours_max}h limit)`;
+                    document.getElementById('devbox-quota-percent').innerText = `${d.percent}%`;
+                    document.getElementById('devbox-quota-bar').style.width = `${d.percent}%`;
+                }
+            }
+            return true;
+        }
+
+        async function fetchSessions() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/devbox/status?_t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('devbox-table-body');
+
+                if (data.instances && data.instances.length > 0) {
+                    tbody.innerHTML = data.instances.map(inst => `
+                        <tr>
+                            <td class="py-3 font-mono font-medium">${inst.session_key}</td>
+                            <td class="py-3 font-semibold text-purple-700">${inst.config && JSON.parse(inst.config).gpu ? 'Dual Tesla T4' : 'Standard CPU'}</td>
+                            <td class="py-3">
+                                ${inst.public_url ? `
+                                    <div class="flex flex-col gap-1">
+                                        <a href="${inst.public_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white font-semibold text-xs hover:bg-purple-700 transition w-fit shadow-xs">
+                                            <i class="fa-solid fa-code text-[11px]"></i> Launch JupyterLab ↗
+                                        </a>
+                                        <span class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> JupyterLab Ready (CPU + Dual T4 Kernels)
+                                        </span>
+                                    </div>
+                                ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Runner offline</span>' : '<span class="text-neutral-400 animate-pulse">Initializing workstation...</span>'))}
+                            </td>
+                            <td class="py-3 font-mono text-neutral-500">${inst.expires_at ? inst.expires_at.slice(11, 16) : '4h limit'}</td>
+                            <td class="py-3">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    inst.status === 'active' ? 'bg-purple-100 text-purple-800' :
+                                    inst.status === 'pending' ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                                    inst.status === 'stopped' ? 'bg-neutral-100 text-neutral-600' : 'bg-red-100 text-red-700'
+                                }">${inst.status.toUpperCase()}</span>
+                            </td>
+                            <td class="py-3 text-right space-x-2">
+                                ${inst.status === 'active' ? `
+                                    <button onclick="stopDevBox('${inst.session_key}')" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition">Stop</button>
+                                ` : ''}
+                                ${inst.status === 'failed' || inst.status === 'stopped' ? `
+                                    <button onclick="relaunchDevBox('${inst.session_key}')" class="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 font-semibold hover:bg-neutral-200 transition">Re-launch</button>
+                                    <button onclick="dismissDevBox('${inst.session_key}')" class="text-neutral-400 hover:text-neutral-700 text-xs">✕</button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-neutral-400">No active DevBox sessions. Click "Start Session" above to launch.</td></tr>`;
+                }
+            } catch(e) {}
+        }
+
+        async function launchDevBox() {
+            if (!authToken) return window.location.href = 'app.html?mode=login';
+            const btn = document.getElementById('launch-devbox-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Initializing...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/devbox/launch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ runtime: selectedRuntime, force: false })
+                });
+                const data = await res.json();
+                if (data.status === 'queued') {
+                    showToast(data.msg || 'DevBox workstation launching...', 'success');
+                    fetchSessions();
+                    pollSession(data.session_key);
+                } else {
+                    showToast(data.msg || 'Failed to start DevBox', 'error');
+                }
+            } catch(e) {
+                showToast('Network error launching DevBox', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-play text-purple-400"></i> Start Session`;
+            }
+        }
+
+        function pollSession(key) {
+            let count = 0;
+            const timer = setInterval(async () => {
+                count++;
+                if (count > 40) return clearInterval(timer);
+                try {
+                    const r = await fetch(`${API_BASE}/devbox/check_session?session_id=${key}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const d = await r.json();
+                    if (d.status === 'active') {
+                        clearInterval(timer);
+                        showToast('DevBox session is live!', 'success');
+                        fetchSessions();
+                    } else if (d.status === 'failed') {
+                        clearInterval(timer);
+                        showToast('DevBox startup failed.', 'error');
+                        fetchSessions();
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        async function stopDevBox(key) {
+            if (!confirm('Stop this DevBox workstation?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/devbox/stop`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: key })
+                });
+                const d = await res.json();
+                showToast(d.msg || 'DevBox stopped', d.status === 'success' ? 'success' : 'error');
+                fetchSessions();
+                initAuth();
+            } catch(e) {}
+        }
+
+        async function relaunchDevBox(key) {
+            try {
+                const res = await fetch(`${API_BASE}/devbox/relaunch`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: key, runtime: selectedRuntime })
+                });
+                const d = await res.json();
+                showToast(d.msg || 'DevBox relaunching...', 'success');
+                fetchSessions();
+                if (d.session_key) pollSession(d.session_key);
+            } catch(e) {}
+        }
+
+        async function dismissDevBox(key) {
+            try {
+                await fetch(`${API_BASE}/devbox/instance/${key}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                fetchSessions();
+            } catch(e) {}
+        }
+
+        // logout() provided globally by auth.js
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authed = await initAuth();
+            if (authed) fetchSessions();
+        });
+    </script>
+</body>
+</html>

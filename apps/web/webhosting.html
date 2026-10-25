@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Web Hosting | AbsoraCloud</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1A1A1A",
+              border: "#E5E1DA",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Sora", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { background-color: #fdf8f8; color: #1A1A1A; font-family: 'Inter', sans-serif; }
+      .font-heading { font-family: 'Sora', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #E5E1DA; }
+    </style>
+    <script src="auth.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Global Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 font-heading font-extrabold text-base tracking-tight text-primary" title="Back to Home Website"><span class="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-xs shadow-xs"><i class="fa-solid fa-cloud"></i></span><span>AbsoraCloud</span></a>
+            <a href="console.html" class="px-3 py-1.5 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-800 transition text-xs font-bold flex items-center gap-1.5 shadow-xs" title="Return to All Services Hub">
+                <i class="fa-solid fa-arrow-left"></i> All Services
+            </a>
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold">
+                <a href="vps.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">VPS</a>
+                <a href="devbox.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">DevBox</a>
+                <a href="serverless.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Edge Functions</a>
+                <a href="webhosting.html" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">Web Hosting</a>
+                <a href="cloudstorage.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Storage</a>
+                <a href="websocket.html" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 transition">Realtime</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="hidden flex items-center gap-2.5">
+                <span id="user-plan-badge" class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">FREE</span>
+                <span id="user-name" class="text-xs font-semibold text-neutral-800">user</span>
+                <button onclick="logout()" class="text-xs text-neutral-400 hover:text-rose-600 transition ml-1" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+            <a id="login-link-btn" href="app.html?mode=login" class="hidden px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition">Sign In</a>
+        </div>
+    </header>
+
+    <!-- Main View -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
+        
+        <!-- Service Title -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">Edge Web Hosting</h1>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Deploy websites connected directly to Git repositories with automated HTTPS & edge distribution.</p>
+            </div>
+        </div>
+
+        <!-- Real Quota Metrics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 mb-1.5">
+                    <span>Hosted Sites Quota</span>
+                    <span id="web-quota-count" class="font-mono text-primary font-bold">0 / 1 Sites</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+                    <div id="web-quota-bar" class="bg-indigo-600 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-[11px] text-neutral-400 mt-2 flex justify-between">
+                    <span>Active deployed websites</span>
+                    <span id="web-quota-percent" class="font-mono font-bold text-neutral-700">0%</span>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Global SSL Certificate</div>
+                <div class="font-heading font-bold text-lg text-primary mt-1">Automated Edge SSL</div>
+                <div class="text-[11px] text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Valid HTTPS Active
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 shadow-xs">
+                <div class="text-xs font-semibold text-neutral-500">Edge Distribution</div>
+                <div class="font-heading font-bold text-lg text-primary mt-1">Multi-Region Cache</div>
+                <div class="text-[11px] text-neutral-400 mt-1">Instant static file delivery</div>
+            </div>
+        </div>
+
+        <!-- Alert Toast -->
+        <div id="toast-banner" class="hidden p-4 rounded-xl text-xs flex items-center justify-between border"></div>
+
+        <!-- Deploy Site Form Card -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <h2 class="font-heading font-bold text-base text-primary border-b border-neutral-100 pb-3">Deploy Website from Git</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-neutral-700 mb-1">Site Subdomain</label>
+                    <input id="site-name-input" type="text" pattern="[a-z0-9\-]{3,30}" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none" placeholder="my-portfolio">
+                    <span class="text-[10px] text-neutral-400">Target URL: https://absohost-[name].absoracloud.workers.dev</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-neutral-700 mb-1">Public Git Repository URL</label>
+                    <input id="git-url-input" type="url" class="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-1 focus:ring-primary focus:outline-none" placeholder="https://github.com/username/repo">
+                    <span class="text-[10px] text-neutral-400">Must contain index.html in repository root or build output</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button id="deploy-site-btn" onclick="deploySite()" class="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-neutral-800 transition flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i> Deploy Website
+                </button>
+            </div>
+        </div>
+
+        <!-- Deployed Sites Table -->
+        <div class="glass-card rounded-2xl p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-heading font-bold text-base text-primary">Active Deployed Websites</h2>
+                <button onclick="fetchSites()" class="text-xs text-neutral-500 hover:text-primary transition flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-neutral-100 text-neutral-400 font-medium">
+                            <th class="pb-3">Site Subdomain</th>
+                            <th class="pb-3">Repository Source</th>
+                            <th class="pb-3">Live Edge URL</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sites-table-body" class="divide-y divide-neutral-100">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-neutral-400">Loading deployed websites...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-6 px-6 text-center text-xs text-neutral-400">
+        AbsoraCloud Sliced Cloud Compute & Infrastructure • <a href="index.html" class="hover:underline text-neutral-600">Home</a>
+    </footer>
+
+    <script>
+        // API_BASE provided by auth.js
+        const authToken = getToken();
+
+        function showToast(msg, type = 'info') {
+            const b = document.getElementById('toast-banner');
+            b.className = `p-4 rounded-xl text-xs flex items-center justify-between border ${
+                type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                type === 'success' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-neutral-50 text-neutral-800 border-neutral-200'
+            }`;
+            b.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.classList.add('hidden')" class="font-bold ml-4">✕</button>`;
+            b.classList.remove('hidden');
+        }
+
+        async function initAuth() {
+            if (!getToken()) {
+                const loginBtn = document.getElementById('login-link-btn');
+                if (loginBtn) loginBtn.classList.remove('hidden');
+            }
+            const data = await requireLogin();
+            if (!data || !data.user) return false;
+
+            document.getElementById('login-link-btn').classList.add('hidden');
+            document.getElementById('user-profile-bar').classList.remove('hidden');
+            document.getElementById('user-name').innerText = data.user.username;
+            document.getElementById('user-plan-badge').innerText = data.user.plan || 'FREE';
+
+            // Update Real Quotas
+            if (data.quotas && data.quotas.webhost) {
+                const w = data.quotas.webhost;
+                document.getElementById('web-quota-count').innerText = `${w.used_count} / ${w.max_count} Sites`;
+                document.getElementById('web-quota-percent').innerText = `${w.percent}%`;
+                document.getElementById('web-quota-bar').style.width = `${w.percent}%`;
+            }
+            return true;
+        }
+
+        async function fetchSites() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API_BASE}/webhost/status?_t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('sites-table-body');
+
+                if (data.sites && data.sites.length > 0) {
+                    tbody.innerHTML = data.sites.map(s => {
+                        let cfg = {};
+                        try { cfg = JSON.parse(s.config || '{}'); } catch(e) {}
+                        return `
+                            <tr>
+                                <td class="py-3 font-mono font-medium">${cfg.site_name || s.session_key}</td>
+                                <td class="py-3 text-neutral-500 font-mono text-[11px] truncate max-w-xs">${cfg.repo_url || 'Static Upload'}</td>
+                                <td class="py-3">
+                                    ${s.public_url ? `
+                                        <div class="flex items-center gap-1.5">
+                                            <a href="${s.public_url}" target="_blank" class="text-indigo-600 font-semibold hover:underline inline-flex items-center gap-1">
+                                                ${s.public_url} ↗
+                                            </a>
+                                            <button onclick="navigator.clipboard.writeText('${s.public_url}'); showToast('URL copied!', 'success');" class="text-neutral-400 hover:text-neutral-700 ml-1" title="Copy URL">
+                                                <i class="fa-solid fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    ` : '<span class="text-neutral-400 animate-pulse">Building edge route...</span>'}
+                                </td>
+                                <td class="py-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        s.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-100 text-neutral-600'
+                                    }">${(s.status || 'ACTIVE').toUpperCase()}</span>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <button onclick="deleteSite('${s.session_key}')" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-neutral-400">No active websites deployed. Enter Git URL above and click "Deploy Website".</td></tr>`;
+                }
+            } catch(e) {}
+        }
+
+        async function deploySite() {
+            if (!authToken) return window.location.href = 'app.html?mode=login';
+            const siteName = document.getElementById('site-name-input').value.trim().toLowerCase();
+            const repoUrl = document.getElementById('git-url-input').value.trim();
+
+            if (!siteName) return showToast('Please enter a site subdomain name', 'error');
+            if (!repoUrl) return showToast('Please enter a Git repository URL', 'error');
+
+            const btn = document.getElementById('deploy-site-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Deploying...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/webhost/deploy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ site_name: siteName, repo_url: repoUrl })
+                });
+                const data = await res.json();
+                if (data.status === 'deploying' || data.status === 'active') {
+                    showToast(data.msg || 'Website deployment initiated!', 'success');
+                    fetchSites();
+                    initAuth();
+                    if (data.session_key) pollSite(data.session_key);
+                } else {
+                    showToast(data.msg || 'Failed to deploy site', 'error');
+                }
+            } catch(e) {
+                showToast('Network error deploying site', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i> Deploy Website`;
+            }
+        }
+
+        function pollSite(key) {
+            let count = 0;
+            const timer = setInterval(async () => {
+                count++;
+                if (count > 30) return clearInterval(timer);
+                try {
+                    const r = await fetch(`${API_BASE}/webhost/check_session?session_key=${key}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const d = await r.json();
+                    if (d.status === 'active') {
+                        clearInterval(timer);
+                        showToast('Website is live on the edge!', 'success');
+                        fetchSites();
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        async function deleteSite(sessionKey) {
+            if (!confirm('Remove this deployed website?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/webhost/instance/${sessionKey}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const d = await res.json();
+                showToast(d.msg || 'Site removed', d.status === 'success' ? 'success' : 'error');
+                fetchSites();
+                initAuth();
+            } catch(e) {}
+        }
+
+        // logout() provided globally by auth.js
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authed = await initAuth();
+            if (authed) fetchSites();
+        });
+    </script>
+</body>
+</html>

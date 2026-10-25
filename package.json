@@ -1,18 +1,21 @@
 {
-  "name": "absoracloud-v2",
-  "version": "2.0.0",
+  "name": "absoracloud",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "AbsoraCloud — Multi-service cloud platform (MC Hosting, VPS, DevBox, Web Hosting)",
-  "author": "AADI-playz23",
+  "description": "AbsoraCloud V3 — Cloud Compute, GPU Workstations, Edge Infrastructure & Realtime WebSocket Gateway",
+  "author": "AADI-DEV1012",
   "license": "MIT",
+  "main": "server.js",
   "scripts": {
-    "start": "node apps/api/src/index.js",
+    "start": "node server.js",
+    "test": "node tests/test_core.js",
     "build": "echo 'Build OK'"
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "render_server"
   ],
   "dependencies": {
     "bcryptjs": "^2.4.3",

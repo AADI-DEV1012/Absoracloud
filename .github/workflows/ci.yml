@@ -1,0 +1,112 @@
+name: CI / CD Pipeline & Automated Quality Gate
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-lint:
+    name: 🧪 Automated Test & Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 🐍 Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Node.js Dependencies
+        run: |
+          npm ci || npm install
+
+      - name: 🔍 Verify JavaScript Syntax Across Monorepo
+        run: |
+          echo "Checking core entrypoints..."
+          node --check server.js
+          node --check apps/api/src/index.js
+          
+          echo "Checking shared packages..."
+          for file in packages/shared/*.js; do
+            node --check "$file"
+          done
+          
+          echo "Checking API route handlers..."
+          for file in apps/api/src/routes/*.js; do
+            node --check "$file"
+          done
+
+          echo "Checking API services..."
+          for file in apps/api/src/services/*.js; do
+            node --check "$file"
+          done
+
+      - name: 🛡️ Verify Python Sandbox Syntax
+        run: |
+          echo "Compiling Python sandbox engine..."
+          python -m py_compile sanbox.py
+
+      - name: 🗄️ Validate D1 SQLite Database Schema
+        run: |
+          sudo apt-get install -y sqlite3
+          sqlite3 :memory: < schema.sql
+          echo "✅ SQLite schema validated successfully"
+
+      - name: 🚀 Run Automated CI Test Suite
+        env:
+          JWT_SECRET: ci_test_jwt_secret_token_1234567890_abcdef
+          WORKER_SECRET: ci_test_worker_secret_token_abcdef_123456
+        run: |
+          npm test
+
+  build-validation:
+    name: 🏗️ Frontend & Container Build Verification
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🌐 Verify Static Web Pages
+        run: |
+          required_pages=(
+            "index.html"
+            "admin.html"
+            "devbox.html"
+            "vps.html"
+            "serverless.html"
+            "webhosting.html"
+            "cloudstorage.html"
+            "plans.html"
+            "websocket.html"
+          )
+          for page in "${required_pages[@]}"; do
+            if [ ! -f "apps/web/$page" ] && [ ! -f "$page" ]; then
+              echo "❌ Missing required page: $page"
+              exit 1
+            fi
+            echo "✅ Validated web page: $page"
+          done
+
+      - name: 🐳 Validate Dockerfile
+        run: |
+          if [ -f "apps/api/Dockerfile" ]; then
+            docker build -t absoracloud-api-test apps/api/
+            echo "✅ apps/api/Dockerfile built successfully"
+          fi

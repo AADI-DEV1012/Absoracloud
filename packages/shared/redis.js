@@ -1,13 +1,18 @@
 // ── Upstash Redis HTTP Client ──
 // Used for heartbeats, session locks, GPU queue, and quota tracking.
 
-export async function redisCmd(...args) {
-  const url   = process.env.UPSTASH_REDIS_URL   || 'https://distinct-bedbug-130708.upstash.io';
-  const token = process.env.UPSTASH_REDIS_TOKEN || 'gQAAAAAAAf6UAAIgcDIxNDk5ZmViMzgxZjE0OTI3OGMwNDI5NTdlMjY1N2JkMA';
+function getRedisConfig() {
+  const url   = process.env.UPSTASH_REDIS_URL || process.env.UPSTASH_REDIS_A_URL;
+  const token = process.env.UPSTASH_REDIS_TOKEN || process.env.UPSTASH_REDIS_A_TOKEN;
 
   if (!url || !token) {
     throw new Error('Missing Upstash Redis credentials (UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN)');
   }
+  return { url, token };
+}
+
+export async function redisCmd(...args) {
+  const { url, token } = getRedisConfig();
 
   const res = await fetch(url, {
     method: 'POST',
@@ -36,8 +41,7 @@ export function redisParseHash(flatArr) {
 }
 
 export async function redisPipeline(commands) {
-  const url   = process.env.UPSTASH_REDIS_URL   || 'https://distinct-bedbug-130708.upstash.io';
-  const token = process.env.UPSTASH_REDIS_TOKEN || 'gQAAAAAAAf6UAAIgcDIxNDk5ZmViMzgxZjE0OTI3OGMwNDI5NTdlMjY1N2JkMA';
+  const { url, token } = getRedisConfig();
 
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',
