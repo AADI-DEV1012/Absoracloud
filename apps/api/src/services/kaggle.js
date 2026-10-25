@@ -127,7 +127,7 @@ function buildDevBoxScript(runnerId, initialSessionKey, userId, plan, config = {
     return `
 # AbsoraCloud DevBox Multi-Tenant Runner
 # Runner: ${runnerId} | Capacity: ${capacity} | Type: ${runnerType}
-import subprocess, os, time, requests, re, sys
+import subprocess, os, time, requests, re, sys, json
 
 RUNNER_ID     = "${runnerId}"
 RUNNER_TYPE   = "${runnerType}"
@@ -140,6 +140,48 @@ BASE_PORT     = 7860
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
 subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
 subprocess.run(["bash", "-c", "which jupyter >/dev/null 2>&1 || pip install -q jupyterlab"], check=False)
+subprocess.run(["pip", "install", "-q", "ipykernel"], check=False)
+
+# ── Register Custom Jupyter Kernels (Standard CPU & 2× Tesla T4 GPU) ──
+KERNELS = {
+    "python3-cpu": {
+        "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+        "display_name": "Python 3 (Standard CPU)",
+        "language": "python",
+        "metadata": {"debugger": True},
+        "env": {
+            "CUDA_VISIBLE_DEVICES": ""
+        }
+    },
+    "python3-gpu-t4x2": {
+        "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+        "display_name": "Python 3 (2× Tesla T4 GPU)",
+        "language": "python",
+        "metadata": {"debugger": True},
+        "env": {
+            "CUDA_VISIBLE_DEVICES": "0,1",
+            "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+            "CUDA_HOME": "/usr/local/cuda",
+            "LD_LIBRARY_PATH": "/usr/local/cuda/lib64:/usr/local/cuda/lib:/usr/lib/x86_64-linux-gnu",
+            "NVIDIA_VISIBLE_DEVICES": "all"
+        }
+    }
+}
+
+for base in ["/usr/local/share/jupyter/kernels", "/opt/conda/share/jupyter/kernels", "/usr/share/jupyter/kernels"]:
+    try:
+        if not os.path.exists(os.path.dirname(base)):
+            continue
+        for k_id, k_spec in KERNELS.items():
+            k_dir = os.path.join(base, k_id)
+            os.makedirs(k_dir, exist_ok=True)
+            k_file = os.path.join(k_dir, "kernel.json")
+            with open(k_file, "w") as f:
+                json.dump(k_spec, f, indent=2)
+            os.chmod(k_file, 0o644)
+            os.chmod(k_dir, 0o755)
+    except Exception as e:
+        print(f"Warning registering kernels in {base}:", e)
 
 # ── Host Hardening & Sandbox Shielding ──
 ADMIN_DIR = "/tmp/.absora_admin"
@@ -179,7 +221,6 @@ def start_session(session_key, term_pass):
     subprocess.run(["useradd", "-m", "-d", box_home, "-s", "/bin/bash", "-g", "sandbox_users", box_user], check=False)
     subprocess.run(["usermod", "-aG", "video", box_user], check=False)
     os.chmod(box_home, 0o700)
-    subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Configure user environment (.bashrc with GPU/CUDA paths)
     try:
@@ -189,6 +230,19 @@ def start_session(session_key, term_pass):
             print("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64", file=f)
     except Exception:
         pass
+
+    # Ensure custom kernels are also installed in user's home kernelspec directory
+    user_kernels_dir = f"{box_home}/.local/share/jupyter/kernels"
+    for k_id, k_spec in KERNELS.items():
+        try:
+            target_dir = f"{user_kernels_dir}/{k_id}"
+            os.makedirs(target_dir, exist_ok=True)
+            with open(f"{target_dir}/kernel.json", "w") as f:
+                json.dump(k_spec, f, indent=2)
+        except Exception:
+            pass
+
+    subprocess.run(["chown", "-R", f"{box_user}:sandbox_users", box_home], check=False)
 
     # Launch JupyterLab as sandboxed user using verified runuser -l syntax
     jupyter_log = f"{box_home}/.jupyter_server.log"

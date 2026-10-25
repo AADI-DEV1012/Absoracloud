@@ -70,7 +70,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-primary">DevBox Accelerated Workstations</h1>
-                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Interactive accelerated environments equipped with Dual GPU acceleration & web terminal access.</p>
+                <p class="text-xs sm:text-sm text-neutral-500 mt-1">Interactive accelerated environments equipped with JupyterLab, Dual GPU acceleration, and dedicated CPU / 2× Tesla T4 kernels.</p>
             </div>
             
             <div class="flex items-center gap-2 self-start sm:self-auto">
@@ -253,7 +253,7 @@
                                             <i class="fa-solid fa-code text-[11px]"></i> Launch JupyterLab ↗
                                         </a>
                                         <span class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> GPU JupyterLab Ready
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> JupyterLab Ready (CPU + Dual T4 Kernels)
                                         </span>
                                     </div>
                                 ` : (inst.status === 'failed' ? '<span class="text-rose-500 font-medium">Failed to connect</span>' : (inst.status === 'disconnected' ? '<span class="text-orange-500 font-medium">Runner offline</span>' : '<span class="text-neutral-400 animate-pulse">Initializing workstation...</span>'))}
