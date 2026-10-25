@@ -138,8 +138,8 @@ TIMEOUT_SEC   = ${timeoutS}
 BASE_PORT     = 7860
 
 subprocess.run(["pip", "install", "-q", "requests"], check=False)
-subprocess.run(["bash", "-c", "curl -sLo /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && chmod +x /usr/local/bin/ttyd"], check=False)
 subprocess.run(["bash", "-c", "wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"], check=False)
+subprocess.run(["bash", "-c", "which jupyter >/dev/null 2>&1 || pip install -q jupyterlab"], check=False)
 
 # ── Host Hardening & Sandbox Shielding ──
 ADMIN_DIR = "/tmp/.absora_admin"
@@ -184,22 +184,33 @@ def start_session(session_key, term_pass):
     # Configure user environment (.bashrc with GPU/CUDA paths)
     try:
         with open(f"{box_home}/.bashrc", "a") as f:
-            print("export PATH=$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin", file=f)
+            print("export PATH=/opt/conda/bin:$PATH:/usr/local/bin:/usr/local/cuda/bin:~/.local/bin", file=f)
             print("export CUDA_HOME=/usr/local/cuda", file=f)
             print("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64", file=f)
     except Exception:
         pass
 
-    # Protected session IO log in user's isolated home directory
-    io_log_file = f"{box_home}/.session_io.log"
-    with open(io_log_file, "a") as f:
-        pass
-    subprocess.run(["chown", f"{box_user}:sandbox_users", io_log_file], check=False)
-    os.chmod(io_log_file, 0o600)
+    # Launch JupyterLab as sandboxed user
+    jupyter_bin = "/opt/conda/bin/jupyter"
+    if not os.path.exists(jupyter_bin):
+        which_j = subprocess.run(["which", "jupyter"], capture_output=True, text=True).stdout.strip()
+        jupyter_bin = which_j if which_j else "jupyter"
 
-    # Launch ttyd dropping root privileges via runuser (User cannot kill cloudflared or root processes)
-    ttyd_cmd = f"cd {box_home} && /usr/local/bin/ttyd -i 127.0.0.1 -W -p {port} runuser -u {box_user} -- script -q -f -c 'bash -l' {io_log_file}"
-    ttyd_proc = subprocess.Popen(["bash", "-c", ttyd_cmd])
+    jupyter_log = f"{ADMIN_DIR}/jupyter_{port}.log"
+    jupyter_cmd = (
+        f"cd {box_home} && runuser -u {box_user} -- {jupyter_bin} lab "
+        f"--ip=127.0.0.1 --port={port} --no-browser "
+        f"--ServerApp.token='' --ServerApp.password='' "
+        f"--ServerApp.disable_check_xsrf=True "
+        f"--ServerApp.allow_origin='*' "
+        f"--ServerApp.allow_remote_access=True "
+        f"--ServerApp.root_dir={box_home} "
+        f"--NotebookApp.token='' --NotebookApp.password='' "
+        f"--NotebookApp.disable_check_xsrf=True "
+        f"--NotebookApp.allow_origin='*' "
+        f"--notebook-dir={box_home} > {jupyter_log} 2>&1"
+    )
+    devbox_proc = subprocess.Popen(["bash", "-c", jupyter_cmd])
 
     log_file = f"{ADMIN_DIR}/cf_devbox_{port}.log"
     if os.path.exists(log_file):
@@ -209,16 +220,14 @@ def start_session(session_key, term_pass):
 
     sessions[session_key] = {
         "port": port,
-        "ttyd_proc": ttyd_proc,
+        "devbox_proc": devbox_proc,
         "cf_proc": cf_proc,
         "url": None,
         "log_file": log_file,
-        "io_log_file": io_log_file,
-        "last_io_offset": 0,
         "poll_count": 0,
         "box_user": box_user
     }
-    print(f"🚀 Started DevBox session {session_key} (sandboxed user {box_user}) on port {port}")
+    print(f"🚀 Started DevBox JupyterLab session {session_key} (sandboxed user {box_user}) on port {port}")
 
 def stop_session(session_key):
     if session_key in sessions:
@@ -227,24 +236,8 @@ def stop_session(session_key):
         box_user = info.get("box_user")
         if box_user:
             subprocess.run(["pkill", "-9", "-u", box_user], check=False)
-        # Final flush of session I/O logs
-        io_file = info.get("io_log_file")
-        if io_file and os.path.exists(io_file):
-            try:
-                curr_size = os.path.getsize(io_file)
-                last_offset = info.get("last_io_offset", 0)
-                if curr_size > last_offset:
-                    with open(io_file, "r", errors="ignore") as f:
-                        f.seek(last_offset)
-                        chunk = f.read()
-                    if chunk:
-                        requests.post(f"{API_URL}/api/worker/session_logs",
-                            json={"session_key": session_key, "runner_id": RUNNER_ID, "logs": chunk},
-                            headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
-            except Exception:
-                pass
         try:
-            info["ttyd_proc"].terminate()
+            info["devbox_proc"].terminate()
             info["cf_proc"].terminate()
         except Exception:
             pass
@@ -345,7 +338,7 @@ while True:
 for sk in list(sessions.keys()):
     stop_session(sk)
 subprocess.run(["pkill", "-9", "-f", "cloudflared"], check=False)
-subprocess.run(["pkill", "-9", "-f", "ttyd"], check=False)
+subprocess.run(["pkill", "-9", "-f", "jupyter"], check=False)
 print("🏁 DevBox runner shut down complete.")
 sys.exit(0)
 `.trim();
@@ -445,6 +438,7 @@ def start_session(session_key, term_pass):
         "log_file": log_file,
         "io_log_file": io_log_file,
         "last_io_offset": 0,
+        "last_activity": time.time(),
         "poll_count": 0,
         "box_user": box_user
     }
@@ -499,6 +493,7 @@ def check_session_urls():
                     print(f"VPS tunnel parse error for {sk}:", e)
 
 def sync_session_io_logs():
+    now = time.time()
     for sk, info in list(sessions.items()):
         io_file = info.get("io_log_file")
         if io_file and os.path.exists(io_file):
@@ -506,6 +501,7 @@ def sync_session_io_logs():
                 curr_size = os.path.getsize(io_file)
                 last_offset = info.get("last_io_offset", 0)
                 if curr_size > last_offset:
+                    info["last_activity"] = now
                     with open(io_file, "r", errors="ignore") as f:
                         f.seek(last_offset)
                         chunk = f.read(65536)
@@ -516,6 +512,19 @@ def sync_session_io_logs():
                             headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
             except Exception as e:
                 pass
+
+        # ── 15-Minute Render-Style Inactivity Timeout ──
+        # If user has not typed any command or performed I/O for 900 seconds (15 min):
+        last_act = info.get("last_activity", now)
+        if now - last_act > 900:
+            print(f"⏱️ 15-minute idle inactivity timeout reached for VPS session {sk}. Dropping connection to save user quota.")
+            try:
+                requests.post(f"{API_URL}/api/worker/session_update",
+                    json={"session_key": sk, "status": "expired", "reason": "idle_timeout_15m"},
+                    headers={"X-Worker-Secret": WORKER_SECRET}, timeout=5)
+            except Exception:
+                pass
+            stop_session(sk)
 
 if "${initialSessionKey}":
     start_session("${initialSessionKey}", "${initPass}")
