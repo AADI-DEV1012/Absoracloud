@@ -190,27 +190,24 @@ def start_session(session_key, term_pass):
     except Exception:
         pass
 
-    # Launch JupyterLab as sandboxed user
-    jupyter_bin = "/opt/conda/bin/jupyter"
-    if not os.path.exists(jupyter_bin):
-        which_j = subprocess.run(["which", "jupyter"], capture_output=True, text=True).stdout.strip()
-        jupyter_bin = which_j if which_j else "jupyter"
-
-    jupyter_log = f"{ADMIN_DIR}/jupyter_{port}.log"
+    # Launch JupyterLab as sandboxed user using verified runuser -l syntax
+    jupyter_log = f"{box_home}/.jupyter_server.log"
     jupyter_cmd = (
-        f"cd {box_home} && runuser -u {box_user} -- {jupyter_bin} lab "
-        f"--ip=127.0.0.1 --port={port} --no-browser "
-        f"--ServerApp.token='' --ServerApp.password='' "
-        f"--ServerApp.disable_check_xsrf=True "
-        f"--ServerApp.allow_origin='*' "
-        f"--ServerApp.allow_remote_access=True "
-        f"--ServerApp.root_dir={box_home} "
-        f"--NotebookApp.token='' --NotebookApp.password='' "
-        f"--NotebookApp.disable_check_xsrf=True "
-        f"--NotebookApp.allow_origin='*' "
-        f"--notebook-dir={box_home} > {jupyter_log} 2>&1"
+        f"runuser -l {box_user} -c '"
+        f"jupyter lab --ip=0.0.0.0 --port={port} --no-browser "
+        f"--IdentityProvider.token=\"\" --ServerApp.token=\"\" --ServerApp.password=\"\" "
+        f"--ServerApp.disable_check_xsrf=True --ServerApp.allow_origin=\"*\" "
+        f"--ServerApp.allow_remote_access=True --ServerApp.root_dir={box_home} > {jupyter_log} 2>&1'"
     )
     devbox_proc = subprocess.Popen(["bash", "-c", jupyter_cmd])
+
+    # Wait for JupyterLab to start listening before opening Cloudflare tunnel
+    for _ in range(25):
+        time.sleep(1)
+        res = subprocess.run(["bash", "-c", f"curl -s -o /dev/null -w '%{{http_code}}' http://127.0.0.1:{port}/lab || true"], capture_output=True, text=True)
+        if res.stdout.strip() in ["200", "302"]:
+            print(f"✅ JupyterLab ready and listening on port {port}")
+            break
 
     log_file = f"{ADMIN_DIR}/cf_devbox_{port}.log"
     if os.path.exists(log_file):
